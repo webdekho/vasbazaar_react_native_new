@@ -137,10 +137,12 @@ export default function QrPrint({ navigation }) {
           style={styles.qrCard} 
           id="stand-container"
         >
-          <Text style={styles.cardSubtitle}>Scan to earn cashback on every transaction</Text>
+          
 
         <View style={styles.logoContainer}>
         <Image source={vasbazaarLogo} style={styles.mainLogo} resizeMode="contain" />
+
+        <Text style={styles.cardSubtitle}>Scan to earn cashback on every transaction</Text>
       </View>
           <View style={styles.qrContainer}>
             {qrString ? (

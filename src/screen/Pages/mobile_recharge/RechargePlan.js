@@ -7,12 +7,14 @@ import React, { useContext, useEffect, useState } from 'react';
 import {
   FlatList,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
+  Dimensions
 } from 'react-native';
 import { CustomSearchInput } from '../../../components/CustomInput';
 import { ActivityIndicator, Avatar, Card } from 'react-native-paper';
@@ -349,10 +351,460 @@ const allPlans = categories.slice(1).flatMap((category, catIndex) =>
     });
   };
 
-  return (
-    <>
+  // Get screen dimensions
+  const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+  // Render content for web platform
+  const renderWebContent = () => {
+    if (Platform.OS !== 'web') return null;
+    
+    return (
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        height: '100vh',
+        backgroundColor: '#F5F5F5'
+      }}>
+        {/* Fixed Header */}
+        <div style={{ flexShrink: 0 }}>
+          <CommonHeader2 heading="Mobile Recharge" />
+        </div>
+        
+        {/* Fixed Company Logo/Card Section */}
+        <div style={{ flexShrink: 0, padding: '16px', paddingBottom: '0' }}>
+          <div style={{
+            backgroundColor: '#FFFFFF',
+            borderRadius: '12px',
+            padding: '16px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+            border: '1px solid rgba(0,0,0,0.05)',
+            display: 'flex',
+            alignItems: 'center'
+          }}>
+            <img
+              src={companyLogo || '/assets/icons/default.png'}
+              alt="Operator Logo"
+              style={{
+                width: '45px',
+                height: '45px',
+                borderRadius: '50%',
+                marginRight: '12px',
+                border: '1px solid #e0e0e0'
+              }}
+            />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '16px', fontWeight: '600', color: '#1a1a1a', marginBottom: '4px' }}>
+                {`${name} • ${mobile}`}
+              </div>
+              <div style={{ fontSize: '14px', color: '#666', fontWeight: '500' }}>
+                {`${operator?.toUpperCase() || 'N/A'} • ${circle?.toUpperCase() || 'N/A'}`}
+              </div>
+            </div>
+            <button
+              onClick={() => setOperatorModalVisible(true)}
+              style={{
+                color: '#2196F3',
+                fontWeight: '600',
+                fontSize: '14px',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                transition: 'background-color 0.2s'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.backgroundColor = '#F0F8FF';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              Change
+            </button>
+          </div>
+        </div>
+
+        {/* Fixed Error Display */}
+        {operatorNotFound && (
+          <div style={{ flexShrink: 0, padding: '0 16px 16px 16px' }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              backgroundColor: '#FEDEDE',
+              border: '1px solid #E53E3E',
+              borderRadius: '8px',
+              padding: '12px 16px'
+            }}>
+              <span style={{ fontSize: '20px', marginRight: '8px' }}>⚠️</span>
+              <span style={{ fontSize: '14px', color: '#C53030', fontWeight: '600' }}>
+                ❌ Operator not available. We cannot proceed with the recharge.
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Fixed Search Input */}
+        <div style={{ flexShrink: 0, padding: '16px' }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            padding: '12px 16px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+            opacity: operatorNotFound ? 0.6 : 1
+          }}>
+            <span style={{ marginRight: '8px', color: operatorNotFound ? '#ccc' : '#666' }}>🔍</span>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={operatorNotFound ? "Operator not available - search disabled" : "Search plan or enter amount to recharge"}
+              disabled={operatorNotFound}
+              style={{
+                flex: 1,
+                border: 'none',
+                outline: 'none',
+                fontSize: '14px',
+                color: operatorNotFound ? '#ccc' : '#000'
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Fixed Category Tabs */}
+        <div style={{ flexShrink: 0, padding: '0 16px 16px 16px' }}>
+          <div style={{ 
+            overflowX: 'auto',
+            display: 'flex',
+            gap: '8px',
+            paddingBottom: '8px'
+          }}>
+            {categories.map(category => (
+              <button
+                key={category}
+                onClick={() => !operatorNotFound && setActiveCategory(category)}
+                disabled={operatorNotFound}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '16px',
+                  border: 'none',
+                  backgroundColor: activeCategory === category ? '#000' : 'transparent',
+                  color: activeCategory === category ? 'white' : '#666',
+                  fontWeight: '500',
+                  cursor: operatorNotFound ? 'not-allowed' : 'pointer',
+                  opacity: operatorNotFound ? 0.5 : 1,
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {category}
+              </button>
+            ))}
+          </div>
+        </div>
+        
+        {/* Scrollable Plans Content */}
+        <div style={{ 
+          flex: 1,
+          overflow: 'auto',
+          WebkitOverflowScrolling: 'touch',
+          height: 0, // Force flex item to shrink
+          padding: '0 16px'
+        }}>
+          <div>
+              {/* Refresh indicator */}
+              {isRefreshing && !isInitialLoading && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#F8F4FF',
+                  padding: '8px 12px',
+                  borderRadius: '20px',
+                  marginBottom: '10px',
+                  alignSelf: 'center'
+                }}>
+                  <div style={{ marginRight: '8px' }}>⟳</div>
+                  <span style={{ fontSize: '12px', color: '#8400E5', fontWeight: '500' }}>
+                    Updating plans...
+                  </span>
+                </div>
+              )}
+
+              {operatorNotFound ? (
+                <div style={{
+                  textAlign: 'center',
+                  padding: '64px 32px',
+                  color: '#666'
+                }}>
+                  <div style={{ fontSize: '64px', marginBottom: '16px' }}>📵</div>
+                  <div style={{ fontSize: '18px', fontWeight: '600', color: '#333', marginBottom: '8px' }}>
+                    Operator Not Available
+                  </div>
+                  <div style={{ fontSize: '14px', lineHeight: '20px' }}>
+                    The selected operator is not available in our system. Please select a different operator to continue with recharge.
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Custom amount option */}
+                  {showCustomAmountOption && (
+                    <div
+                      onClick={handleCustomAmountRecharge}
+                      style={{
+                        backgroundColor: '#F8F4FF',
+                        border: '2px dashed #8400E5',
+                        borderRadius: '8px',
+                        padding: '16px',
+                        marginBottom: '12px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px' }}>
+                        <span style={{ marginRight: '8px', color: '#8400E5' }}>➕</span>
+                        <span style={{ fontSize: '16px', fontWeight: '600', color: '#8400E5', flex: 1 }}>
+                          {sortedPlans.length === 0 
+                            ? `No plans found for ₹${searchQuery}` 
+                            : `₹${searchQuery} plan not available`}
+                        </span>
+                      </div>
+                      <div style={{ marginBottom: '12px' }}>
+                        <div style={{ fontSize: '14px', color: '#666', marginBottom: '8px' }}>
+                          {sortedPlans.length === 0 
+                            ? 'Continue with custom amount' 
+                            : 'See related plans below or continue with custom amount'}
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#8400E5' }}>
+                            ₹{searchQuery}
+                          </span>
+                          <span style={{ fontSize: '12px', color: '#888', fontStyle: 'italic' }}>
+                            Benefits as per operator
+                          </span>
+                        </div>
+                      </div>
+                      <div style={{ 
+                        borderTop: '1px solid #E0D4F7', 
+                        paddingTop: '12px', 
+                        textAlign: 'center' 
+                      }}>
+                        <span style={{ fontSize: '14px', fontWeight: '600', color: '#8400E5' }}>
+                          Tap to proceed →
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Related plans header */}
+                  {showCustomAmountOption && sortedPlans.length > 0 && (
+                    <div style={{ margin: '16px 0', padding: '0 4px' }}>
+                      <div style={{ fontSize: '16px', fontWeight: '600', color: '#333', marginBottom: '4px' }}>
+                        Related Plans for ₹{searchQuery}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#666' }}>
+                        Plans in similar price range
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Loading state */}
+                  {isInitialLoading && Object.keys(jsonData || {}).length === 0 ? (
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '100px 0',
+                      color: '#666'
+                    }}>
+                      <div style={{ marginBottom: '10px' }}>⟳</div>
+                      <div style={{ fontSize: '14px' }}>Loading plans...</div>
+                    </div>
+                  ) : (
+                    // Plans list
+                    sortedPlans.map(plan => (
+                      <div
+                        key={plan.id}
+                        onClick={() => navigation.navigate('Recharge', {
+                          serviceId: serviceId,
+                          operator_id: operatorId,
+                          plan: plan,
+                          circleCode: operatorCircle.CircleCode,
+                          companyLogo: companyLogo,
+                          name, mobile, operator, circle
+                        })}
+                        style={{
+                          backgroundColor: '#FFFFFF',
+                          borderRadius: '12px',
+                          padding: '16px',
+                          marginBottom: '8px',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          border: '1px solid rgba(0,0,0,0.05)'
+                        }}
+                        onMouseOver={(e) => {
+                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+                          e.currentTarget.style.transform = 'translateY(-1px)';
+                        }}
+                        onMouseOut={(e) => {
+                          e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                        }}
+                      >
+                        {/* Header Section */}
+                        <div style={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'flex-start',
+                          marginBottom: '12px'
+                        }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ 
+                              fontSize: '20px', 
+                              fontWeight: '700', 
+                              color: '#1a1a1a',
+                              marginBottom: '4px'
+                            }}>
+                              {plan.price}
+                            </div>
+                            {plan.name && (
+                              <div style={{ 
+                                fontSize: '14px', 
+                                color: '#666',
+                                fontWeight: '500'
+                              }}>
+                                {plan.name}
+                              </div>
+                            )}
+                          </div>
+                          <div style={{
+                            backgroundColor: '#E8F5E8',
+                            padding: '4px 8px',
+                            borderRadius: '12px',
+                            fontSize: '11px',
+                            fontWeight: '600',
+                            color: '#4CAF50'
+                          }}>
+                            RECHARGE
+                          </div>
+                        </div>
+
+                        {/* Details Section */}
+                        <div style={{ 
+                          display: 'grid',
+                          gridTemplateColumns: '1fr 1fr',
+                          gap: '12px',
+                          marginBottom: '12px',
+                          padding: '12px',
+                          backgroundColor: '#F8F9FA',
+                          borderRadius: '8px'
+                        }}>
+                          <div>
+                            <div style={{ 
+                              fontSize: '11px', 
+                              color: '#666',
+                              fontWeight: '500',
+                              marginBottom: '2px'
+                            }}>
+                              VALIDITY
+                            </div>
+                            <div style={{ 
+                              fontSize: '13px', 
+                              color: '#1a1a1a',
+                              fontWeight: '600'
+                            }}>
+                              {plan.validity}
+                            </div>
+                          </div>
+                          <div>
+                            <div style={{ 
+                              fontSize: '11px', 
+                              color: '#666',
+                              fontWeight: '500',
+                              marginBottom: '2px'
+                            }}>
+                              DATA/BENEFITS
+                            </div>
+                            <div style={{ 
+                              fontSize: '13px', 
+                              color: '#1a1a1a',
+                              fontWeight: '600'
+                            }}>
+                              {plan.data}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Description Section */}
+                        {plan.description && (
+                          <div style={{
+                            borderTop: '1px solid #E0E0E0',
+                            paddingTop: '12px',
+                            marginTop: '8px'
+                          }}>
+                            <div style={{ 
+                              fontSize: '12px', 
+                              color: '#666', 
+                              lineHeight: '16px',
+                              fontWeight: '400'
+                            }}>
+                              {plan.description}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Action Indicator */}
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'flex-end',
+                          alignItems: 'center',
+                          marginTop: '8px'
+                        }}>
+                          <div style={{
+                            fontSize: '12px',
+                            color: '#2196F3',
+                            fontWeight: '600'
+                          }}>
+                            →
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </>
+              )}
+          </div>
+        </div>
+
+        {/* Fixed Disclaimer at Bottom */}
+        <div style={{ flexShrink: 0, padding: '16px' }}>
+          <div style={{
+            padding: '16px',
+            backgroundColor: '#FFF9E6',
+            borderRadius: '8px',
+            textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '12px', color: '#666' }}>
+              Disclaimer: Check the plan benefits before you recharge.
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Render content for mobile platforms
+  const renderMobileContent = () => {
+    if (Platform.OS === 'web') return null;
+
+    return (
       <View style={styles.container}>
+        {/* Fixed Header */}
         <CommonHeader2 heading="Mobile Recharge" />
+        
+        {/* Fixed Company Logo/Card */}
         <Card style={styles.viCard} onPress={() => setOperatorModalVisible(true)}>
           <Card.Title
             title={`${name} • ${mobile}`}
@@ -374,7 +826,7 @@ const allPlans = categories.slice(1).flatMap((category, catIndex) =>
           />
         </Card>
 
-        {/* Operator Not Available Error */}
+        {/* Fixed Error Display */}
         {operatorNotFound && (
           <View style={styles.errorContainer}>
             <MaterialIcons name="error" size={20} color="#E53E3E" />
@@ -384,6 +836,7 @@ const allPlans = categories.slice(1).flatMap((category, catIndex) =>
           </View>
         )}
 
+        {/* Fixed Search Input */}
         <CustomSearchInput
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -395,7 +848,8 @@ const allPlans = categories.slice(1).flatMap((category, catIndex) =>
           inputStyle={[styles.searchInput, operatorNotFound && styles.disabledInput]}
         />
 
-        <View style={{ height: 40, marginHorizontal: 16, marginBottom: 16 }}>
+        {/* Fixed Category Tabs */}
+        <View style={styles.fixedCategoryContainer}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryContent}>
             {categories.map(category => (
               <TouchableOpacity
@@ -420,7 +874,13 @@ const allPlans = categories.slice(1).flatMap((category, catIndex) =>
           </ScrollView>
         </View>
 
-        <ScrollView style={styles.plansContainer}>
+        {/* Scrollable Plans Content */}
+        <ScrollView 
+          style={styles.plansContainer}
+          showsVerticalScrollIndicator={false}
+          nestedScrollEnabled={true}
+          contentContainerStyle={styles.plansContent}
+        >
           {/* Show refresh indicator when data is being refreshed in background */}
           {isRefreshing && !isInitialLoading && (
             <View style={styles.refreshIndicator}>
@@ -483,33 +943,53 @@ const allPlans = categories.slice(1).flatMap((category, catIndex) =>
             </View>
           ) : (
             sortedPlans.map(plan => (
-              <TouchableOpacity key={plan.id} style={styles.planCard} onPress={() => navigation.navigate('Recharge', {
-                serviceId: serviceId,
-                operator_id: operatorId,
-                plan: plan,
-                circleCode: operatorCircle.CircleCode,
-                companyLogo: companyLogo,
-                name,mobile,operator,circle
-              })}>
-
-                <View style={styles.planLeft}>
-                  <Text style={styles.planPrice}>{plan.price}</Text>
-                  {plan.name ? <Text style={styles.planName}>{plan.name}</Text> : null}
-                </View>
-                <View style={styles.planMiddle}>
-                  <Text style={styles.planValidity}>Validity <Text style={styles.planValue}>{plan.validity}</Text></Text>
-                  <Text style={styles.planData}>Data <Text style={styles.planValue}>{plan.data}</Text></Text>
-                </View>
-                <View style={styles.planRight}>
-                  <TouchableOpacity style={styles.detailsButton}>
-                    <Text style={styles.detailsButtonText}><AntDesign name="right" size={12} color="#8400E5" /></Text>
-                  </TouchableOpacity>
-                </View>
-                {plan.description ? (
-                  <View style={styles.planDescription}>
-                    <Text style={styles.planDescriptionText}>{plan.description}</Text>
+              <TouchableOpacity 
+                key={plan.id} 
+                style={styles.rewardsPlanCard} 
+                onPress={() => navigation.navigate('Recharge', {
+                  serviceId: serviceId,
+                  operator_id: operatorId,
+                  plan: plan,
+                  circleCode: operatorCircle.CircleCode,
+                  companyLogo: companyLogo,
+                  name,mobile,operator,circle
+                })}
+                activeOpacity={0.7}
+              >
+                {/* Header Section */}
+                <View style={styles.planHeader}>
+                  <View style={styles.planLeftSection}>
+                    <Text style={styles.rewardsPlanPrice}>{plan.price}</Text>
+                    {plan.name && <Text style={styles.rewardsPlanName}>{plan.name}</Text>}
                   </View>
-                ) : null}
+                  <View style={styles.planStatusBadge}>
+                    <Text style={styles.planStatusText}>RECHARGE</Text>
+                  </View>
+                </View>
+
+                {/* Details Section */}
+                <View style={styles.planDetailsSection}>
+                  <View style={styles.planDetailItem}>
+                    <Text style={styles.planDetailLabel}>VALIDITY</Text>
+                    <Text style={styles.planDetailValue}>{plan.validity}</Text>
+                  </View>
+                  <View style={styles.planDetailItem}>
+                    <Text style={styles.planDetailLabel}>DATA/BENEFITS</Text>
+                    <Text style={styles.planDetailValue}>{plan.data}</Text>
+                  </View>
+                </View>
+
+                {/* Description Section */}
+                {plan.description && (
+                  <View style={styles.rewardsPlanDescription}>
+                    <Text style={styles.rewardsPlanDescriptionText}>{plan.description}</Text>
+                  </View>
+                )}
+
+                {/* Action Indicator */}
+                <View style={styles.planActionIndicator}>
+                  <AntDesign name="right" size={14} color="#2196F3" />
+                </View>
               </TouchableOpacity>
             ))
           )}
@@ -523,6 +1003,13 @@ const allPlans = categories.slice(1).flatMap((category, catIndex) =>
           </Text>
         </View>
       </View>
+    );
+  };
+
+  return (
+    <>
+      {renderWebContent()}
+      {renderMobileContent()}
 
       <Modal visible={operatorModalVisible} transparent animationType="slide" onRequestClose={() => setOperatorModalVisible(false)}>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }}>
@@ -565,11 +1052,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F5F5',
   },
   viCard: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
     marginHorizontal: 16,
     marginTop: 16,
-    elevation: 1,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
   },
   logo: {
     width: 45,
@@ -638,9 +1131,18 @@ const styles = StyleSheet.create({
   activeCategoryText: {
     color: 'white',
   },
+  fixedCategoryContainer: {
+    height: 40,
+    marginHorizontal: 16,
+    marginBottom: 16,
+  },
   plansContainer: {
     flex: 1,
     paddingHorizontal: 16,
+  },
+  plansContent: {
+    paddingBottom: 20,
+    flexGrow: 1,
   },
   planCard: {
     backgroundColor: 'white',
@@ -653,6 +1155,91 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 2,
   },
+  // New Rewards-style card design
+  rewardsPlanCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 8,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  planHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  planLeftSection: {
+    flex: 1,
+  },
+  rewardsPlanPrice: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginBottom: 4,
+  },
+  rewardsPlanName: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  planStatusBadge: {
+    backgroundColor: '#E8F5E8',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  planStatusText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#4CAF50',
+  },
+  planDetailsSection: {
+    flexDirection: 'row',
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+  },
+  planDetailItem: {
+    flex: 1,
+  },
+  planDetailLabel: {
+    fontSize: 11,
+    color: '#666',
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  planDetailValue: {
+    fontSize: 13,
+    color: '#1a1a1a',
+    fontWeight: '600',
+  },
+  rewardsPlanDescription: {
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+    paddingTop: 12,
+    marginTop: 8,
+  },
+  rewardsPlanDescriptionText: {
+    fontSize: 12,
+    color: '#666',
+    lineHeight: 16,
+    fontWeight: '400',
+  },
+  planActionIndicator: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  // Keep old styles for backward compatibility
   planLeft: {
     marginBottom: 12,
   },

@@ -23,14 +23,14 @@ const { width, height } = Dimensions.get('window');
 
 
 export default function SignInScreen({ navigation, route }) {
-  const code = route?.params?.code;
+  const initialCode = route?.params?.code;
   
   // State management
   const [mobile, setMobile] = useState('');
-  const [referralCode, setReferralCode] = useState(code || '');
+  const [referralCode, setReferralCode] = useState(initialCode || '');
   const [errorMessage, setErrorMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showReferralField, setShowReferralField] = useState(!!code);
+  const [showReferralField, setShowReferralField] = useState(!!initialCode);
   
   // Animation refs
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -64,8 +64,15 @@ export default function SignInScreen({ navigation, route }) {
     // Initialize referral code from URL or storage
     const initializeReferralCode = async () => {
       try {
+        // First check if we already have a code from route params
+        if (initialCode) {
+          console.log('Using referral code from route params:', initialCode);
+          return;
+        }
+        
+        // Otherwise, check URL or storage
         const urlCode = await ReferralCodeManager.initialize();
-        if (urlCode && !referralCode) {
+        if (urlCode) {
           setReferralCode(urlCode);
           setShowReferralField(true);
           console.log('Initialized referral code from URL/storage:', urlCode);
@@ -77,6 +84,15 @@ export default function SignInScreen({ navigation, route }) {
 
     initializeReferralCode();
   }, []);
+
+  // Watch for changes in route params
+  useEffect(() => {
+    if (route?.params?.code && route.params.code !== referralCode) {
+      setReferralCode(route.params.code);
+      setShowReferralField(true);
+      console.log('Updated referral code from route params:', route.params.code);
+    }
+  }, [route?.params?.code]);
 
   // Mobile number input handler with validation
   const handleMobileChange = (text) => {

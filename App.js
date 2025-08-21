@@ -18,7 +18,7 @@ const theme = {
 };
 
 const linking = {
-  prefixes: ['vasbazaar://'],
+  prefixes: ['vasbazaar://', 'http://localhost:8081', 'https://localhost:8081'],
   config: {
     screens: {
       DeepLinkHome: {
@@ -177,13 +177,6 @@ export default function App() {
           <NavigationContainer 
             ref={navigationRef}
             linking={linking}
-            onReady={() => {
-              // Navigate to sign_in with referral code if available
-              if (initialReferralCode && navigationRef.current) {
-                // Check if user is not already logged in
-                navigationRef.current.navigate('sign_in', { code: initialReferralCode });
-              }
-            }}
           >
             <ErrorBoundary screenName="Navigation">
               <StackNavigation initialReferralCode={initialReferralCode} />
