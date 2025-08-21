@@ -11,7 +11,7 @@ import {
 import { ActivityIndicator, Avatar, Button, Card, List, Text, TextInput } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 
-import CommonHeader2 from '@/src/components/CommoHedder2';
+import CommonHeader2 from '../../../components/CommoHedder2';
 import { AuthContext } from '../../../context/AuthContext';
 
 const { width } = Dimensions.get('window');
@@ -269,7 +269,7 @@ export default function ViewBill({ route, navigation }) {
               left={(props) => (
                 <Avatar.Image
                   {...props}
-                  source={logo ? { uri: logo } : require('@/assets/icons/default.png')}
+                  source={logo ? { uri: logo } : require('../../../../assets/icons/default.png')}
                   style={styles.logo}
                 />
               )}

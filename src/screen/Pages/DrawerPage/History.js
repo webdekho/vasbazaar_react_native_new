@@ -1,5 +1,5 @@
 import { AuthContext } from '../../../context/AuthContext';
-import { getRecords, postRequest } from '@/src/Services/ApiServices';
+import { getRecords, postRequest } from '../../../Services/ApiServices';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useContext, useEffect, useState } from 'react';
 import {
@@ -582,7 +582,7 @@ const History = ({ navigation }) => {
                       <Image 
                         source={{ uri: txn.icon }} 
                         style={styles.operatorIcon}
-                        defaultSource={require('@/assets/icons/help.png')}
+                        defaultSource={require('../../../../assets/icons/help.png')}
                       />
                     </View>
                     <View style={styles.details}>

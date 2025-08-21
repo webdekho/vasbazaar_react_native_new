@@ -1,6 +1,6 @@
 import React, { useContext } from 'react';
 import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
-import { AuthContext } from '../context/StableAuthContext';
+import { AuthContext } from '../context/AuthContext';
 import AppStack from './AppStack';
 import AuthStack from './AuthStack';
 import SessionStack from './SessionStack';

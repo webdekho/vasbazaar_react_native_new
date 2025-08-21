@@ -1,5 +1,5 @@
 import { AuthContext } from '../../../context/AuthContext';
-import { getRecords } from '@/src/Services/ApiServices';
+import { getRecords } from '../../../Services/ApiServices';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import * as FileSystem from 'expo-file-system';
@@ -203,7 +203,7 @@ const Profile = () => {
                 style={styles.photoContainer}
               >
                 <Animated.Image
-                  source={photo ? { uri: photo } : require('@/assets/images/user.png')}
+                  source={photo ? { uri: photo } : require('../../../../assets/images/user.png')}
                   style={[
                     styles.zoomedPhoto,
                     {
@@ -1193,7 +1193,7 @@ const Profile = () => {
             >
               <Avatar.Image
                 size={120}
-                source={photo ? { uri: photo } : require('@/assets/images/user.png')}
+                source={photo ? { uri: photo } : require('../../../../assets/images/user.png')}
                 style={{ backgroundColor: '#f0f0f0' }}
               />
             </TouchableOpacity>

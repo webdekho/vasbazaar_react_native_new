@@ -1,5 +1,5 @@
 import { AuthContext } from '../../../context/AuthContext';
-import { getRecords } from '@/src/Services/ApiServices';
+import { getRecords } from '../../../Services/ApiServices';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
@@ -348,7 +348,7 @@ const WalletRewards = ({ navigation }) => {
           <Image 
             source={{ uri: txn.operatorLogo }} 
             style={styles.operatorLogo}
-            defaultSource={require('@/assets/icons/help.png')}
+            defaultSource={require('../../../../assets/icons/help.png')}
           />
         );
       } else {

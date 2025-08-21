@@ -1,6 +1,6 @@
-import CommonHeader2 from '@/src/components/CommoHedder2';
+import CommonHeader2 from '../../../components/CommoHedder2';
 import { AuthContext } from '../../../context/AuthContext';
-import { postRequest } from '@/src/Services/ApiServices';
+import { postRequest } from '../../../Services/ApiServices';
 import * as Contacts from 'expo-contacts';
 import React, { useContext, useEffect, useState } from 'react';
 import {

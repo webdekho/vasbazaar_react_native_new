@@ -341,7 +341,7 @@ export default function Payment({ route, navigation }) {
         <View style={styles.modalContainer}>
           <View style={styles.popupBox}>
             <Image
-              source={companyLogo ? { uri: companyLogo } : require('@/assets/icons/default.png')}
+              source={companyLogo ? { uri: companyLogo } : require('../../../../assets/icons/default.png')}
               style={styles.popupImage}
               resizeMode="contain"
             />

@@ -1,9 +1,18 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
-import React, { createContext, useEffect, useState, useCallback } from 'react-native';
+import React, { createContext, useEffect, useState, useCallback } from 'react';
 import { Platform } from 'react-native';
 
-export const AuthContext = createContext();
+export const AuthContext = createContext({
+  userToken: null,
+  userData: null,
+  secureToken: null,
+  isLoading: true,
+  login: () => {},
+  logout: () => {},
+  clearSessionToken: () => {},
+  updateUserData: () => {}
+});
 
 export const AuthProvider = ({ children }) => {
   const isWeb = Platform.OS === 'web';

@@ -1,6 +1,6 @@
-import { getRecords } from '@/src/Services/ApiServices';
-import { styles, styles2 } from '@/src/components/Css';
-import imageMap from '@/src/components/icons';
+import { getRecords } from '../../../Services/ApiServices';
+import { styles, styles2 } from '../../../components/Css';
+import imageMap from '../../../components/icons';
 import { AuthContext } from '../../../context/AuthContext';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';

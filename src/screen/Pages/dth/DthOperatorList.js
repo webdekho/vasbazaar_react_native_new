@@ -1,6 +1,6 @@
-import CommonHeader2 from '@/src/components/CommoHedder2';
+import CommonHeader2 from '../../../components/CommoHedder2';
 import { AuthContext } from '../../../context/AuthContext';
-import { getRecords } from '@/src/Services/ApiServices';
+import { getRecords } from '../../../Services/ApiServices';
 import React, { useContext, useEffect, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { IconButton } from 'react-native-paper';

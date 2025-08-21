@@ -14,9 +14,9 @@ import {
 } from 'react-native';
 import { Avatar, Card, Searchbar } from 'react-native-paper';
 
-import CommonHeader2 from '@/src/components/CommoHedder2';
+import CommonHeader2 from '../../../components/CommoHedder2';
 import { AuthContext } from '../../../context/AuthContext';
-import { getRecords, postRequest } from '@/src/Services/ApiServices';
+import { getRecords, postRequest } from '../../../Services/ApiServices';
 
 export default function DthPlan({ route, navigation }) {
   const [activeCategory, setActiveCategory] = useState('All Plans');
@@ -199,7 +199,7 @@ export default function DthPlan({ route, navigation }) {
           left={(props) => (
             <Avatar.Image
               {...props}
-              source={logo ? { uri: logo } : require('@/assets/icons/default.png')}
+              source={logo ? { uri: logo } : require('../../../../assets/icons/default.png')}
               style={styles.logo}
             />
           )}
