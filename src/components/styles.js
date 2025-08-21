@@ -1,0 +1,97 @@
+import { StyleSheet } from 'react-native';
+
+export const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f7fa',
+  },
+  background: {
+    backgroundColor: '#000000',
+    // padding: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerText: {
+    color: '#fff',
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 10,
+    marginTop: 20,
+  },
+  headerTitle: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 15,
+  },
+  headerImage: {
+    width: '100%',
+    height: 160,
+    marginBottom: 0,
+    marginTop:10,
+    resizeMode: 'contain',
+  },
+  formContainer: {
+    marginTop: -40,
+    marginHorizontal: 15,
+    backgroundColor: '#ffffff',
+    borderRadius: 15,
+    padding: 25,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  logo: {
+    width: 200,
+    height: 75,
+    alignSelf: 'center',
+    resizeMode: 'contain',
+    marginBottom: 20,
+    marginTop: 30,
+  },
+  welcomeText: {
+    fontSize: 22,
+    fontWeight: '600',
+    color: '#2c3e50',
+    textAlign: 'center',
+    marginBottom: 25,
+  },
+  input: {
+    marginBottom: 18,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+  },
+  button: {
+    backgroundColor: '#0f60bd',
+    borderRadius: 12,
+    paddingVertical: 15,
+    marginBottom: 30,
+    shadowColor: '#0f60bd',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  buttonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+    textAlign: 'center',
+  },
+  errorMessage: {
+    marginBottom: 12,
+    marginTop: -8,
+    color: '#e74c3c',
+    fontSize: 14,
+  },
+});
