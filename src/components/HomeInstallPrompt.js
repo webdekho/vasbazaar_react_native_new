@@ -33,6 +33,34 @@ const HomeInstallPrompt = () => {
     checkInstallStatus();
   }, []);
 
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      if (visible) {
+        // Prevent background scrolling when modal is open
+        document.body.style.overflow = 'hidden';
+        document.body.style.position = 'fixed';
+        document.body.style.width = '100%';
+        document.body.style.height = '100%';
+      } else {
+        // Restore background scrolling when modal is closed
+        document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.width = '';
+        document.body.style.height = '';
+      }
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (Platform.OS === 'web' && typeof document !== 'undefined') {
+        document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.width = '';
+        document.body.style.height = '';
+      }
+    };
+  }, [visible]);
+
   const checkInstallStatus = async () => {
     try {
       // Check if PWA is installed
@@ -128,6 +156,9 @@ const HomeInstallPrompt = () => {
       }),
     ]).start(() => {
       setVisible(false);
+      // Reset animation values for next time
+      fadeAnim.setValue(0);
+      scaleAnim.setValue(0.8);
       if (callback) callback();
     });
   };
@@ -194,12 +225,21 @@ const HomeInstallPrompt = () => {
       transparent={true}
       animationType="none"
       onRequestClose={handleMaybeLater}
+      statusBarTranslucent={true}
     >
-      <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
-        <Animated.View style={[
-          styles.modal, 
-          { transform: [{ scale: scaleAnim }] }
-        ]}>
+      <Animated.View 
+        style={[styles.overlay, { opacity: fadeAnim }]}
+        onStartShouldSetResponder={() => true}
+        onResponderGrant={handleMaybeLater}
+      >
+        <Animated.View 
+          style={[
+            styles.modal, 
+            { transform: [{ scale: scaleAnim }] }
+          ]}
+          onStartShouldSetResponder={() => true}
+          onResponderGrant={(evt) => evt.stopPropagation()}
+        >
           {/* Icon */}
           <View style={styles.iconContainer}>
             <Ionicons name="download-outline" size={48} color="#0f60bd" />
@@ -268,6 +308,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+    ...Platform.select({
+      web: {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 9999,
+      },
+    }),
   },
   modal: {
     backgroundColor: '#ffffff',

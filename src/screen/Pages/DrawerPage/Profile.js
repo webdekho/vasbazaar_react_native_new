@@ -417,9 +417,12 @@ const Profile = () => {
   };
 
   // Pick and upload profile photo with proper filename handling
-  const pickAndUploadProfilePhoto = async () => {
+  const pickAndUploadProfilePhoto = async (retryCount = 0) => {
+    const maxRetries = 2;
+    
     try {
       setUploadLoading(true);
+      console.log(`📸 Starting photo upload attempt ${retryCount + 1}/${maxRetries + 1}`);
 
       // Request permissions - Android needs special handling
       if (Platform.OS === 'android') {
@@ -637,26 +640,41 @@ const Profile = () => {
       console.log('Platform:', Platform.OS);
       console.log('Uploading file:', cleanFilename);
       console.log('MIME type:', imageInfo.mimeType);
+      
+      // Show progress indicator to user
+      console.log('🚀 Starting upload process...');
 
       // Upload to server with platform-specific configuration
       let response;
       
       if (Platform.OS === 'web') {
         // Web upload configuration
-        response = await axios.put(
-          `${BASE_URL}/api/customer/user/updateProfile`,
-          formData,
-          {
-            headers: {
-              'access_token': userToken,
-              'Accept': 'application/json',
-              // Let browser set Content-Type with boundary
-            },
-            timeout: 60000,
-            maxContentLength: Infinity,
-            maxBodyLength: Infinity,
+        try {
+          console.log('Starting web upload...');
+          response = await axios.put(
+            `${BASE_URL}/api/customer/user/updateProfile`,
+            formData,
+            {
+              headers: {
+                'access_token': userToken,
+                'Accept': 'application/json',
+                // Let browser set Content-Type with boundary
+              },
+              timeout: 60000,
+              maxContentLength: Infinity,
+              maxBodyLength: Infinity,
+              validateStatus: (status) => status < 500, // Accept 4xx errors to handle them properly
+            }
+          );
+          
+          console.log('Web upload response status:', response.status);
+          if (response.status >= 400) {
+            throw new Error(`Server returned status ${response.status}: ${response.data?.message || 'Unknown error'}`);
           }
-        );
+        } catch (webUploadError) {
+          console.error('Web upload with axios failed:', webUploadError);
+          throw webUploadError;
+        }
       } else {
         // Mobile upload configuration (iOS & Android)
         console.log('Upload URL:', `${BASE_URL}/api/customer/user/updateProfile`);
@@ -747,29 +765,57 @@ const Profile = () => {
           }
         } else {
           // iOS upload using axios (usually works fine)
-          const uploadConfig = {
-            headers: {
-              'access_token': userToken,
-              'Accept': 'application/json',
-            },
-            timeout: 60000,
-            maxContentLength: Infinity,
-            maxBodyLength: Infinity,
-          };
-          
-          response = await axios.put(
-            `${BASE_URL}/api/customer/user/updateProfile`,
-            formData,
-            uploadConfig
-          );
+          try {
+            const uploadConfig = {
+              headers: {
+                'access_token': userToken,
+                'Accept': 'application/json',
+              },
+              timeout: 60000,
+              maxContentLength: Infinity,
+              maxBodyLength: Infinity,
+              validateStatus: (status) => status < 500, // Accept 4xx errors to handle them properly
+            };
+            
+            console.log('Starting iOS upload with axios...');
+            response = await axios.put(
+              `${BASE_URL}/api/customer/user/updateProfile`,
+              formData,
+              uploadConfig
+            );
+            
+            console.log('iOS upload response status:', response.status);
+            if (response.status >= 400) {
+              throw new Error(`Server returned status ${response.status}: ${response.data?.message || 'Unknown error'}`);
+            }
+          } catch (iosUploadError) {
+            console.error('iOS upload with axios failed:', iosUploadError);
+            throw iosUploadError;
+          }
         }
       }
 
-      // Handle response
+      // Handle response with better validation
+      console.log('Upload completed, processing response...');
+      console.log('Response status:', response.status);
+      console.log('Response data:', JSON.stringify(response.data, null, 2));
+      
+      if (!response || !response.data) {
+        throw new Error('Invalid response from server - no data received');
+      }
+      
       const { data } = response;
       const message = data?.message || 'Profile photo updated successfully';
       
-      if (data?.Status === 'SUCCESS') {
+      // Check for success status - handle different response formats
+      const isSuccess = data?.Status === 'SUCCESS' || 
+                       data?.status === 'SUCCESS' || 
+                       data?.success === true ||
+                       (response.status >= 200 && response.status < 300);
+                       
+      console.log('Upload success status:', isSuccess);
+      
+      if (isSuccess) {
         // Extract the uploaded photo URL from response
         let uploadedPhotoUrl = null;
         
@@ -796,16 +842,28 @@ const Profile = () => {
           // Update state with the server URL
           setProfilePhotoUrl(uploadedPhotoUrl);
           setPhoto(uploadedPhotoUrl);
+          
+          console.log('✅ Profile photo upload successful!');
+          showSnackbar(message);
         } else {
-          // If no URL in response, keep the local image for display
-          console.warn('No photo URL found in server response');
+          // Critical issue: Server says success but no photo URL returned
+          console.error('❌ Server response indicates success but no photo URL found!');
+          console.error('Response data structure:', data);
+          
+          // Keep the local image for now but show warning
+          showSnackbar('Upload completed, but photo URL not received. Please try again if photo doesn\'t appear.');
+          
+          // You might want to throw an error here instead to force a retry
+          // throw new Error('Upload succeeded but no photo URL returned from server');
         }
-
-        showSnackbar(message);
       } else {
         // Reset to previous photo on failure
         setPhoto(profilePhotoUrl);
-        throw new Error(data?.message || 'Upload failed');
+        
+        // Better error message based on response data
+        const errorMsg = data?.message || data?.error || `Upload failed with status: ${response.status}`;
+        console.error('Upload failed:', errorMsg);
+        throw new Error(errorMsg);
       }
 
     } catch (error) {
@@ -972,21 +1030,33 @@ const Profile = () => {
       fullMessage += `\n\n💡 What to do:\n${errorInfo.userAction}`;
       fullMessage += `\n\n🔧 Error Category: ${errorInfo.category}`;
       
-      // Show detailed error popup
+      // Show detailed error popup with retry logic
+      const buttons = [
+        { 
+          text: 'Cancel', 
+          style: 'cancel' 
+        }
+      ];
+      
+      // Add retry button if we haven't exceeded max retries
+      if (retryCount < maxRetries) {
+        buttons.push({
+          text: `Retry (${maxRetries - retryCount} left)`, 
+          onPress: () => pickAndUploadProfilePhoto(retryCount + 1),
+          style: 'default'
+        });
+      } else {
+        buttons.push({
+          text: 'Try Again', 
+          onPress: () => pickAndUploadProfilePhoto(0), // Reset retry count
+          style: 'default'
+        });
+      }
+      
       Alert.alert(
         errorInfo.title,
         fullMessage,
-        [
-          { 
-            text: 'Cancel', 
-            style: 'cancel' 
-          },
-          { 
-            text: 'Try Again', 
-            onPress: () => pickAndUploadProfilePhoto(),
-            style: 'default'
-          }
-        ],
+        buttons,
         { cancelable: true }
       );
     } finally {

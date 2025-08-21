@@ -110,6 +110,45 @@ export default function Payment({ route, navigation }) {
     }
   };
 
+  
+  const fetchPaymentUrl = async (upiToken) => {
+        if (!upiToken) {
+          return;
+        }
+  
+        if (!userToken) {
+          return;
+        }
+  
+        try {
+          console.log('Fetching payment URL with upiToken:', upiToken);
+          
+          // Make API call to get payment URL
+          // Using getRecords since this is a GET request with query params
+          // const response = await getRecords(
+          //   { upiToken }, // query parameters
+          //   userToken,    // access token
+          //   'pay' // endpoint (upiToken will be added as query param)
+          // );
+  
+          const response = await postRequest({},userToken,`pay?upiToken=${upiToken}`);
+  
+          console.log('Payment API response:', response);
+          if (response.status === 'success' && response.data) {
+            
+            console.log('Payment URL set:', response.data);
+            openPaymentWindow(response.data);
+
+          } else {
+            throw new Error(response.message || 'Failed to generate payment link');
+          }
+        } catch (error) {
+          
+        } finally {
+          
+        }
+      };
+
   const Redirect = async (paymentType, data) => {
     // Save last used serviceId to AsyncStorage for prioritization in Home.js
     if (serviceId) {
@@ -120,8 +159,11 @@ export default function Payment({ route, navigation }) {
         console.error('❌ Error saving lastUsedServiceId to AsyncStorage:', error);
       }
     }
-    
-    navigation.navigate('Success', {
+
+    if(paymentType=='upi'){
+      fetchPaymentUrl(data.upiToken);
+    }else{
+      navigation.navigate('Success', {
       serviceId,
       operator_id,
       plan,
@@ -137,7 +179,82 @@ export default function Payment({ route, navigation }) {
       selectedCoupon2,
       response: data,
     });
+    }
+
+    
+    
   };
+
+  const openPaymentWindow = async(paymentUrl)=>{
+    const paymentWindow = window.open(
+                paymentUrl, 
+                'payment',
+                'width=800,height=600,scrollbars=yes,resizable=yes,status=yes,location=yes,toolbar=no,menubar=no'
+              );
+
+              if (paymentWindow) {
+                // Monitor the payment window
+                const checkClosed = setInterval(() => {
+                  if (paymentWindow.closed) {
+                    clearInterval(checkClosed);
+                    console.log('Payment window closed');
+                    
+                    // Notify parent that payment window was closed
+                    if (onNavigationStateChange) {
+                      onNavigationStateChange({
+                        url: 'payment-window-closed',
+                        loading: false,
+                        title: 'Payment Complete',
+                        canGoBack: true,
+                        canGoForward: false
+                      });
+                    }
+
+                    // Show completion message
+                    setTimeout(() => {
+                      const result = window.confirm(
+                        'Payment window has been closed. Did you complete your payment successfully?'
+                      );
+                      
+                      if (result) {
+                        // User confirms payment was successful
+                        if (onNavigationStateChange) {
+                          onNavigationStateChange({
+                            url: 'payment-success-confirmed',
+                            loading: false,
+                            title: 'Payment Successful',
+                            canGoBack: true,
+                            canGoForward: false
+                          });
+                        }
+                      }
+                    }, 500);
+                  }
+                }, 1000);
+
+                // Focus the payment window
+                paymentWindow.focus();
+                
+                // Provide navigation state
+                if (onNavigationStateChange) {
+                  onNavigationStateChange({
+                    url: paymentUrl,
+                    loading: false,
+                    title: 'Payment Window Opened',
+                    canGoBack: true,
+                    canGoForward: false
+                  });
+                }
+              } else {
+                // Popup was blocked
+                alert('Please allow popups for this site to open the payment window, or copy the URL to open manually: ' + paymentUrl);
+                handleError({
+                  domain: 'popup-blocked',
+                  code: -1,
+                  description: 'Payment window was blocked by browser'
+                });
+              }
+  }
 
   const getBalance = async () => {
     try {
