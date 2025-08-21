@@ -5,27 +5,28 @@
 
 export const PaymentHelper = {
   /**
-   * Opens a payment URL in the PaymentWebView screen
+   * Opens a payment URL (deprecated - use openPaymentWithToken instead)
    * @param {object} navigation - React Navigation object
-   * @param {string} paymentUrl - The payment URL to open (deprecated - use upiToken instead)
+   * @param {string} paymentUrl - The payment URL to open
    * @param {object} options - Additional options
    */
   openPaymentUrl: (navigation, paymentUrl, options = {}) => {
     try {
       console.log('Opening payment URL:', paymentUrl);
       
-      navigation.navigate('PaymentWebView', {
-        paymentUrl: paymentUrl,
-        title: options.title || 'Payment',
-        ...options
-      });
+      // Web platform only - open in new window
+      if (typeof window !== 'undefined' && window.open) {
+        window.open(paymentUrl, '_blank');
+      } else {
+        console.error('Payment is only supported on web platform');
+      }
     } catch (error) {
       console.error('Error opening payment URL:', error);
     }
   },
 
   /**
-   * Opens payment page with UPI token (preferred method)
+   * Opens payment page with UPI token (web platform only)
    * @param {object} navigation - React Navigation object
    * @param {string} upiToken - The UPI token for payment
    * @param {object} options - Additional options
@@ -34,11 +35,8 @@ export const PaymentHelper = {
     try {
       console.log('Opening payment with UPI token:', upiToken);
       
-      navigation.navigate('PaymentWebView', {
-        upiToken: upiToken,
-        title: options.title || 'Payment',
-        ...options
-      });
+      // This function is now deprecated as payment is handled directly in Payment.js
+      console.warn('PaymentHelper.openPaymentWithToken is deprecated. Payment is handled directly in Payment.js');
     } catch (error) {
       console.error('Error opening payment with token:', error);
     }

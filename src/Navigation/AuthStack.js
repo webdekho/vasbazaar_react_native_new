@@ -10,7 +10,7 @@ import SignIn from '../screen/Authentication/SignIn';
 
 const Stack = createStackNavigator();
 
-export default function AuthStack() {
+export default function AuthStack({ initialReferralCode }) {
   return (
     <Stack.Navigator
       initialRouteName="sign_in"
@@ -19,7 +19,11 @@ export default function AuthStack() {
         cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS, // 👈 Left-to-right animation
       }}
     >
-      <Stack.Screen name="sign_in" component={SignIn} />
+      <Stack.Screen 
+        name="sign_in" 
+        component={SignIn} 
+        initialParams={{ code: initialReferralCode }}
+      />
       <Stack.Screen name="otp_validate" component={OtpValidate} />
       <Stack.Screen name="aadhaar_number" component={AadhaarNumber} />
       <Stack.Screen name="aadhaar_otp_validate" component={AadhaarOtpValidate} />

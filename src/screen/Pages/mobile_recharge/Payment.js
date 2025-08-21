@@ -43,6 +43,7 @@ export default function Payment({ route, navigation }) {
   const [showPopup, setShowPopup] = useState(false);
   const [stepCount, setStepCount] = useState(2);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [clickedPaymentMethod, setClickedPaymentMethod] = useState(null);
   const amount = parseFloat((plan?.price || '0').replace(/[₹,\s]/g, ''));
   
   const paymentIcons = {
@@ -53,7 +54,9 @@ export default function Payment({ route, navigation }) {
   const handlePayment = async (paymentType) => {
     if (isProcessing) return; // Prevent multiple clicks
     
+    console.log(`Payment initiated: ${paymentType}`);
     setIsProcessing(true);
+    setClickedPaymentMethod(paymentType);
     setShowPopup(true);
     
     try {
@@ -105,8 +108,9 @@ export default function Payment({ route, navigation }) {
       setStatus("Failed");
       setErrorMessage('Payment processing failed: ' + error.message);
     } finally {
-      setIsProcessing(false);
       setShowPopup(false);
+      // Keep buttons permanently disabled after any payment attempt
+      // Do not reset isProcessing or clickedPaymentMethod
     }
   };
 
@@ -135,17 +139,22 @@ export default function Payment({ route, navigation }) {
   
           console.log('Payment API response:', response);
           if (response.status === 'success' && response.data) {
-            
             console.log('Payment URL set:', response.data);
+            
+            // Store payment URL for potential manual access
+            if (Platform.OS === 'web') {
+              window.sessionStorage.setItem('lastPaymentUrl', response.data);
+            }
+            
             openPaymentWindow(response.data);
-
           } else {
             throw new Error(response.message || 'Failed to generate payment link');
           }
         } catch (error) {
-          
-        } finally {
-          
+          console.error('Error fetching payment URL:', error);
+          setShowFailurePopup(true);
+          setStatus("Failed");
+          setErrorMessage('Failed to generate payment link. Please try again.');
         }
       };
 
@@ -160,100 +169,139 @@ export default function Payment({ route, navigation }) {
       }
     }
 
-    if(paymentType=='upi'){
-      fetchPaymentUrl(data.upiToken);
-    }else{
+    if (paymentType === 'upi') {
+      // For UPI payments, fetch the payment URL using the token
+      if (data && data.upiToken) {
+        fetchPaymentUrl(data.upiToken);
+      } else {
+        console.error('No UPI token received for payment');
+        setShowFailurePopup(true);
+        setStatus("Failed");
+        setErrorMessage('Payment token not received. Please try again.');
+      }
+    } else {
+      // For wallet payments, navigate directly to success
+      // Do not reset isProcessing or clickedPaymentMethod
+      // Buttons remain permanently disabled
       navigation.navigate('Success', {
-      serviceId,
-      operator_id,
-      plan,
-      circleCode,
-      companyLogo,
-      name,
-      mobile,
-      operator,
-      circle,
-      coupon,
-      coupon2,
-      paymentType,
-      selectedCoupon2,
-      response: data,
-    });
+        serviceId,
+        operator_id,
+        plan,
+        circleCode,
+        companyLogo,
+        name,
+        mobile,
+        operator,
+        circle,
+        coupon,
+        coupon2,
+        paymentType,
+        selectedCoupon2,
+        response: data,
+      });
     }
-
-    
-    
   };
 
-  const openPaymentWindow = async(paymentUrl)=>{
-    const paymentWindow = window.open(
-                paymentUrl, 
-                'payment',
-                'width=800,height=600,scrollbars=yes,resizable=yes,status=yes,location=yes,toolbar=no,menubar=no'
-              );
+  const openPaymentWindow = async(paymentUrl) => {
+    if (Platform.OS === 'web') {
+      try {
+        // Show warning about potential security message
+        const userConfirmed = window.confirm(
+          'You will be redirected to the payment gateway.\n\n' +
+          'Note: If you see a security warning from your browser, it\'s because the payment gateway uses test/staging URLs. ' +
+          'You can safely proceed by clicking "Advanced" and then "Proceed to site" if you trust this payment.\n\n' +
+          'Click OK to continue to payment.'
+        );
+        
+        if (!userConfirmed) {
+          console.log('User cancelled payment redirect');
+          return;
+        }
+        
+        const paymentWindow = window.open(
+          paymentUrl, 
+          'payment',
+          'width=800,height=600,scrollbars=yes,resizable=yes,status=yes,location=yes,toolbar=no,menubar=no'
+        );
 
-              if (paymentWindow) {
-                // Monitor the payment window
-                const checkClosed = setInterval(() => {
-                  if (paymentWindow.closed) {
-                    clearInterval(checkClosed);
-                    console.log('Payment window closed');
-                    
-                    // Notify parent that payment window was closed
-                    if (onNavigationStateChange) {
-                      onNavigationStateChange({
-                        url: 'payment-window-closed',
-                        loading: false,
-                        title: 'Payment Complete',
-                        canGoBack: true,
-                        canGoForward: false
-                      });
-                    }
-
-                    // Show completion message
-                    setTimeout(() => {
-                      const result = window.confirm(
-                        'Payment window has been closed. Did you complete your payment successfully?'
-                      );
-                      
-                      if (result) {
-                        // User confirms payment was successful
-                        if (onNavigationStateChange) {
-                          onNavigationStateChange({
-                            url: 'payment-success-confirmed',
-                            loading: false,
-                            title: 'Payment Successful',
-                            canGoBack: true,
-                            canGoForward: false
-                          });
-                        }
-                      }
-                    }, 500);
-                  }
-                }, 1000);
-
-                // Focus the payment window
-                paymentWindow.focus();
+        if (paymentWindow) {
+          console.log('Payment window opened successfully');
+          
+          // Monitor the payment window
+          const checkClosed = setInterval(() => {
+            if (paymentWindow.closed) {
+              clearInterval(checkClosed);
+              console.log('Payment window closed');
+              
+              // Show completion message with enhanced instructions
+              setTimeout(() => {
+                const result = window.confirm(
+                  'Payment window has been closed.\n\n' +
+                  'If you saw a "Dangerous site" warning:\n' +
+                  '1. This is normal for test payment gateways\n' +
+                  '2. If you completed the payment by proceeding anyway, click OK\n' +
+                  '3. If you cancelled due to the warning, click Cancel\n\n' +
+                  'Did you complete your payment successfully?'
+                );
                 
-                // Provide navigation state
-                if (onNavigationStateChange) {
-                  onNavigationStateChange({
-                    url: paymentUrl,
-                    loading: false,
-                    title: 'Payment Window Opened',
-                    canGoBack: true,
-                    canGoForward: false
+                if (result) {
+                  // User confirms payment was successful
+                  console.log('User confirmed payment success');
+                  // Navigate to success page
+                  // Do not reset isProcessing or clickedPaymentMethod
+                  // Buttons remain permanently disabled
+                  navigation.navigate('Success', {
+                    serviceId,
+                    operator_id,
+                    plan,
+                    circleCode,
+                    companyLogo,
+                    name,
+                    mobile,
+                    operator,
+                    circle,
+                    coupon,
+                    coupon2,
+                    paymentType: 'upi',
+                    selectedCoupon2,
+                    response: { status: 'success', message: 'Payment completed successfully' },
                   });
+                } else {
+                  console.log('User indicated payment was not completed');
+                  // Show helpful message about the security warning
+                  alert(
+                    'Payment was not completed.\n\n' +
+                    'If you encountered a browser security warning:\n' +
+                    '• This is common with test/staging payment gateways\n' +
+                    '• The payment gateway is safe to use\n' +
+                    '• You can try again and click "Advanced" → "Proceed to site" when you see the warning'
+                  );
                 }
-              } else {
-                // Popup was blocked
-                alert('Please allow popups for this site to open the payment window, or copy the URL to open manually: ' + paymentUrl);
-                handleError({
-                  domain: 'popup-blocked',
-                  code: -1,
-                  description: 'Payment window was blocked by browser'
-                });
-              }
+              }, 1000);
+            }
+          }, 1000);
+
+          // Focus the payment window
+          paymentWindow.focus();
+          
+        } else {
+          // Popup was blocked
+          alert(
+            'Payment window was blocked by your browser.\n\n' +
+            'Please allow popups for this site and try again.\n' +
+            'Alternatively, you can copy this URL and open it manually:\n\n' + 
+            paymentUrl
+          );
+          console.error('Payment window was blocked');
+        }
+      } catch (error) {
+        console.error('Error opening payment window:', error);
+        alert('Failed to open payment window: ' + error.message);
+      }
+    } else {
+      // For mobile platforms, open in browser
+      alert('Payment functionality is only available on web platform.');
+    }
   }
 
   const getBalance = async () => {
@@ -423,34 +471,64 @@ export default function Payment({ route, navigation }) {
             description: `₹ ${walletBalance}`,
             payment_method: 'wallet',
             disabled: parseFloat(walletBalance) < amount || isProcessing,
+            insufficientFunds: parseFloat(walletBalance) < amount,
           },
           {
             title: 'Pay using UPI',
             description: '& more',
             payment_method: 'upi',
             disabled: isProcessing,
+            insufficientFunds: false,
           },
-        ].map((item, index) => (
-          <View key={index} style={styles.paymentOption}>
-            <Image
-              source={paymentIcons[item.payment_method]}
-              style={styles.paymentIcon}
-            />
-            <View style={styles.paymentInfo}>
-              <Text style={styles.paymentTitle}>{item.title}</Text>
-              <Text style={styles.paymentDescription}>{item.description}</Text>
+        ].map((item, index) => {
+          const isThisButtonClicked = clickedPaymentMethod === item.payment_method;
+          const isOtherButtonClicked = clickedPaymentMethod && clickedPaymentMethod !== item.payment_method;
+          
+          return (
+            <View key={index} style={[
+              styles.paymentOption,
+              isOtherButtonClicked && styles.paymentOptionDisabled
+            ]}>
+              <Image
+                source={paymentIcons[item.payment_method]}
+                style={[
+                  styles.paymentIcon,
+                  (item.disabled || isOtherButtonClicked) && styles.paymentIconDisabled
+                ]}
+              />
+              <View style={styles.paymentInfo}>
+                <Text style={[
+                  styles.paymentTitle,
+                  (item.disabled || isOtherButtonClicked) && styles.paymentTextDisabled
+                ]}>
+                  {item.title}
+                </Text>
+                <Text style={[
+                  styles.paymentDescription,
+                  (item.disabled || isOtherButtonClicked) && styles.paymentTextDisabled
+                ]}>
+                  {item.insufficientFunds && !isProcessing ? 'Insufficient balance' : item.description}
+                </Text>
+              </View>
+              <Button
+                mode="contained"
+                disabled={item.disabled}
+                onPress={() => !item.disabled && handlePayment(item.payment_method)}
+                style={[
+                  styles.payButton,
+                  item.disabled && styles.disabledButton,
+                  isThisButtonClicked && styles.processingButton
+                ]}
+                loading={isThisButtonClicked}
+                labelStyle={[
+                  isThisButtonClicked && { color: '#fff' }
+                ]}
+              >
+                {isThisButtonClicked ? 'Processing...' : (isProcessing ? 'Disabled' : 'Pay')}
+              </Button>
             </View>
-            <Button
-              mode="contained"
-              disabled={item.disabled}
-              onPress={() => handlePayment(item.payment_method)}
-              style={[styles.payButton, item.disabled && styles.disabledButton]}
-              loading={isProcessing && !item.disabled}
-            >
-              Pay
-            </Button>
-          </View>
-        ))}
+          );
+        })}
       </ScrollView>
 
       {/* Processing Modal */}
@@ -474,7 +552,7 @@ export default function Payment({ route, navigation }) {
       {/* Failure Modal */}
       <Modal visible={showFailurePopup} transparent animationType="fade">
         <View style={styles.modalContainer}>
-          <View style={styles.popupBox}>
+          <View style={[styles.popupBox, { maxWidth: 350 }]}>
             <Image
               source={require('../../../../assets/icons/failure.png')}
               style={styles.popupImage}
@@ -482,10 +560,44 @@ export default function Payment({ route, navigation }) {
             />
             <Text style={[styles.popupText, { color: 'red' }]}>Transaction {status}</Text>
             <Text style={styles.errorMessage}>{errorMessage}</Text>
+            <Text style={[styles.errorMessage, { fontSize: 12, marginTop: 10, fontStyle: 'italic' }]}>
+              Payment buttons are now disabled. Please go back to try again with a new transaction.
+            </Text>
+            
+            {/* Show manual payment link option if available */}
+            {Platform.OS === 'web' && window.sessionStorage.getItem('lastPaymentUrl') && (
+              <TouchableOpacity
+                onPress={() => {
+                  const paymentUrl = window.sessionStorage.getItem('lastPaymentUrl');
+                  if (paymentUrl) {
+                    const userChoice = window.confirm(
+                      'Would you like to copy the payment URL to open it manually?\n\n' +
+                      'This can be helpful if you\'re experiencing browser security warnings.'
+                    );
+                    
+                    if (userChoice) {
+                      // Copy to clipboard
+                      navigator.clipboard.writeText(paymentUrl).then(() => {
+                        alert('Payment URL copied to clipboard!\n\nYou can now paste it in a new browser tab.');
+                      }).catch(() => {
+                        // Fallback: show the URL
+                        window.prompt('Copy this payment URL:', paymentUrl);
+                      });
+                    }
+                  }
+                }}
+                style={[styles.closeButton, { backgroundColor: '#007AFF', marginTop: 10 }]}
+              >
+                <Text style={[styles.closeButtonText, { color: '#fff' }]}>Copy Payment Link</Text>
+              </TouchableOpacity>
+            )}
+            
             <TouchableOpacity
               onPress={() => {
                 setShowFailurePopup(false);
                 setErrorDetails(null);
+                // Do not reset isProcessing or clickedPaymentMethod
+                // Buttons remain permanently disabled
               }}
               style={styles.closeButton}
             >
@@ -616,6 +728,18 @@ const styles = StyleSheet.create({
   disabledButton: {
     backgroundColor: '#ccc',
   },
+  processingButton: {
+    backgroundColor: '#666',
+  },
+  paymentOptionDisabled: {
+    opacity: 0.5,
+  },
+  paymentIconDisabled: {
+    opacity: 0.5,
+  },
+  paymentTextDisabled: {
+    color: '#999',
+  },
   modalContainer: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
@@ -663,10 +787,14 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     marginTop: 20,
-    padding: 8,
+    padding: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
   },
   closeButtonText: {
     color: '#000000ff',
     fontWeight: '600',
+    textAlign: 'center',
   },
 });

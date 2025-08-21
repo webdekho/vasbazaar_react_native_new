@@ -5,7 +5,7 @@ import AppStack from './AppStack';
 import AuthStack from './AuthStack';
 import SessionStack from './SessionStack';
 
-const Navigation = () => {
+const Navigation = ({ initialReferralCode }) => {
   const { userToken, secureToken, isLoading } = useContext(AuthContext);
 
   console.log('🧭 Navigation state:', { 
@@ -39,8 +39,8 @@ const Navigation = () => {
   }
 
   // No tokens - show authentication flow
-  console.log('🔐 Navigating to AuthStack (not authenticated)');
-  return <AuthStack />;
+  console.log('🔐 Navigating to AuthStack (not authenticated)', { initialReferralCode });
+  return <AuthStack initialReferralCode={initialReferralCode} />;
 };
 
 const styles = StyleSheet.create({

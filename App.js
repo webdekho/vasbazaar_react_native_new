@@ -1,7 +1,8 @@
 
-import { useEffect } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { DefaultTheme, Provider as PaperProvider } from 'react-native-paper';
+import { Platform, Linking } from 'react-native';
 import StackNavigation from './src/Navigation/StackNavigation';
 import { AuthProvider } from './src/context/AuthContext';
 import ErrorBoundary from './src/components/ErrorBoundary';
@@ -24,7 +25,12 @@ const linking = {
         path: '/',
         exact: true,
       },
-      sign_in: 'sign_in',
+      sign_in: {
+        path: 'sign_in',
+        parse: {
+          code: (code) => code || '',
+        },
+      },
       otp_validate: {
         path: '/otp_validate',
         parse: {
@@ -72,6 +78,9 @@ const linking = {
 };
 
 export default function App() {
+  const navigationRef = useRef(null);
+  const [initialReferralCode, setInitialReferralCode] = useState(null);
+
   useEffect(() => {
     // Initialize crash reporting (using mock service for development)
     const initializeCrashReporting = () => {
@@ -86,6 +95,73 @@ export default function App() {
 
     // Initialize immediately since using mock service
     initializeCrashReporting();
+
+    // Handle URL query parameters on web platform
+    if (Platform.OS === 'web') {
+      // Extract referral code from URL query string
+      const extractReferralCode = () => {
+        try {
+          const urlParams = new URLSearchParams(window.location.search);
+          const code = urlParams.get('code');
+          
+          if (code) {
+            console.log('Referral code found in URL:', code);
+            setInitialReferralCode(code);
+            
+            // Store in sessionStorage for persistence
+            window.sessionStorage.setItem('referralCode', code);
+            
+            // Optionally clean the URL without reloading
+            const cleanUrl = window.location.origin + window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+          } else {
+            // Check if there's a stored referral code
+            const storedCode = window.sessionStorage.getItem('referralCode');
+            if (storedCode) {
+              setInitialReferralCode(storedCode);
+            }
+          }
+        } catch (error) {
+          console.error('Error extracting referral code:', error);
+        }
+      };
+
+      extractReferralCode();
+    } else {
+      // Handle deep linking for mobile platforms
+      const handleDeepLink = (url) => {
+        if (url) {
+          try {
+            const route = url.replace(/.*?:\/\//g, '');
+            const [path, queryString] = route.split('?');
+            
+            if (queryString) {
+              const params = new URLSearchParams(queryString);
+              const code = params.get('code');
+              
+              if (code) {
+                console.log('Referral code from deep link:', code);
+                setInitialReferralCode(code);
+              }
+            }
+          } catch (error) {
+            console.error('Error parsing deep link:', error);
+          }
+        }
+      };
+
+      // Check initial URL
+      Linking.getInitialURL().then(handleDeepLink);
+
+      // Listen for new URLs
+      const subscription = Linking.addEventListener('url', (event) => {
+        handleDeepLink(event.url);
+      });
+
+      return () => {
+        subscription?.remove();
+      };
+    }
   }, []);
 
   const handleError = (error) => {
@@ -98,9 +174,19 @@ export default function App() {
     <ErrorBoundary screenName="App" onError={handleError}>
       <AuthProvider>
         <PaperProvider theme={theme}>
-          <NavigationContainer linking={linking}>
+          <NavigationContainer 
+            ref={navigationRef}
+            linking={linking}
+            onReady={() => {
+              // Navigate to sign_in with referral code if available
+              if (initialReferralCode && navigationRef.current) {
+                // Check if user is not already logged in
+                navigationRef.current.navigate('sign_in', { code: initialReferralCode });
+              }
+            }}
+          >
             <ErrorBoundary screenName="Navigation">
-              <StackNavigation />
+              <StackNavigation initialReferralCode={initialReferralCode} />
             </ErrorBoundary>
           </NavigationContainer>
         </PaperProvider>

@@ -25,7 +25,6 @@ import Success from '../screen/Pages/mobile_recharge/Success';
 import Notification from '../screen/Pages/Notification';
 import Complaint from '../screen/Pages/Complaint';
 import QrPrint from '../screen/Pages/QrPrint';
-import PaymentWebView from '../screen/Pages/PaymentWebView';
 
 
 const Stack = createStackNavigator();
@@ -111,12 +110,6 @@ export default function AppStack({ authFunctions }) {
         name="QrPrint" 
         component={QrPrint} 
         options={{ title: "Qr Print" }}
-        initialParams={{ authFunctions }}
-      />
-      <Stack.Screen 
-        name="PaymentWebView" 
-        component={PaymentWebView} 
-        options={{ title: "Payment" }}
         initialParams={{ authFunctions }}
       />
       <Stack.Screen 

@@ -17,6 +17,7 @@ import {
 import SimpleCustomInput from '../../components/SimpleCustomInput';
 import { sendOTP } from '../../Services/ApiServices';
 import TopAuthHeader from '../../components/TopAuthHeader';
+import ReferralCodeManager from '../../utils/ReferralCodeManager';
 
 const { width, height } = Dimensions.get('window');
 
@@ -40,7 +41,7 @@ export default function SignInScreen({ navigation, route }) {
   const mobileInputRef = useRef(null);
   const referralInputRef = useRef(null);
 
-  // Component mount animation
+  // Component mount animation and referral code initialization
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -59,6 +60,22 @@ export default function SignInScreen({ navigation, route }) {
         useNativeDriver: true,
       }),
     ]).start();
+
+    // Initialize referral code from URL or storage
+    const initializeReferralCode = async () => {
+      try {
+        const urlCode = await ReferralCodeManager.initialize();
+        if (urlCode && !referralCode) {
+          setReferralCode(urlCode);
+          setShowReferralField(true);
+          console.log('Initialized referral code from URL/storage:', urlCode);
+        }
+      } catch (error) {
+        console.error('Error initializing referral code:', error);
+      }
+    };
+
+    initializeReferralCode();
   }, []);
 
   // Mobile number input handler with validation
@@ -123,6 +140,11 @@ export default function SignInScreen({ navigation, route }) {
       console.log("Login API Response", response);
       
       if (response?.status === 'success') {
+        // Save referral code before navigation
+        if (referralCode) {
+          await ReferralCodeManager.storeReferralCode(referralCode);
+        }
+        
         // Navigate to OTP validation screen
         navigation.navigate('otp_validate', {
           response: response.data,

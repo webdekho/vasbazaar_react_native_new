@@ -31,6 +31,7 @@ const WalletRewards = ({ navigation }) => {
   const [walletBalance, setWalletBalance] = useState(0);
   const [expandedTransaction, setExpandedTransaction] = useState(null);
   const [error, setError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
   
   // Animation values map for expandable items
   const [animationValues] = useState(new Map());
@@ -95,6 +96,11 @@ const WalletRewards = ({ navigation }) => {
         setTotalPages(apiTotalPages);
         setHasMoreData(pageNumber < apiTotalPages);
         
+        // Update last refreshed timestamp
+        if (isRefresh || pageNumber === 1) {
+          setLastUpdated(new Date());
+        }
+        
         console.log(`Loaded page ${pageNumber}/${apiTotalPages}, Records: ${records.length}`);
       } else {
         throw new Error(response?.message || 'Failed to fetch wallet transactions');
@@ -116,7 +122,11 @@ const WalletRewards = ({ navigation }) => {
 
   // Pull to refresh handler
   const handleRefresh = useCallback(() => {
+    console.log('Refreshing wallet transactions...');
     setExpandedTransaction(null); // Collapse any expanded items
+    setError(null); // Clear any previous errors
+    setCurrentPage(1); // Reset to first page
+    setHasMoreData(true); // Reset pagination state
     fetchTransactions(1, true);
   }, [userToken]);
 
@@ -499,13 +509,32 @@ const WalletRewards = ({ navigation }) => {
         <View style={styles.balanceHeader}>
           <Ionicons name="wallet-outline" size={24} color="#000000" />
           <Text style={styles.balanceLabel}>Wallet Balance</Text>
-          <Text style={styles.balanceAmount}>₹{(walletBalance || 0).toFixed(2)}</Text>
+          <View style={styles.balanceRight}>
+            <Text style={styles.balanceAmount}>₹{(walletBalance || 0).toFixed(2)}</Text>
+            <TouchableOpacity 
+              onPress={handleRefresh}
+              disabled={isRefreshing}
+              style={[styles.refreshButton, isRefreshing && styles.refreshButtonDisabled]}
+            >
+              <Ionicons 
+                name="refresh" 
+                size={20} 
+                color={isRefreshing ? "#999" : "#2196F3"} 
+                style={[styles.refreshIcon, isRefreshing && styles.refreshIconSpinning]}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
       {/* Instruction */}
       <View style={styles.instructionContainer}>
         <Text style={styles.instructionText}>Only wallet transactions will be shown here</Text>
+        {lastUpdated && (
+          <Text style={styles.lastUpdatedText}>
+            Last updated: {lastUpdated.toLocaleTimeString()}
+          </Text>
+        )}
       </View>
 
       {/* Search Bar */}
@@ -567,8 +596,11 @@ const WalletRewards = ({ navigation }) => {
             <RefreshControl
               refreshing={isRefreshing}
               onRefresh={handleRefresh}
-              colors={['#2196F3']}
+              colors={['#2196F3', '#4CAF50']}
               tintColor="#2196F3"
+              title={isRefreshing ? "Refreshing transactions..." : "Pull to refresh"}
+              titleColor="#666"
+              progressBackgroundColor="#FFFFFF"
             />
           }
           showsVerticalScrollIndicator={false}
@@ -611,10 +643,29 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     flex: 1,
   },
+  balanceRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   balanceAmount: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#1a1a1a',
+    marginRight: 12,
+  },
+  refreshButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#F0F8FF',
+  },
+  refreshButtonDisabled: {
+    backgroundColor: '#F5F5F5',
+  },
+  refreshIcon: {
+    // Base icon styles
+  },
+  refreshIconSpinning: {
+    // Animation could be added here if needed
   },
   balanceActions: {
     flexDirection: 'row',
@@ -653,6 +704,13 @@ const styles = StyleSheet.create({
     color: '#000000',
     fontWeight: '500',
     textAlign: 'left',
+  },
+  lastUpdatedText: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
+    textAlign: 'right',
+    marginTop: 4,
   },
   // Search Bar
   searchContainer: {

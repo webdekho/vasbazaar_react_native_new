@@ -18,7 +18,6 @@ import { Card } from 'react-native-paper';
 import { MaterialIcons } from '@expo/vector-icons';
 import { captureRef } from 'react-native-view-shot';
 import { AuthContext } from '../../context/AuthContext';
-import PaymentHelper from '../../utils/PaymentHelper';
 
 import logoInsideQR from '../../../assets/vasbazaar_favicon.png'; 
 import vasbazaarLogo from '../../../assets/vasbazaar_logo.png'; 
@@ -117,16 +116,6 @@ export default function QrPrint({ navigation }) {
     }
   };
 
-  // Open Payment WebView
-  const handlePayment = () => {
-    // Example UPI token - replace with actual token from your app logic
-    const exampleUpiToken = '443C8B6BA780AFE676383AEF6C18006996FF7E66CB615330EC28CCCB2061190B77EFC1309328312211100C01B6B737B25C3804047B0F26F3761BADB1627263458BF481541B81B34A9768DD92C6DB9C0930F9615FA29D9E3D6D412B3987AE38502B33FA3BAD8DDBA65E53A18AF18AF334F96BB5D54A54A2B95F60875A865931551D71C3AB1EF8234DB9C489004DE89FBA017C62F6939ACF20E4054448939B244D745D5AE393763060F6F90CB0F19F9130B8D3FB52FDFD7A9708329FFE98D70ADC8D326CBBB6B38F7628C06E38F849C1BD48138A2CF3E861B39DE589D9EB9E4AE9B7721AA1AD9229CAFDCF76C203251F597B4C67DD5FA0B783FE810027178F8133E78BAA501DC91C765C3B01350EC3908F';
-    
-    // Use the new token-based method
-    PaymentHelper.openPaymentWithToken(navigation, exampleUpiToken, {
-      title: 'Vasbazaar Payment'
-    });
-  };
 
 
   return (
@@ -192,23 +181,16 @@ export default function QrPrint({ navigation }) {
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
           <TouchableOpacity style={styles.actionBtn} onPress={handleShare}>
-            <MaterialIcons name="share" size={20} color="#000" />
+            <MaterialIcons name="share" size={20} color="#fff" />
             <Text style={styles.actionBtnText}>Share QR</Text>
           </TouchableOpacity>
 
           {!hideDownloadBtn && (
             <TouchableOpacity style={styles.actionBtn} onPress={handleDownload}>
-              <MaterialIcons name="download" size={20} color="#000" />
+              <MaterialIcons name="download" size={20} color="#fff" />
               <Text style={styles.actionBtnText}>Save QR</Text>
             </TouchableOpacity>
           )}
-
-          {/* Payment Button */}
-          <TouchableOpacity style={[styles.actionBtn, styles.paymentBtn]} onPress={handlePayment}>
-            <MaterialIcons name="payment" size={20} color="#fff" />
-            <Text style={[styles.actionBtnText, styles.paymentBtnText]}>Payment</Text>
-          </TouchableOpacity>
-
         </View>
 
         {/* Benefits */}
@@ -250,10 +232,8 @@ const styles = StyleSheet.create({
   phoneRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
   phoneNumber: { marginLeft: 6, fontSize: 14, color: '#1976d2', fontWeight: '600' },
   actionButtons: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 16, flexWrap: 'wrap' },
-  actionBtn: { flexDirection: 'row', backgroundColor: '#fff', padding: 12, borderRadius: 25, alignItems: 'center', elevation: 2, marginVertical: 4 },
-  actionBtnText: { marginLeft: 6, fontWeight: '600', fontSize: 14 },
-  paymentBtn: { backgroundColor: '#000' },
-  paymentBtnText: { color: '#fff' },
+  actionBtn: { flexDirection: 'row', backgroundColor: '#000', padding: 12, borderRadius: 25, alignItems: 'center', elevation: 2, marginVertical: 4 },
+  actionBtnText: { marginLeft: 6, fontWeight: '600', fontSize: 14, color: '#fff' },
   benefitsCard: { backgroundColor: '#fff', padding: 16, borderRadius: 12 },
   benefitsHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   benefitsTitle: { fontWeight: 'bold', marginLeft: 8 },
