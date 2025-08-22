@@ -1,5 +1,24 @@
+import React from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import PropTypes from 'prop-types';
 
+/**
+ * Loading overlay component that displays a spinner over the entire screen.
+ * Used to indicate loading states throughout the application.
+ * 
+ * @component
+ * @param {Object} props - Component properties
+ * @param {boolean} props.isLoading - Whether to show the loading overlay
+ * @returns {React.ReactElement|null} The rendered Loader component or null
+ * 
+ * @example
+ * // Basic loader usage
+ * <Loader isLoading={loading} />
+ * 
+ * @example
+ * // Conditional loading
+ * <Loader isLoading={submittingForm} />
+ */
 const Loader = ({ isLoading }) => {
   if (!isLoading) return null;
 
@@ -19,5 +38,10 @@ const styles = StyleSheet.create({
     zIndex: 999, // ensure it's above everything
   },
 });
+
+// PropTypes validation
+Loader.propTypes = {
+  isLoading: PropTypes.bool.isRequired,
+};
 
 export default Loader;

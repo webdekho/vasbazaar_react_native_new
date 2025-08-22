@@ -1,8 +1,13 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import PropTypes from 'prop-types';
 import CrashReportingService from '../Services/CrashReportingService';
 
+/**
+ * Error Boundary Component
+ * Catches JavaScript errors anywhere in the child component tree and displays a fallback UI
+ */
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -156,5 +161,17 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
 });
+
+// PropTypes for better type checking
+ErrorBoundary.propTypes = {
+  children: PropTypes.node.isRequired,
+  screenName: PropTypes.string,
+  onError: PropTypes.func,
+};
+
+ErrorBoundary.defaultProps = {
+  screenName: 'unknown',
+  onError: null,
+};
 
 export default ErrorBoundary;

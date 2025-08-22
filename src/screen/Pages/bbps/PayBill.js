@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { Button, Card, IconButton, Searchbar, Text, TextInput } from 'react-native-paper';
 import imageMap from '../../../components/icons';
+import PropTypes from 'prop-types';
 
 export default function DthRecharge({ route, navigation }) {
   const { serviceId, biller } = route.params;
@@ -428,6 +429,11 @@ export default function DthRecharge({ route, navigation }) {
     </>
   );
 }
+
+DthRecharge.propTypes = {
+  route: PropTypes.object.isRequired,
+  navigation: PropTypes.object.isRequired,
+};
 
 const styles = StyleSheet.create({
   keyboardContainer: {

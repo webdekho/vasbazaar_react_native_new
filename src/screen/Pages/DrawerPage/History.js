@@ -1,6 +1,3 @@
-import { AuthContext } from '../../../context/AuthContext';
-import { getRecords, postRequest } from '../../../Services/ApiServices';
-import { Ionicons } from '@expo/vector-icons';
 import React, { useContext, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -16,6 +13,11 @@ import {
   View,
   Alert
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import PropTypes from 'prop-types';
+
+import { AuthContext } from '../../../context/AuthContext';
+import { getRecords, postRequest } from '../../../Services/ApiServices';
 
 // Custom Popup Component
 const CustomPopup = ({ visible, type, title, message, onClose, onAction, actionText }) => {
@@ -115,6 +117,22 @@ const CustomPopup = ({ visible, type, title, message, onClose, onAction, actionT
   );
 };
 
+/**
+ * History component for displaying user transaction history
+ * 
+ * Features:
+ * - Transaction list with grouping by month
+ * - Search functionality across transactions
+ * - Complaint submission for failed transactions
+ * - Pull-to-refresh and infinite scroll
+ * - Custom popup notifications
+ * - Coupon code copying functionality
+ * 
+ * @component
+ * @param {Object} props - Component props
+ * @param {Object} props.navigation - Navigation object for screen transitions
+ * @returns {JSX.Element} The History component
+ */
 const History = ({ navigation }) => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -173,7 +191,6 @@ const History = ({ navigation }) => {
       navigator.clipboard.writeText(couponCode).then(() => {
         showPopup('success', 'Copied!', `Coupon code "${couponCode}" has been copied to clipboard.`);
       }).catch((error) => {
-        console.error('Error copying to clipboard:', error);
         showPopup('error', 'Copy Failed', 'Unable to copy coupon code to clipboard.');
       });
     } else {
@@ -218,10 +235,8 @@ const History = ({ navigation }) => {
         setPage(1);
       } else {
         showPopup('error', 'Error', 'Failed to load transactions. Please try again.');
-        console.log('Transaction fetch failed:', response.message || response.fail);
       }
     } catch (error) {
-      console.error('Error fetching transactions:', error);
       showPopup('error', 'Network Error', 'Unable to connect to server. Please check your internet connection.');
     } finally {
       setLoading(false);
@@ -258,7 +273,6 @@ const History = ({ navigation }) => {
         showPopup('warning', 'Load More Failed', 'Unable to load more transactions.');
       }
     } catch (error) {
-      console.error('Error loading more transactions:', error);
       showPopup('error', 'Network Error', 'Failed to load more transactions.');
     } finally {
       setIsLoadingMore(false);
@@ -320,7 +334,6 @@ const History = ({ navigation }) => {
         );
       }
     } catch (error) {
-      console.error('Error submitting complaint:', error);
       showPopup(
         'error', 
         'Network Error', 
@@ -375,14 +388,6 @@ const History = ({ navigation }) => {
         description += ` - ${item.customerName}`;
       }
 
-      // Debug coupon data
-      if (item.couponCode) {
-        console.log('Coupon data found:', {
-          couponCode: item.couponCode,
-          description: item.description,
-          discription: item.discription
-        });
-      }
 
       grouped[monthYear].push({
         id: item.txnId,
@@ -1082,5 +1087,9 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
 });
+
+History.propTypes = {
+  navigation: PropTypes.object.isRequired,
+};
 
 export default History;

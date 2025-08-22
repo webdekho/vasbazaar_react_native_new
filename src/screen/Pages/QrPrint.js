@@ -19,7 +19,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { captureRef } from 'react-native-view-shot';
 import { AuthContext } from '../../context/AuthContext';
 
-import logoInsideQR from '../../../assets/vasbazaar_favicon.png'; 
+import logoInsideQR from '../../../assets/vasbazaar_logo.png'; 
 import vasbazaarLogo from '../../../assets/vasbazaar_logo.png'; 
 
 // Screen height for scroll section

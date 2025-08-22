@@ -1,34 +1,54 @@
-import { CardStyleInterpolators, createStackNavigator } from '@react-navigation/stack';
 import React from 'react';
+import { CardStyleInterpolators, createStackNavigator } from '@react-navigation/stack';
+import PropTypes from 'prop-types';
+
+// Components
 import DeepLinkHandler from '../components/DeepLinkHandler';
+
+// Navigation
 import DrawerNavigation from '../Navigation/DrawerNavigation/DrawerNavigation';
 
+// Screen imports organized by feature
+// General Pages
 import AddBank from '../screen/Pages/AddBank';
 import AllServices from '../screen/Pages/AllServices';
 import AutoPay from '../screen/Pages/AutoPay';
+import CouponList from '../screen/Pages/CouponList';
+import Help from '../screen/Pages/Help';
+import Notification from '../screen/Pages/Notification';
+import Complaint from '../screen/Pages/Complaint';
+import QrPrint from '../screen/Pages/QrPrint';
+
+// BBPS (Bill Payment) Screens
 import BillerList from '../screen/Pages/bbps/BillerList';
 import PayBill from '../screen/Pages/bbps/PayBill';
 import ViewBill from '../screen/Pages/bbps/ViewBill';
 
-import CouponList from '../screen/Pages/CouponList';
-
+// DTH Screens
 import DthOperatorList from '../screen/Pages/dth/DthOperatorList';
 import DthPlan from '../screen/Pages/dth/DthPlan';
 import DthRecharge from '../screen/Pages/dth/Recharge';
-import Help from '../screen/Pages/Help';
+
+// Mobile Recharge Screens
 import ContactList from '../screen/Pages/mobile_recharge/ContactList';
 import Payment from '../screen/Pages/mobile_recharge/Payment';
 import Processing from '../screen/Pages/mobile_recharge/Processing';
 import Recharge from '../screen/Pages/mobile_recharge/Recharge';
 import RechargePlan from '../screen/Pages/mobile_recharge/RechargePlan';
 import Success from '../screen/Pages/mobile_recharge/Success';
-import Notification from '../screen/Pages/Notification';
-import Complaint from '../screen/Pages/Complaint';
-import QrPrint from '../screen/Pages/QrPrint';
 
 
 const Stack = createStackNavigator();
 
+/**
+ * App Stack Navigator
+ * Main navigation stack for authenticated users
+ * Contains all the screens accessible after successful authentication
+ * 
+ * @param {Object} props - Component props
+ * @param {Object} props.authFunctions - Authentication functions to pass to screens
+ * @returns {JSX.Element} Stack navigator with all app screens
+ */
 export default function AppStack({ authFunctions }) {
   return (
     <Stack.Navigator
@@ -177,3 +197,8 @@ export default function AppStack({ authFunctions }) {
     </Stack.Navigator>
   );
 }
+
+// PropTypes for better type checking
+AppStack.propTypes = {
+  authFunctions: PropTypes.object,
+};

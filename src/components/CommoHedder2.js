@@ -1,5 +1,3 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { useNavigation } from '@react-navigation/native';
 import React from 'react';
 import {
   Image,
@@ -10,7 +8,11 @@ import {
   View,
   Platform
 } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import PropTypes from 'prop-types';
+
 import imageMap from './icons';
 
 // Optimized header heights - reduced for better space utilization while maintaining usability
@@ -21,6 +23,37 @@ const HEADER_HEIGHT = Platform.select({
   default: 44,
 });
 
+/**
+ * Common header component with customizable styling and navigation options.
+ * Supports light/dark themes, logo display, and flexible navigation behavior.
+ * 
+ * @component
+ * @param {Object} props - Component properties
+ * @param {string} props.heading - Header title text
+ * @param {string} [props.goback='back'] - Navigation target ('back' for goBack() or screen name)
+ * @param {boolean} [props.showLogo=false] - Whether to show logo in right section
+ * @param {string} [props.logoKey='bharat_connect'] - Key for logo image from imageMap
+ * @param {boolean} [props.whiteText=true] - Whether to use white text color
+ * @param {boolean} [props.whiteHeader=false] - Whether to use white header background
+ * @param {Object} [props.headerStyle] - Custom header container styles
+ * @param {Object} [props.titleStyle] - Custom title text styles
+ * @param {boolean} [props.showBackButton=true] - Whether to show back navigation button
+ * @returns {React.ReactElement} The rendered CommonHeader component
+ * 
+ * @example
+ * // Basic dark header
+ * <CommonHeader heading="My Page" />
+ * 
+ * @example
+ * // Light header with logo
+ * <CommonHeader 
+ *   heading="Welcome"
+ *   whiteHeader={true}
+ *   whiteText={false}
+ *   showLogo={true}
+ *   logoKey="bharat_connect"
+ * />
+ */
 export default function CommonHeader({
   heading,
   goback = 'back',
@@ -35,11 +68,19 @@ export default function CommonHeader({
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
 
+  /**
+   * Handles navigation back action with error handling
+   * @function handleGoBack
+   */
   const handleGoBack = () => {
-    if (goback === 'back') {
-      navigation.goBack();
-    } else {
-      navigation.navigate(goback);
+    try {
+      if (goback === 'back') {
+        navigation.goBack();
+      } else {
+        navigation.navigate(goback);
+      }
+    } catch (error) {
+      // Fallback for navigation errors
     }
   };
 
@@ -251,6 +292,19 @@ const styles = StyleSheet.create({
     }),
   },
 });
+
+// PropTypes validation
+CommonHeader.propTypes = {
+  heading: PropTypes.string.isRequired,
+  goback: PropTypes.string,
+  showLogo: PropTypes.bool,
+  logoKey: PropTypes.string,
+  whiteText: PropTypes.bool,
+  whiteHeader: PropTypes.bool,
+  headerStyle: PropTypes.object,
+  titleStyle: PropTypes.object,
+  showBackButton: PropTypes.bool,
+};
 
 // Default props
 CommonHeader.defaultProps = {

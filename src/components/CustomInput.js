@@ -6,9 +6,52 @@ import {
   View,
 } from 'react-native';
 import { TextInput as PaperTextInput } from 'react-native-paper';
+import PropTypes from 'prop-types';
 import { inputStyles, inputTheme } from '../styles/inputStyles';
 
-// Main CustomInput component that handles all input types
+/**
+ * Versatile custom input component with extensive styling and functionality options.
+ * Supports standard TextInput, Material Design Paper inputs, icons, and validation.
+ * 
+ * @component
+ * @param {Object} props - Component properties
+ * @param {string} [props.value] - Input value
+ * @param {Function} props.onChangeText - Text change handler
+ * @param {string} [props.placeholder] - Placeholder text
+ * @param {string} [props.label] - Input label
+ * @param {string} [props.helperText] - Helper text below input
+ * @param {string} [props.errorText] - Error message to display
+ * @param {boolean} [props.required=false] - Whether field is required
+ * @param {boolean} [props.secureTextEntry=false] - Whether to hide input text
+ * @param {boolean} [props.multiline=false] - Whether input is multiline
+ * @param {boolean} [props.usePaperInput=false] - Whether to use Material Design Paper input
+ * @param {Object} [props.leftIcon] - Left icon configuration
+ * @param {Object} [props.rightIcon] - Right icon configuration
+ * @param {Object} [props.style] - Custom input styles
+ * @param {Object} [props.containerStyle] - Custom container styles
+ * @returns {React.ReactElement} The rendered CustomInput component
+ * 
+ * @example
+ * // Basic input
+ * <CustomInput 
+ *   value={email}
+ *   onChangeText={setEmail}
+ *   placeholder="Enter email"
+ *   label="Email Address"
+ * />
+ * 
+ * @example
+ * // Paper input with validation
+ * <CustomInput 
+ *   usePaperInput={true}
+ *   value={password}
+ *   onChangeText={setPassword}
+ *   label="Password"
+ *   secureTextEntry={true}
+ *   errorText={passwordError}
+ *   required={true}
+ * />
+ */
 const CustomInput = forwardRef(({
   // Basic props
   value,

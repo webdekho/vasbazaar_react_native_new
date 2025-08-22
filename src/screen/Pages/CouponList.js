@@ -1,7 +1,4 @@
-import CommonHeader2 from '../../components/CommoHedder2';
-import { styles2 } from '../../components/Css';
-import { getRecords } from '../../Services/ApiServices';
-import { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Image,
@@ -12,9 +9,28 @@ import {
     View
 } from 'react-native';
 import { Searchbar } from 'react-native-paper';
+import PropTypes from 'prop-types';
 
+import CommonHeader2 from '../../components/CommoHedder2';
+import { styles2 } from '../../components/Css';
+import { getRecords } from '../../Services/ApiServices';
 import { AuthContext } from '../../context/AuthContext';
 
+/**
+ * CouponList component for displaying available coupons and services
+ * 
+ * Features:
+ * - Dynamic service loading from API
+ * - Search functionality for services
+ * - Service grid display with icons
+ * - Loading states and error handling
+ * - Navigation to service screens
+ * 
+ * @component
+ * @param {Object} props - Component props
+ * @param {Object} props.navigation - Navigation object for screen transitions
+ * @returns {JSX.Element} The CouponList component
+ */
 export default function CouponList({ navigation }) {
   const [searchText, setSearchText] = useState('');
   const { userData, userToken } = useContext(AuthContext);
@@ -26,11 +42,9 @@ export default function CouponList({ navigation }) {
       try {
         const response = await getRecords({'displayOnScreen':display}, userToken, 'api/customer/service/allService');
         if (response?.status === 'success') {
-          console.log("response data",response.data);
           setServices(response.data);
         }
       } catch (error) {
-        console.error('Services fetch error', error);
       }finally {
        setIsLoading(false);
       }

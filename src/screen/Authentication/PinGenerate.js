@@ -1,6 +1,7 @@
-import { AuthContext } from '../../context/AuthContext';
-import { Ionicons } from '@expo/vector-icons';
+// React imports
 import React, { useContext, useEffect, useRef, useState, useCallback } from 'react';
+
+// React Native imports
 import {
   ActivityIndicator,
   Animated,
@@ -16,13 +17,39 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+
+// Third-party library imports
+import PropTypes from 'prop-types';
+import { Ionicons } from '@expo/vector-icons';
+
+// Local imports
+import { AuthContext } from '../../context/AuthContext';
 import { set4digitPin } from '../../Services/ApiServices';
 import TopAuthHeader from '../../components/TopAuthHeader';
 import CrashReportingService from '../../Services/CrashReportingService';
 
 const { width, height } = Dimensions.get('window');
 
-// Modern PIN Input Component
+/**
+ * ModernPinInput - Individual PIN input field component
+ * 
+ * @param {Object} props - Component props
+ * @param {string} props.value - Current value of the input
+ * @param {Function} props.onChangeText - Handler for text changes
+ * @param {Function} props.onKeyPress - Handler for key press events
+ * @param {Function} props.onFocus - Handler for focus events
+ * @param {Function} props.onBlur - Handler for blur events
+ * @param {number} props.index - Index of the input field
+ * @param {boolean} props.focused - Whether the input is focused
+ * @param {boolean} props.filled - Whether the input has a value
+ * @param {boolean} props.error - Whether there's an error state
+ * @param {boolean} props.disabled - Whether the input is disabled
+ * @param {boolean} props.showPin - Whether to show the PIN value
+ * @param {Function} props.onSubmitEditing - Handler for submit editing
+ * @param {Object} props.inputRef - Ref for the input element
+ * @param {boolean} props.autoFocus - Whether to auto-focus the input
+ * @returns {JSX.Element} The rendered ModernPinInput component
+ */
 const ModernPinInput = ({ 
   value, 
   onChangeText, 
@@ -83,6 +110,25 @@ const ModernPinInput = ({
   );
 };
 
+/**
+ * PinGenerateScreen - Screen for creating a new 4-digit PIN for user authentication
+ * 
+ * This component allows users to create and confirm a secure 4-digit PIN for account access.
+ * Features include:
+ * - Two-step PIN creation (create and confirm)
+ * - Real-time PIN validation and security checks
+ * - Visual feedback for PIN matching
+ * - Animated UI elements and progress indicators
+ * - PIN visibility toggle functionality
+ * - Comprehensive error handling and user feedback
+ * 
+ * @param {Object} props - Component props
+ * @param {Object} props.route - Navigation route object containing params
+ * @param {string} props.route.params.permanentToken - Permanent token for authentication
+ * @param {string} props.route.params.sessionToken - Session token for API calls
+ * @param {Object} props.navigation - Navigation object for screen navigation
+ * @returns {JSX.Element} The rendered PinGenerateScreen component
+ */
 export default function PinGenerateScreen({ route, navigation }) {
   const { permanentToken, sessionToken } = route.params || {};
   const authContext = useContext(AuthContext);
@@ -365,7 +411,6 @@ export default function PinGenerateScreen({ route, navigation }) {
       });
       
       const response = await set4digitPin(pin, sessionToken);
-      console.log("Set PIN Response", response);
       
       if (response?.status === 'success') {
         CrashReportingService.logEvent('pin_creation_success');
@@ -383,7 +428,6 @@ export default function PinGenerateScreen({ route, navigation }) {
         triggerShakeAnimation();
       }
     } catch (error) {
-      console.error("PIN Creation Error", error);
       CrashReportingService.logError(error, {
         context: 'setVerifiedPin_network_error',
         hasSessionToken: !!sessionToken
@@ -1007,3 +1051,35 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 });
+
+// PropTypes for ModernPinInput component
+ModernPinInput.propTypes = {
+  value: PropTypes.string.isRequired,
+  onChangeText: PropTypes.func.isRequired,
+  onKeyPress: PropTypes.func.isRequired,
+  onFocus: PropTypes.func.isRequired,
+  onBlur: PropTypes.func.isRequired,
+  index: PropTypes.number.isRequired,
+  focused: PropTypes.bool.isRequired,
+  filled: PropTypes.bool.isRequired,
+  error: PropTypes.bool.isRequired,
+  disabled: PropTypes.bool.isRequired,
+  showPin: PropTypes.bool.isRequired,
+  onSubmitEditing: PropTypes.func.isRequired,
+  inputRef: PropTypes.object.isRequired,
+  autoFocus: PropTypes.bool,
+};
+
+// PropTypes for PinGenerateScreen component
+PinGenerateScreen.propTypes = {
+  route: PropTypes.shape({
+    params: PropTypes.shape({
+      permanentToken: PropTypes.string,
+      sessionToken: PropTypes.string,
+    }),
+  }).isRequired,
+  navigation: PropTypes.shape({
+    navigate: PropTypes.func.isRequired,
+    goBack: PropTypes.func.isRequired,
+  }).isRequired,
+};

@@ -514,7 +514,7 @@ const styles = StyleSheet.create({
   },
   notificationCard: {
     backgroundColor: '#FFFFFF',
-    marginHorizontal: 16,
+    marginHorizontal: 0,
     marginVertical: 4,
     borderRadius: 12,
     elevation: 2,

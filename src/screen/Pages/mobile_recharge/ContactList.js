@@ -1,6 +1,3 @@
-import CommonHeader2 from '../../../components/CommoHedder2';
-import * as Contacts from 'expo-contacts';
-import * as Linking from 'expo-linking';
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -17,14 +14,36 @@ import {
   View
 } from 'react-native';
 import { Avatar, Button, Card, IconButton, Searchbar } from 'react-native-paper';
+import * as Contacts from 'expo-contacts';
+import * as Linking from 'expo-linking';
 import Carousel from 'react-native-snap-carousel';
 import { MaterialIcons } from '@expo/vector-icons';
+import PropTypes from 'prop-types';
 
+import CommonHeader2 from '../../../components/CommoHedder2';
 import { AuthContext } from '../../../context/AuthContext';
 import { getRecords, postRequest } from '../../../Services/ApiServices';
 
 const { width: screenWidth } = Dimensions.get('window');
 
+/**
+ * ContactList component for displaying and managing contacts for mobile recharge
+ * 
+ * Features:
+ * - Advertisement carousel with tap to view details
+ * - Contact list with search functionality
+ * - My Number quick access
+ * - Contact selection from device contacts
+ * - Operator and circle detection
+ * - Modal for contact search and selection
+ * - Loading states and error handling
+ * 
+ * @component
+ * @param {Object} props - Component props
+ * @param {Object} props.route - Route object containing service parameters
+ * @param {Object} props.navigation - Navigation object for screen transitions
+ * @returns {JSX.Element} The ContactList component
+ */
 export default function ContactList({ route, navigation }) {
   const [contacts, setContacts] = useState([]);
   const [searchText, setSearchText] = useState('');
@@ -94,7 +113,6 @@ export default function ContactList({ route, navigation }) {
       setAdLoading(true);
       
       if (!userToken) {
-        console.warn('No user token available, using fallback images');
         setAdvertisementImages(fallbackImages);
         return;
       }
@@ -106,7 +124,6 @@ export default function ContactList({ route, navigation }) {
       );
 
       if (response?.status === "success" && response?.data && Array.isArray(response.data)) {
-        console.log('Advertisement API Response:', response.data);
         
         // Transform API response to image format with proper IDs
         const apiImages = response.data.map((banner, index) => ({
@@ -120,15 +137,12 @@ export default function ContactList({ route, navigation }) {
         if (apiImages.length > 0) {
           setAdvertisementImages(apiImages);
         } else {
-          console.warn('No advertisement banners received, using fallback images');
           setAdvertisementImages(fallbackImages);
         }
       } else {
-        console.warn('Advertisement API failed or returned no data, using fallback images');
         setAdvertisementImages(fallbackImages);
       }
     } catch (error) {
-      console.error('Error fetching advertisements:', error);
       setAdvertisementImages(fallbackImages);
     } finally {
       setAdLoading(false);
@@ -194,7 +208,6 @@ export default function ContactList({ route, navigation }) {
       setFilteredContacts(contactsWithMyNumber());
     } catch (error) {
       Alert.alert('Error', 'Failed to load contacts.');
-      console.error('Contact error:', error);
     } finally {
       setIsLoading(false);
     }
@@ -768,6 +781,11 @@ export default function ContactList({ route, navigation }) {
     </>
   );
 }
+
+ContactList.propTypes = {
+  route: PropTypes.object.isRequired,
+  navigation: PropTypes.object.isRequired,
+};
 
 const styles = StyleSheet.create({
   container: {

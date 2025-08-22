@@ -1,7 +1,7 @@
-import { AuthContext } from '../../context/AuthContext';
-import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+// React imports
 import React, { useContext, useEffect, useRef, useState, useCallback, useMemo } from 'react';
+
+// React Native imports
 import {
   ActivityIndicator,
   Alert,
@@ -16,12 +16,40 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+
+// Third-party library imports
+import PropTypes from 'prop-types';
+import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Local imports
+import { AuthContext } from '../../context/AuthContext';
 import { verifyOTPPin } from '../../Services/ApiServices';
 import TopAuthHeader from '../../components/TopAuthHeader';
 import OptimizedOtpInput from '../../components/OptimizedOtpInput';
 
 const { width, height } = Dimensions.get('window');
 
+/**
+ * OtpPinValidateScreen - Screen for validating OTP during PIN-based authentication
+ * 
+ * This component handles OTP verification for users who are signing in with their PIN.
+ * Features include:
+ * - 6-digit OTP input with optimized component
+ * - Mobile number formatting and display
+ * - OTP validation and error handling
+ * - Resend OTP functionality with timer
+ * - Auto-submission when OTP is complete
+ * - Back button handling with confirmation
+ * - Performance optimizations with useCallback and useMemo
+ * 
+ * @param {Object} props - Component props
+ * @param {Object} props.route - Navigation route object containing params
+ * @param {string} props.route.params.mobileNumber - User's mobile number
+ * @param {Object} props.route.params.response - Response data from previous authentication step
+ * @param {Object} props.navigation - Navigation object for screen navigation
+ * @returns {JSX.Element} The rendered OtpPinValidateScreen component
+ */
 export default function OtpPinValidateScreen({ route, navigation }) {
   const authContext = useContext(AuthContext);
   const { login, updateUserData, secureToken } = authContext;
@@ -111,7 +139,6 @@ export default function OtpPinValidateScreen({ route, navigation }) {
     
     try {
       const apiResponse = await verifyOTPPin(otpCode, secureToken, token);
-      console.log("OTP Verification Response", apiResponse);
       
       if (apiResponse?.status === 'success') {
         const data = apiResponse.data;
@@ -137,7 +164,6 @@ export default function OtpPinValidateScreen({ route, navigation }) {
         setErrorMessage(apiResponse?.message || "Invalid OTP. Please try again.");
       }
     } catch (error) {
-      console.error("OTP Verification Error", error);
       setErrorMessage("Network error. Please check your connection and try again.");
     } finally {
       setLoading(false);
@@ -556,3 +582,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+
+// PropTypes validation
+OtpPinValidateScreen.propTypes = {
+  route: PropTypes.shape({
+    params: PropTypes.shape({
+      mobileNumber: PropTypes.string,
+      response: PropTypes.object,
+    }),
+  }).isRequired,
+  navigation: PropTypes.shape({
+    navigate: PropTypes.func.isRequired,
+    goBack: PropTypes.func.isRequired,
+  }).isRequired,
+};

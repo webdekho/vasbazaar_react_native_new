@@ -6,9 +6,33 @@ import {
   Dimensions,
   Platform,
 } from 'react-native';
+import PropTypes from 'prop-types';
 
 const { width } = Dimensions.get('window');
 
+/**
+ * Optimized OTP input component with automatic focus management and responsive design.
+ * Provides smooth user experience for entering verification codes.
+ * 
+ * @component
+ * @param {Object} props - Component properties
+ * @param {number} [props.length=6] - Number of OTP input fields
+ * @param {Function} [props.onComplete] - Callback when OTP is complete
+ * @param {Function} props.onChangeText - Callback for text changes
+ * @param {Array} [props.value=[]] - Current OTP values array
+ * @param {boolean} [props.errorState=false] - Whether to show error styling
+ * @param {boolean} [props.autoFocus=true] - Whether to auto-focus first input
+ * @returns {React.ReactElement} The rendered OptimizedOtpInput component
+ * 
+ * @example
+ * // Basic OTP input
+ * <OptimizedOtpInput 
+ *   length={6}
+ *   value={otpValues}
+ *   onChangeText={setOtpValues}
+ *   onComplete={(otp) => verifyOTP(otp)}
+ * />
+ */
 const OptimizedOtpInput = React.memo(({
   length = 6,
   onComplete,
@@ -161,5 +185,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
 });
+
+// PropTypes validation
+OptimizedOtpInput.propTypes = {
+  length: PropTypes.number,
+  onComplete: PropTypes.func,
+  onChangeText: PropTypes.func.isRequired,
+  value: PropTypes.array,
+  errorState: PropTypes.bool,
+  autoFocus: PropTypes.bool,
+};
+
+OptimizedOtpInput.defaultProps = {
+  length: 6,
+  value: [],
+  errorState: false,
+  autoFocus: true,
+  onComplete: null,
+};
 
 export default OptimizedOtpInput;

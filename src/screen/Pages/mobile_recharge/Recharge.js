@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Avatar, Button, Card, List, Searchbar } from 'react-native-paper';
 import ConfettiCannon from 'react-native-confetti-cannon';
+import PropTypes from 'prop-types';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -56,7 +57,6 @@ const {
   const confettiRef = useRef(null);
   const modalConfettiRef = useRef(null);
   
-  console.log("plan",plan);
 
   // Function to trigger confetti effect
   const triggerConfetti = () => {
@@ -82,9 +82,7 @@ const {
   };
 
   const handleApplyCoupon2 = (couponCode, coupon_id,description) => {
-    console.log("coupon2",coupon2);
     if (coupon2 != null && coupon2 !== '') {
-      console.log("Coupon2 Enter int Coupon",coupon2);
       setCoupon(coupon2);
       setCouponDesc(description);
     }
@@ -128,11 +126,9 @@ const {
         await AsyncStorage.setItem(storageTimeKey, now.toString());
         return data;
       } else {
-        console.log("API returned error:", response?.message);
         return null;
       }
     } catch (error) {
-      console.log("fetchPlan Error:", error);
       return null;
     }
   };
@@ -303,7 +299,7 @@ const {
               left={(props) => (
                 <Avatar.Image
                   {...props}
-                  source={Icons['coupon'] || require('../../../../assets/vasbazaar_favicon.png')}
+                  source={Icons['coupon'] || require('../../../../assets/icons/coupon.png')}
                 />
               )}
             />
@@ -441,6 +437,11 @@ const {
     </View>
   );
 }
+
+Recharge.propTypes = {
+  route: PropTypes.object.isRequired,
+  navigation: PropTypes.object.isRequired,
+};
 
 const styles = StyleSheet.create({
 

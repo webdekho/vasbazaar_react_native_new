@@ -1,8 +1,3 @@
-import CommonHeader2 from '../../components/CommoHedder2';
-import { styles2 } from '../../components/Css';
-import { AuthContext } from '../../context/AuthContext';
-import { getRecords } from '../../Services/ApiServices';
-import { useFocusEffect } from '@react-navigation/native';
 import React, { useContext, useEffect, useState, useCallback } from 'react';
 import {
   ActivityIndicator,
@@ -16,6 +11,13 @@ import {
   View
 } from 'react-native';
 import { Card, List, Searchbar } from 'react-native-paper';
+import { useFocusEffect } from '@react-navigation/native';
+import PropTypes from 'prop-types';
+
+import { AuthContext } from '../../context/AuthContext';
+import { getRecords } from '../../Services/ApiServices';
+import { styles2 } from '../../components/Css';
+import CommonHeader2 from '../../components/CommoHedder2';
 // Platform-specific SVG imports
 let SvgXml;
 if (Platform.OS !== 'web') {
@@ -422,7 +424,7 @@ export default function AllServices({ navigation, route }) {
         </div>
         <div style={{ 
           flexShrink: 0,
-          padding: '16px'
+          padding: '16px 16px 0px 16px'
         }}>
           <Searchbar
             placeholder="Search services, history, profile, rewards..."
@@ -432,7 +434,7 @@ export default function AllServices({ navigation, route }) {
             inputStyle={{ fontSize: 14 }}
             iconColor="#666"
           />
-          {redirectedFrom && (
+          {/* {redirectedFrom && (
             <div style={styles.redirectNotice}>
               <span style={styles.redirectText}>
                 🔄 Redirected from: {redirectedFrom}
@@ -444,7 +446,7 @@ export default function AllServices({ navigation, route }) {
                 Go to {redirectedFrom} →
               </button>
             </div>
-          )}
+          )} */}
         </div>
         <div style={{ 
           flex: 1,

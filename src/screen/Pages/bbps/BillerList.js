@@ -1,17 +1,35 @@
-import CommonHeader2 from '../../../components/CommoHedder2';
-import { AuthContext } from '../../../context/AuthContext';
-import { getRecords } from '../../../Services/ApiServices';
 import React, { useContext, useEffect, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { ActivityIndicator, Searchbar, Text } from 'react-native-paper';
+import PropTypes from 'prop-types';
 
+import CommonHeader2 from '../../../components/CommoHedder2';
+import { AuthContext } from '../../../context/AuthContext';
+import { getRecords } from '../../../Services/ApiServices';
+
+/**
+ * BillerList component for displaying available billers for a service
+ * 
+ * Features:
+ * - Search functionality to filter billers
+ * - Loading states and error handling
+ * - Navigation to PayBill screen with selected biller
+ * - Responsive grid layout for biller items
+ * 
+ * @component
+ * @param {Object} props - Component props
+ * @param {Object} props.route - Route object containing service parameters
+ * @param {Object} props.navigation - Navigation object for screen transitions
+ * @returns {JSX.Element} The BillerList component
+ */
 export default function BillerList({ route, navigation }) {
-    const [searchQuery, setSearchQuery] = useState('');
     const authContext = useContext(AuthContext);
     const { userToken } = authContext;
+    
     const serviceId = route.params?.serviceId || 'NA';
     const serviceName = route.params?.serviceName || 'NA';
 
+    const [searchQuery, setSearchQuery] = useState('');
     const [operatorList, setOperatorList] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     
@@ -23,7 +41,6 @@ export default function BillerList({ route, navigation }) {
                 setOperatorList(response.data);
             }
         } catch (error) {
-            console.error('Services fetch error', error);
         } finally {
             setIsLoading(false);
         }
@@ -168,3 +185,8 @@ const styles = StyleSheet.create({
         color: '#999',
     },
 });
+
+BillerList.propTypes = {
+    route: PropTypes.object.isRequired,
+    navigation: PropTypes.object.isRequired,
+};

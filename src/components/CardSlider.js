@@ -1,12 +1,35 @@
-import { AuthContext } from '../context/AuthContext';
-import { getRecords } from '../Services/ApiServices';
 import React, { useContext, useEffect, useState } from "react";
 import { ActivityIndicator, Dimensions, Image, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { MaterialIcons } from '@expo/vector-icons';
 import Carousel from "react-native-snap-carousel";
+import PropTypes from 'prop-types';
+
+import { AuthContext } from '../context/AuthContext';
+import { getRecords } from '../Services/ApiServices';
 
 const { width: screenWidth } = Dimensions.get("window");
 
+/**
+ * Interactive card slider component that displays user cards and promotional banners.
+ * Combines user cashback/incentive information with dynamic banner content from API.
+ * 
+ * @component
+ * @param {Object} props - Component properties
+ * @param {number} [props.total_cashback=0] - Total cashback amount to display
+ * @param {number} [props.total_incentive=0] - Total incentive amount to display
+ * @param {Object} props.userData - User data object containing name and mobile
+ * @param {string} [props.userData.name] - User's name
+ * @param {string} [props.userData.mobile] - User's mobile number
+ * @returns {React.ReactElement} The rendered CardSlider component
+ * 
+ * @example
+ * // Basic card slider with user data
+ * <CardSlider 
+ *   total_cashback={1500}
+ *   total_incentive={500}
+ *   userData={{ name: "John Doe", mobile: "9876543210" }}
+ * />
+ */
 const CardSlider = ({total_cashback, total_incentive, userData}) => {
   const [activeSlide, setActiveSlide] = useState(0);
   // Initialize with user card immediately
@@ -28,7 +51,11 @@ const CardSlider = ({total_cashback, total_incentive, userData}) => {
   const authContext = useContext(AuthContext);
   const { userToken } = authContext;
 
-  // Create user card data
+  /**
+   * Creates user card data object with cashback and incentive information
+   * @function createUserCard
+   * @returns {Object} User card data object
+   */
   const createUserCard = () => ({
     type: "card",
     id: "user-card",
@@ -40,7 +67,12 @@ const CardSlider = ({total_cashback, total_incentive, userData}) => {
     textColor: "white",
   });
 
-  // Transform API banner data to slider format
+  /**
+   * Transforms API banner data to slider format
+   * @function transformBannerData
+   * @param {Array} banners - Array of banner objects from API
+   * @returns {Array} Transformed banner data for slider
+   */
   const transformBannerData = (banners) => {
     return banners.map((banner) => ({
       type: "image",
@@ -54,7 +86,11 @@ const CardSlider = ({total_cashback, total_incentive, userData}) => {
     }));
   };
 
-  // Fetch slider images from API
+  /**
+   * Fetches slider images and banner data from API
+   * @async
+   * @function fetchSliderImages
+   */
   const fetchSliderImages = async () => {
     try {
       setLoading(true);
@@ -64,7 +100,6 @@ const CardSlider = ({total_cashback, total_incentive, userData}) => {
       const userCard = createUserCard();
       
       if (!userToken) {
-        console.warn('No user token available, showing only user card');
         setData([userCard]);
         return;
       }
@@ -76,22 +111,16 @@ const CardSlider = ({total_cashback, total_incentive, userData}) => {
       );
 
       if (response?.status === "success" && response?.data && Array.isArray(response.data)) {
-        console.log('API Response:', response.data);
-        
         // Transform banner data
         const bannerSlides = transformBannerData(response.data);
         
         // Combine user card with banner slides
         const combinedData = [userCard, ...bannerSlides];
-        
-        console.log('Combined slider data:', combinedData);
         setData(combinedData);
       } else {
-        console.warn('No banner data received, showing only user card');
         setData([userCard]);
       }
     } catch (error) {
-      console.error('Error fetching slider images:', error);
       setError(error.message);
       
       // Fallback to user card only if API fails
@@ -102,7 +131,11 @@ const CardSlider = ({total_cashback, total_incentive, userData}) => {
     }
   };
 
-  // Handle slide click to show popup
+  /**
+   * Handles slide press to show modal with additional information
+   * @function handleSlidePress
+   * @param {Object} item - Slide item data
+   */
   const handleSlidePress = (item) => {
     // Only show modal for image slides with title or description
     if (item.type === "image" && (item.title || item.description)) {
@@ -111,7 +144,10 @@ const CardSlider = ({total_cashback, total_incentive, userData}) => {
     }
   };
 
-  // Close modal
+  /**
+   * Closes the detail modal
+   * @function closeModal
+   */
   const closeModal = () => {
     setModalVisible(false);
     setSelectedSlide(null);
@@ -170,11 +206,8 @@ const CardSlider = ({total_cashback, total_incentive, userData}) => {
             source={item.image} 
             style={styles.image} 
             resizeMode="cover"
-            onError={(error) => {
-              console.error('Error loading banner image:', error.nativeEvent?.error);
-            }}
-            onLoad={() => {
-              console.log('Banner image loaded successfully:', item.image.uri);
+            onError={() => {
+              // Handle image loading error silently
             }}
           />
           {/* Show tap indicator only if there's content to display */}
@@ -193,7 +226,7 @@ const CardSlider = ({total_cashback, total_incentive, userData}) => {
     return null;
   };
 
-  // Never show loading state - always render the carousel with at least the user card
+  // Always render the carousel with at least the user card
 
   return (
     <View style={styles.carouselContainer}>
@@ -543,5 +576,24 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
 });
+
+// PropTypes validation
+CardSlider.propTypes = {
+  total_cashback: PropTypes.number,
+  total_incentive: PropTypes.number,
+  userData: PropTypes.shape({
+    name: PropTypes.string,
+    mobile: PropTypes.string,
+  }),
+};
+
+CardSlider.defaultProps = {
+  total_cashback: 0,
+  total_incentive: 0,
+  userData: {
+    name: 'User',
+    mobile: '',
+  },
+};
 
 export default CardSlider;

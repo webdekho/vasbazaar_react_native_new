@@ -2,110 +2,111 @@
 import axios from 'axios';
 import { BASE_URL } from './Base_Url';
 
-export const Upload_Multipart_Api = async (endpoint, payload, userToken) => {
-  try {
-    const response = await axios.put(
-      `${BASE_URL}/${endpoint}`,
-      payload, // Pass FormData directly
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          access_token: userToken,
-        },
-      }
-    );
+/**
+ * Creates standardized API headers for requests
+ * @param {string|null} sessionToken - Optional session token for authentication
+ * @param {string} contentType - Content type header, defaults to 'application/json'
+ * @returns {Object} Headers object for API requests
+ */
+const createApiHeaders = (sessionToken = null, contentType = 'application/json') => ({
+  'Content-Type': contentType,
+  ...(sessionToken && { 'access_token': sessionToken }),
+});
 
+/**
+ * Standardizes API response handling across different response formats
+ * @param {Object} response - Axios response object
+ * @param {string} successMessage - Default success message if none provided
+ * @returns {Object} Standardized response object with status, data, and message
+ */
+const handleApiResponse = (response, successMessage = 'Operation successful') => {
+  const { Status, STATUS, message, data, RDATA, ERROR } = response.data;
+  
+  if (Status === 'SUCCESS' || (STATUS === '1' && ERROR === '0') || RDATA) {
+    return {
+      status: 'success',
+      data: data || RDATA || response.data,
+      message: message || successMessage,
+    };
+  }
+  
+  return {
+    status: 'failure',
+    message: message || 'Something went wrong',
+  };
+};
+
+/**
+ * Standardizes error handling for API requests
+ * @param {Error} error - Error object from axios or other sources
+ * @param {string} context - Context description for debugging
+ * @returns {Object} Standardized error response object
+ */
+const handleApiError = (error, context = 'API') => {
+  console.error(`${context} Error:`, error);
+  const fallbackMessage = error?.response?.data?.message || 'Network or server error. Please try again later.';
+  return {
+    status: 'error',
+    message: fallbackMessage,
+  };
+};
+
+/**
+ * Uploads multipart/form-data to the specified endpoint
+ * @param {string} endpoint - API endpoint path
+ * @param {FormData} payload - FormData object containing files/data
+ * @param {string} userToken - User authentication token
+ * @returns {Object} Response object with success/fail status
+ */
+export const uploadMultipartApi = async (endpoint, payload, userToken) => {
+  try {
+    const headers = createApiHeaders(userToken, 'multipart/form-data');
+    const response = await axios.put(`${BASE_URL}/${endpoint}`, payload, { headers });
+    
     if (response.data.Status === 'SUCCESS') {
       return { success: response.data.message };
-    } else {
-      return { fail: response.data.message };
     }
+    return { fail: response.data.message };
   } catch (error) {
-    const errorMessage =
-      error.response?.data?.message || error.message || 'An unexpected error occurred';
-    return { fail: errorMessage, errors: error.response?.data?.errors };
+    return handleApiError(error, 'Upload Multipart');
   }
 };
 
+/**
+ * Makes a POST request to the specified endpoint
+ * @param {Object} payloads - Request payload data
+ * @param {string} sessionToken - Session authentication token
+ * @param {string} endpoints - API endpoint path
+ * @returns {Object} Standardized response object
+ */
 export const postRequest = async (payloads, sessionToken, endpoints) => {
   try {
-    const headers = {
-      'Content-Type': 'application/json',
-      'access_token': sessionToken, // Add token to header
-    };
-
-    const response = await axios.post(
-      `${BASE_URL}/${endpoints}`,
-      payloads, // For POST, data goes in the body
-      { headers }
-    );
-
-    const { Status, message, data } = response.data;
-
-    if (Status === 'SUCCESS') {
-      return {
-        status: 'success',
-        data,
-        message: message || 'Data retrieved successfully',
-      };
-    }else if((response.data.STATUS==='1' && response.data.ERROR==='0') || response.data.RDATA){
-      return {
-        status: 'success',
-        message: message || 'get data',
-        data:response.data.RDATA || response.data
-      };
-    } else {
-      return {
-        status: 'failure',
-        message: message || 'Something went wrong',
-      };
-    }
-
+    const headers = createApiHeaders(sessionToken);
+    const response = await axios.post(`${BASE_URL}/${endpoints}`, payloads, { headers });
+    return handleApiResponse(response, 'Data retrieved successfully');
   } catch (error) {
-    // console.error('getRecords (POST) Error:', error);
-    const fallbackMessage = error?.response?.data?.message || 'Network or server error. Please try again later.';
-    return {
-      status: 'error',
-      message: fallbackMessage,
-    };
+    return handleApiError(error, 'POST Request');
   }
 };
 
 
+/**
+ * Makes a GET request to retrieve records from the specified endpoint
+ * @param {Object} payloads - Query parameters for the request
+ * @param {string} sessionToken - Session authentication token
+ * @param {string} endpoints - API endpoint path
+ * @returns {Object} Standardized response object with records
+ */
 export const getRecords = async (payloads, sessionToken, endpoints) => {
   try {
-    const headers = {
-      'Content-Type': 'application/json',
-      'access_token': sessionToken, // Pass token here
-    };
-
+    const headers = createApiHeaders(sessionToken);
     const response = await axios.get(`${BASE_URL}/${endpoints}`, {
       headers,
-      params: payloads, // For GET, use `params` key for query parameters
+      params: payloads,
     });
-
-    const { Status, message, data } = response.data;
-
-    if (Status === 'SUCCESS') {
-      return {
-        status: 'success',
-        data,
-        message: message || 'Data retrieved successfully',
-      };
-    } else {
-      return {
-        status: 'failure',
-        message: message || 'Something went wrong',
-      };
-    }
-
+    return handleApiResponse(response, 'Data retrieved successfully');
   } catch (error) {
-    // console.error('getRecords Error:', error);
-    const fallbackMessage = error?.response?.data?.message || 'Network or server error. Please try again later.';
-    return {
-      status: 'error',
-      message: fallbackMessage,
-    };
+    return handleApiError(error, 'GET Records');
   }
 };
 
@@ -114,68 +115,28 @@ export const sendOTP = async (phoneNumber) => {
   try {
     const payload = {
       mobileNumber: phoneNumber,
-      requestType: 'customer_approval', // or 'SIGNUP' based on your use case
+      requestType: 'customer_approval',
     };
-    const headers = {
-      'Content-Type': 'application/json',
-    };
+    const headers = createApiHeaders();
     const response = await axios.post(`${BASE_URL}/login/sendOTP`, payload, { headers });
-    const { Status, message, data } = response.data;
-    if (Status === 'SUCCESS') {
-      return {
-        status: 'success',
-        data, // usually a token or OTP reference
-        message: message || 'OTP sent successfully',
-      };
-    } else {
-      return {
-        status: 'failure',
-        message: message || 'Something went wrong',
-      };
-    }
-
+    return handleApiResponse(response, 'OTP sent successfully');
   } catch (error) {
-    // console.error('sendOTP Error:', error);
-    const fallbackMessage = error?.response?.data?.message || 'Network or server error. Please try again later.';
-    return {
-      status: 'error',
-      message: fallbackMessage,
-    };
+    return handleApiError(error, 'Send OTP');
   }
 };
 
-export const verifyOTP = async (otp,code,token) => {
+export const verifyOTP = async (otp, code, token) => {
   try {
     const payload = {
-      otp: otp,
-      'referalCode':code,
-      token
+      otp,
+      referalCode: code,
+      token,
     };
-    const headers = {
-      'Content-Type': 'application/json',
-    };
+    const headers = createApiHeaders();
     const response = await axios.post(`${BASE_URL}/login/verifyOTP`, payload, { headers });
-    const { Status, message, data } = response.data;
-    if (Status === 'SUCCESS') {
-      return {
-        status: 'success',
-        data, // usually a token or OTP reference
-        message: message || 'OTP verified successfully',
-      };
-    } else {
-      return {
-        status: 'failure',
-        message: message || 'Something went wrong',
-      };
-    }
-
+    return handleApiResponse(response, 'OTP verified successfully');
   } catch (error) {
-    // console.error('sendOTP Error:', error);
-    const fallbackMessage = error?.response?.data?.message || 'Network or server error. Please try again later.';
-    return {
-      status: 'error',
-      message: fallbackMessage,
-    };
+    return handleApiError(error, 'Verify OTP');
   }
 };
 
@@ -184,179 +145,66 @@ export const sendOTPPin = async (permanentToken) => {
   try {
     const payload = {
       token: permanentToken,
-      requestType: 'customer_approval', // or 'SIGNUP' based on your use case
+      requestType: 'customer_approval',
     };
-    const headers = {
-      'Content-Type': 'application/json',
-    };
+    const headers = createApiHeaders();
     const response = await axios.post(`${BASE_URL}/login/sendOTPToken`, payload, { headers });
-    const { Status, message, data } = response.data;
-    if (Status === 'SUCCESS') {
-      return {
-        status: 'success',
-        data, // usually a token or OTP reference
-        message: message || 'OTP sent successfully',
-      };
-    } else {
-      return {
-        status: 'failure',
-        message: message || 'Something went wrong',
-      };
-    }
-
+    return handleApiResponse(response, 'OTP sent successfully');
   } catch (error) {
-    // console.error('sendOTP Error:', error);
-    const fallbackMessage = error?.response?.data?.message || 'Network or server error. Please try again later.';
-    return {
-      status: 'error',
-      message: fallbackMessage,
-    };
+    return handleApiError(error, 'Send OTP Pin');
   }
 };
 
 export const verifyOTPPin = async (otp, permanentToken, token) => {
   try {
-    const payload = {
-      otp: otp,
-      token: token,
-    };
-    const headers = {
-      'Content-Type': 'application/json',
-      access_token: permanentToken
-    };
+    const payload = { otp, token };
+    const headers = createApiHeaders(permanentToken);
     const response = await axios.post(`${BASE_URL}/login/verifyOTP_token`, payload, { headers });
-    const { Status, message, data } = response.data;
-    if (Status === 'SUCCESS') {
-      return {
-        status: 'success',
-        data, // usually a token or OTP reference
-        message: message || 'OTP verified successfully',
-      };
-    } else {
-      return {
-        status: 'failure',
-        message: message || 'Something went wrong',
-      };
-    }
-
+    return handleApiResponse(response, 'OTP verified successfully');
   } catch (error) {
-    // console.error('sendOTP Error:', error);
-    const fallbackMessage = error?.response?.data?.message || 'Network or server error. Please try again later.';
-    return {
-      status: 'error',
-      message: fallbackMessage,
-    };
+    return handleApiError(error, 'Verify OTP Pin');
   }
 };
 
-export const sendAadhaarOTP = async (aadhaar_number,sessionToken) => {
+export const sendAadhaarOTP = async (aadhaarNumber, sessionToken) => {
   try {
-    const payload = {
-      aadhaarNumber: aadhaar_number,
-    };
-    const headers = {
-      'Content-Type': 'application/json',
-      'access_token': sessionToken,
-    };
+    const payload = { aadhaarNumber };
+    const headers = createApiHeaders(sessionToken);
     const response = await axios.post(`${BASE_URL}/login/send_otp`, payload, { headers });
-
-    console.log("api REspose",response.data);
-
-    const { Status, message, data } = response.data;
     
-
-
-    if (Status === 'SUCCESS') {
-      return {
-        status: 'success',
-        ref_id:data.ref_id, // usually a token or OTP reference
-        message: message || 'OTP sent successfully',
-      };
-    } else {
-      return {
-        status: 'failure',
-        message: message || 'Something went wrong',
-      };
+    console.log('Aadhaar OTP API Response:', response.data);
+    
+    const result = handleApiResponse(response, 'OTP sent successfully');
+    if (result.status === 'success' && result.data?.ref_id) {
+      result.ref_id = result.data.ref_id;
     }
-
+    return result;
   } catch (error) {
-    // console.error('sendOTP Error:', error);
-    const fallbackMessage = error?.response?.data?.message || 'Network or server error. Please try again later.';
-    return {
-      status: 'error',
-      message: fallbackMessage,
-    };
+    return handleApiError(error, 'Send Aadhaar OTP');
   }
 };
 
 
-export const verifyAadhaarOTP = async (otp,refId,sessionToken) => {
+export const verifyAadhaarOTP = async (otp, refId, sessionToken) => {
   try {
-    const payload = {
-      otp: otp,
-      refId: refId
-    };
-    const headers = {
-      'Content-Type': 'application/json',
-      access_token: sessionToken,
-    };
+    const payload = { otp, refId };
+    const headers = createApiHeaders(sessionToken);
     const response = await axios.post(`${BASE_URL}/login/verify_otp`, payload, { headers });
-    const { Status, message, data } = response.data;
-    if (Status === 'SUCCESS') {
-      return {
-        status: 'success',
-        data, // usually a token or OTP reference
-        message: message || 'OTP verified successfully',
-      };
-    } else {
-      return {
-        status: 'failure',
-        message: message || 'Something went wrong',
-      };
-    }
-
+    return handleApiResponse(response, 'OTP verified successfully');
   } catch (error) {
-    // console.error('sendOTP Error:', error);
-    const fallbackMessage = error?.response?.data?.message || 'Network or server error. Please try again later.';
-    return {
-      status: 'error',
-      message: fallbackMessage,
-    };
+    return handleApiError(error, 'Verify Aadhaar OTP');
   }
 };
 
 
-export const set4digitPin = async (pin,sessionToken) => {
+export const set4digitPin = async (pin, sessionToken) => {
   try {
-    const payload = {
-      pin: pin,
-      'token':sessionToken
-    };
-    const headers = {
-      'Content-Type': 'application/json',
-    };
+    const payload = { pin, token: sessionToken };
+    const headers = createApiHeaders();
     const response = await axios.post(`${BASE_URL}/login/pin`, payload, { headers });
-    const { Status, message, data } = response.data;
-    if (Status === 'SUCCESS') {
-      return {
-        status: 'success',
-        data, // usually a token or OTP reference
-        message: message || 'PIN set successfully',
-      };
-    } else {
-      return {
-        status: 'failure',
-        message: message || 'Something went wrong',
-      };
-    }
-
+    return handleApiResponse(response, 'PIN set successfully');
   } catch (error) {
-    // console.error('sendOTP Error:', error);
-    const fallbackMessage = error?.response?.data?.message || 'Network or server error. Please try again later.';
-    return {
-      status: 'error',
-      message: fallbackMessage,
-    };
+    return handleApiError(error, 'Set 4 Digit Pin');
   }
 };
 
@@ -364,68 +212,26 @@ export const set4digitPin = async (pin,sessionToken) => {
 export const sendPinToWhatsapp = async (sessionToken) => {
   try {
     const payload = {};
-    const headers = {
-      'Content-Type': 'application/json',
-      'access_token':sessionToken
-    };
+    const headers = createApiHeaders(sessionToken);
     const response = await axios.post(`${BASE_URL}/login/getPin`, payload, { headers });
-    const { Status, message, data } = response.data;
-    if (Status === 'SUCCESS') {
-      return {
-        status: 'success',
-        data, // usually a token or OTP reference
-        message: message || 'PIN sent to WhatsApp successfully',
-      };
-    } else {
-      return {
-        status: 'failure',
-        message: message || 'Something went wrong',
-      };
-    }
-
+    return handleApiResponse(response, 'PIN sent to WhatsApp successfully');
   } catch (error) {
-    // console.error('sendOTP Error:', error);
-    const fallbackMessage = error?.response?.data?.message || 'Network or server error. Please try again later.';
-    return {
-      status: 'error',
-      message: fallbackMessage,
-    };
+    return handleApiError(error, 'Send Pin to WhatsApp');
   }
 };
 
 
 
-export const pinLogin = async (pin,permanentToken) => {
+export const pinLogin = async (pin, permanentToken) => {
   try {
-    const payload = {
-      pin: pin,
-      token:permanentToken
-    };
-    const headers = {
-      'Content-Type': 'application/json',
-    };
+    const payload = { pin, token: permanentToken };
+    const headers = createApiHeaders();
     const response = await axios.post(`${BASE_URL}/login/pinLogin`, payload, { headers });
-    const { Status, message, data } = response.data;
-    if (Status === 'SUCCESS') {
-      return {
-        status: 'success',
-        data, // usually a token or OTP reference
-        message: message || 'Login successful',
-      };
-    } else {
-      return {
-        status: 'failure',
-        message: message || 'Something went wrong',
-      };
-    }
-
+    return handleApiResponse(response, 'Login successful');
   } catch (error) {
-    // console.error('sendOTP Error:', error);
-    const fallbackMessage = error?.response?.data?.message || 'Network or server error. Please try again later.';
-    return {
-      status: 'error',
-      message: fallbackMessage,
-    };
+    return handleApiError(error, 'Pin Login');
   }
 };
 
+// Backward compatibility exports
+export const Upload_Multipart_Api = uploadMultipartApi;

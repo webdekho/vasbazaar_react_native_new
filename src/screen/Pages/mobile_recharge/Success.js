@@ -1,5 +1,3 @@
-import CommonHeader2 from '../../../components/CommoHedder2';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useState } from "react";
 import {
   Alert,
@@ -14,9 +12,31 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import PropTypes from 'prop-types';
+
+import CommonHeader2 from '../../../components/CommoHedder2';
 
 const { width } = Dimensions.get("window");
 
+/**
+ * PaymentStatusScreen component for displaying payment status and results
+ * 
+ * Features:
+ * - Dynamic status display (success, pending, failed)
+ * - Cashback information display
+ * - Transaction details with reference IDs
+ * - Referral link sharing functionality
+ * - WhatsApp integration for sharing
+ * - Status-specific action buttons
+ * - Responsive layout with animations
+ * 
+ * @component
+ * @param {Object} props - Component props
+ * @param {Object} props.route - Route object containing transaction parameters
+ * @param {Object} props.navigation - Navigation object for screen transitions
+ * @returns {JSX.Element} The PaymentStatusScreen component
+ */
 export default function PaymentStatusScreen({ route, navigation }) {
   const [referenceLink, setReferenceLink] = useState(""); // Default fallback
   
@@ -51,10 +71,8 @@ export default function PaymentStatusScreen({ route, navigation }) {
       const savedLink = await AsyncStorage.getItem(key);
       if (savedLink) {
         setReferenceLink(savedLink);
-        console.log("VAS_QR_STRING", savedLink);
       } 
     } catch (error) {
-      console.error("Error generating reference link:", error);
       // Keep default fallback URL if error occurs
     }
   };
@@ -137,7 +155,6 @@ export default function PaymentStatusScreen({ route, navigation }) {
         Alert.alert('Error', 'WhatsApp is not installed on this device');
       }
     } catch (error) {
-      console.error('Failed to open WhatsApp:', error);
       Alert.alert("Error", "Unable to share to WhatsApp.");
     }
   };
@@ -530,3 +547,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 });
+
+PaymentStatusScreen.propTypes = {
+  route: PropTypes.object,
+  navigation: PropTypes.object.isRequired,
+};

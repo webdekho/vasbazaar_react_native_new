@@ -1,13 +1,16 @@
-import { AuthContext } from '../../../context/AuthContext';
-import { getRecords } from '../../../Services/ApiServices';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
-import * as FileSystem from 'expo-file-system';
-import * as ImagePicker from 'expo-image-picker';
 import React, { useCallback, useContext, useEffect, useState, useRef } from 'react';
-import { Alert, Platform, ScrollView, View, Modal, TouchableOpacity, Image, Dimensions, Animated, PanResponder } from 'react-native';
-import { BASE_URL } from '../../../Services/Base_Url';
-
+import {
+  Alert,
+  Platform,
+  ScrollView,
+  View,
+  Modal,
+  TouchableOpacity,
+  Image,
+  Dimensions,
+  Animated,
+  PanResponder
+} from 'react-native';
 import {
   ActivityIndicator,
   Avatar,
@@ -19,7 +22,29 @@ import {
   Snackbar,
   Text
 } from 'react-native-paper';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import * as FileSystem from 'expo-file-system';
+import * as ImagePicker from 'expo-image-picker';
+import PropTypes from 'prop-types';
 
+import { AuthContext } from '../../../context/AuthContext';
+import { getRecords } from '../../../Services/ApiServices';
+import { BASE_URL } from '../../../Services/Base_Url';
+
+/**
+ * Profile component for managing user profile information and photo uploads
+ * 
+ * Features:
+ * - Profile photo upload with platform-specific handling
+ * - Photo zoom functionality with pinch-to-zoom and pan gestures
+ * - Referral users list with pagination
+ * - Cross-platform image picker with cropping support
+ * - Comprehensive error handling and user feedback
+ * 
+ * @component
+ * @returns {JSX.Element} The Profile component
+ */
 const Profile = () => {
   const authContext = useContext(AuthContext);
   const { userToken } = authContext;
@@ -236,14 +261,10 @@ const Profile = () => {
     try {
       const storedPhotoUrl = await AsyncStorage.getItem(PROFILE_PHOTO_KEY);
       if (storedPhotoUrl) {
-        console.log('Loaded profile photo URL from storage:', storedPhotoUrl);
         setProfilePhotoUrl(storedPhotoUrl);
         setPhoto(storedPhotoUrl); // Set as display photo
-      } else {
-        console.log('No profile photo found in storage');
       }
     } catch (error) {
-      console.error('Error loading profile photo from AsyncStorage:', error);
     }
   }, []);
 
@@ -251,9 +272,7 @@ const Profile = () => {
   const saveProfilePhotoToStorage = async (photoUrl) => {
     try {
       await AsyncStorage.setItem(PROFILE_PHOTO_KEY, photoUrl);
-      console.log('Profile photo URL saved to storage:', photoUrl);
     } catch (error) {
-      console.error('Error saving profile photo to AsyncStorage:', error);
     }
   };
 
@@ -261,9 +280,7 @@ const Profile = () => {
   const clearProfilePhotoFromStorage = async () => {
     try {
       await AsyncStorage.removeItem(PROFILE_PHOTO_KEY);
-      console.log('Profile photo URL cleared from storage');
     } catch (error) {
-      console.error('Error clearing profile photo from AsyncStorage:', error);
     }
   };
 
@@ -291,7 +308,6 @@ const Profile = () => {
         throw new Error(response?.message || 'Failed to fetch referrals');
       }
     } catch (error) {
-      console.error('Fetch referrals error:', error);
       showSnackbar('Failed to load referrals');
     } finally {
       setLoading(false);
@@ -370,13 +386,9 @@ const Profile = () => {
       const randomId = Math.random().toString(36).substring(2, 8);
       const cleanFilename = `profile_${timestamp}_${randomId}.${extension}`;
       
-      console.log('Original URI:', originalUri);
-      console.log('Generated filename:', cleanFilename);
-      console.log('MIME type:', mimeType);
       
       return cleanFilename;
     } catch (error) {
-      console.error('Error generating filename:', error);
       return `profile_${Date.now()}.jpg`;
     }
   };
@@ -408,7 +420,6 @@ const Profile = () => {
         };
       }
     } catch (error) {
-      console.error('Error getting image info:', error);
       return {
         mimeType: 'image/jpeg',
         size: 0
@@ -422,7 +433,6 @@ const Profile = () => {
     
     try {
       setUploadLoading(true);
-      console.log(`📸 Starting photo upload attempt ${retryCount + 1}/${maxRetries + 1}`);
 
       // Request permissions - Android needs special handling
       if (Platform.OS === 'android') {
@@ -468,7 +478,6 @@ const Profile = () => {
           quality: 0.9, // Higher quality for web since no cropping
           base64: true,
         };
-        console.log('Web platform: Cropping disabled, using direct upload');
       } else {
         // Mobile platforms (iOS & Android) - enable cropping
         imagePickerOptions = {
@@ -478,16 +487,8 @@ const Profile = () => {
           quality: 0.8,
           base64: false, // Use URI on mobile
         };
-        console.log(`${Platform.OS} platform: Cropping enabled with square aspect ratio`);
       }
 
-      // Debug log to check available options
-      console.log('ImagePicker available options:', {
-        MediaTypeOptions: ImagePicker.MediaTypeOptions,
-        MediaType: ImagePicker.MediaType,
-        platform: Platform.OS,
-        cropEnabled: imagePickerOptions.allowsEditing
-      });
 
       // Handle mediaTypes based on what's available
       if (ImagePicker.MediaTypeOptions && ImagePicker.MediaTypeOptions.Images !== undefined) {
@@ -496,7 +497,6 @@ const Profile = () => {
         imagePickerOptions.mediaTypes = ImagePicker.MediaType.IMAGES;
       } else {
         // Fallback - don't set mediaTypes, let it use default (Images)
-        console.log('Using default mediaTypes for ImagePicker');
       }
 
       // Launch image picker with platform-specific options
@@ -504,7 +504,6 @@ const Profile = () => {
       try {
         result = await ImagePicker.launchImageLibraryAsync(imagePickerOptions);
       } catch (pickerError) {
-        console.error('Image picker launch error:', pickerError);
         
         // Handle platform-specific picker errors
         let errorMessage = 'Failed to open image picker';
@@ -528,7 +527,6 @@ const Profile = () => {
 
       // Handle cancellation
       if (result.canceled) {
-        console.log('Image selection cancelled by user');
         return;
       }
 
@@ -543,14 +541,6 @@ const Profile = () => {
       }
 
       // Platform-specific validation and processing
-      console.log('Selected image details:', {
-        platform: Platform.OS,
-        uri: image.uri.substring(0, 50) + '...',
-        width: image.width || 'unknown',
-        height: image.height || 'unknown',
-        cropped: imagePickerOptions.allowsEditing && (image.width === image.height),
-        fileSize: image.fileSize || 'unknown'
-      });
 
       // Validate image dimensions if cropping was enabled
       if (Platform.OS !== 'web' && imagePickerOptions.allowsEditing) {
@@ -607,7 +597,6 @@ const Profile = () => {
             formData.append('photo', file);
           }
         } catch (webError) {
-          console.error('Web upload preparation error:', webError);
           throw new Error('Failed to prepare image for upload');
         }
       } else if (Platform.OS === 'ios') {
@@ -630,19 +619,9 @@ const Profile = () => {
           fileName: cleanFilename, // Some APIs expect fileName instead of name
         });
         
-        console.log('Android FormData photo:', {
-          uri: androidUri,
-          type: imageInfo.mimeType || 'image/jpeg',
-          name: cleanFilename,
-        });
       }
 
-      console.log('Platform:', Platform.OS);
-      console.log('Uploading file:', cleanFilename);
-      console.log('MIME type:', imageInfo.mimeType);
       
-      // Show progress indicator to user
-      console.log('🚀 Starting upload process...');
 
       // Upload to server with platform-specific configuration
       let response;
@@ -650,7 +629,6 @@ const Profile = () => {
       if (Platform.OS === 'web') {
         // Web upload configuration
         try {
-          console.log('Starting web upload...');
           response = await axios.put(
             `${BASE_URL}/api/customer/user/updateProfile`,
             formData,
@@ -667,18 +645,14 @@ const Profile = () => {
             }
           );
           
-          console.log('Web upload response status:', response.status);
           if (response.status >= 400) {
             throw new Error(`Server returned status ${response.status}: ${response.data?.message || 'Unknown error'}`);
           }
         } catch (webUploadError) {
-          console.error('Web upload with axios failed:', webUploadError);
           throw webUploadError;
         }
       } else {
         // Mobile upload configuration (iOS & Android)
-        console.log('Upload URL:', `${BASE_URL}/api/customer/user/updateProfile`);
-        console.log('Original image URI:', image.uri);
         
         // For Android, we need a completely different approach
         if (Platform.OS === 'android') {
@@ -701,7 +675,6 @@ const Profile = () => {
               name: cleanFilename,
             });
             
-            console.log('Attempting fetch upload for Android...');
             
             const fetchResponse = await fetch(uploadUrl, {
               method: 'PUT',
@@ -721,7 +694,6 @@ const Profile = () => {
             response = { data: responseData };
             
           } catch (fetchError) {
-            console.error('Fetch upload failed:', fetchError);
             
             // Method 2: Try with XMLHttpRequest as last resort
             try {
@@ -759,7 +731,6 @@ const Profile = () => {
                 xhr.send(formData);
               });
             } catch (xhrError) {
-              console.error('XHR upload failed:', xhrError);
               throw new Error('All upload methods failed. Please check your network connection.');
             }
           }
@@ -777,28 +748,22 @@ const Profile = () => {
               validateStatus: (status) => status < 500, // Accept 4xx errors to handle them properly
             };
             
-            console.log('Starting iOS upload with axios...');
             response = await axios.put(
               `${BASE_URL}/api/customer/user/updateProfile`,
               formData,
               uploadConfig
             );
             
-            console.log('iOS upload response status:', response.status);
             if (response.status >= 400) {
               throw new Error(`Server returned status ${response.status}: ${response.data?.message || 'Unknown error'}`);
             }
           } catch (iosUploadError) {
-            console.error('iOS upload with axios failed:', iosUploadError);
             throw iosUploadError;
           }
         }
       }
 
       // Handle response with better validation
-      console.log('Upload completed, processing response...');
-      console.log('Response status:', response.status);
-      console.log('Response data:', JSON.stringify(response.data, null, 2));
       
       if (!response || !response.data) {
         throw new Error('Invalid response from server - no data received');
@@ -813,7 +778,6 @@ const Profile = () => {
                        data?.success === true ||
                        (response.status >= 200 && response.status < 300);
                        
-      console.log('Upload success status:', isSuccess);
       
       if (isSuccess) {
         // Extract the uploaded photo URL from response
@@ -832,8 +796,6 @@ const Profile = () => {
           uploadedPhotoUrl = data.user.profile_photo;
         }
 
-        console.log('Upload response data:', data);
-        console.log('Extracted photo URL:', uploadedPhotoUrl);
 
         if (uploadedPhotoUrl) {
           // Save the uploaded photo URL to AsyncStorage
@@ -843,12 +805,9 @@ const Profile = () => {
           setProfilePhotoUrl(uploadedPhotoUrl);
           setPhoto(uploadedPhotoUrl);
           
-          console.log('✅ Profile photo upload successful!');
           showSnackbar(message);
         } else {
           // Critical issue: Server says success but no photo URL returned
-          console.error('❌ Server response indicates success but no photo URL found!');
-          console.error('Response data structure:', data);
           
           // Keep the local image for now but show warning
           showSnackbar('Upload completed, but photo URL not received. Please try again if photo doesn\'t appear.');
@@ -862,18 +821,10 @@ const Profile = () => {
         
         // Better error message based on response data
         const errorMsg = data?.message || data?.error || `Upload failed with status: ${response.status}`;
-        console.error('Upload failed:', errorMsg);
         throw new Error(errorMsg);
       }
 
     } catch (error) {
-      console.error('Upload error:', error);
-      console.error('Error details:', {
-        message: error.message,
-        code: error.code,
-        response: error.response?.data,
-        platform: Platform.OS,
-      });
       
       // Reset to previous photo on error
       setPhoto(profilePhotoUrl);
@@ -1421,5 +1372,7 @@ const Profile = () => {
     </>
   );
 };
+
+Profile.propTypes = {};
 
 export default Profile;

@@ -1,3 +1,4 @@
+import React from 'react';
 import {
     Dimensions,
     Image,
@@ -6,10 +7,26 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import PropTypes from 'prop-types';
 
 const { width } = Dimensions.get('window');
 
-export default function Processing({navigation}) {
+/**
+ * Processing component for displaying recharge processing status
+ * 
+ * Features:
+ * - Advertisement display area
+ * - Plan details visualization
+ * - Transaction status indicator
+ * - Step-by-step process display
+ * - Navigation to success screen
+ * 
+ * @component
+ * @param {Object} props - Component props
+ * @param {Object} props.navigation - Navigation object for screen transitions
+ * @returns {JSX.Element} The Processing component
+ */
+export default function Processing({ navigation }) {
   return (
     <View style={styles.container}>
       
@@ -193,3 +210,7 @@ const styles = StyleSheet.create({
     color: '#000',
   },
 });
+
+Processing.propTypes = {
+  navigation: PropTypes.object.isRequired,
+};

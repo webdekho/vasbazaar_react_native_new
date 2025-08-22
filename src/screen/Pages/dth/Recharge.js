@@ -16,6 +16,7 @@ import {
 import { ActivityIndicator, Button, Card, IconButton, Searchbar, Text } from 'react-native-paper';
 import CustomInput from '../../../components/CustomInput';
 import imageMap from '../../../components/icons';
+import PropTypes from 'prop-types';
 
 export default function DthRecharge({ route, navigation }) {
   const authContext = useContext(AuthContext);
@@ -343,6 +344,11 @@ export default function DthRecharge({ route, navigation }) {
     </>
   );
 }
+
+DthRecharge.propTypes = {
+  route: PropTypes.object.isRequired,
+  navigation: PropTypes.object.isRequired,
+};
 
 const styles = StyleSheet.create({
   contactIcon: {

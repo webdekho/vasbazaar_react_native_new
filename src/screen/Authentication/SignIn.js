@@ -1,6 +1,5 @@
-import { Ionicons } from '@expo/vector-icons';
-// Removed expo-router import
 import React, { useEffect, useRef, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
   Animated,
@@ -277,7 +276,7 @@ export default function SignInScreen({ navigation, route }) {
             <Animated.View>
               <SimpleCustomInput
                 ref={referralInputRef}
-                label={`Referral Code ${!code ? '(Optional)' : ''}`}
+                label={`Referral Code ${!initialCode ? '(Optional)' : ''}`}
                 value={referralCode}
                 onChangeText={handleReferralChange}
                 onFocus={handleFocus}
@@ -302,7 +301,7 @@ export default function SignInScreen({ navigation, route }) {
           )}
 
           {/* Toggle Referral Code Button */}
-          {!code && (
+          {!initialCode && (
             <TouchableOpacity 
               style={styles.referralToggle}
               onPress={toggleReferralField}

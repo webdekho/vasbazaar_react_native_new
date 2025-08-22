@@ -3,8 +3,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const REFERRAL_CODE_KEY = 'referralCode';
 
+/**
+ * Utility class for managing referral codes across different platforms
+ * Provides methods to store, retrieve, and extract referral codes
+ */
 class ReferralCodeManager {
-  // Store referral code
+  /**
+   * Store referral code in platform-appropriate storage
+   * @param {string} code - The referral code to store
+   * @returns {Promise<boolean>} Success status
+   */
   static async storeReferralCode(code) {
     try {
       if (Platform.OS === 'web') {
@@ -22,7 +30,10 @@ class ReferralCodeManager {
     }
   }
 
-  // Retrieve referral code
+  /**
+   * Retrieve stored referral code from platform storage
+   * @returns {Promise<string|null>} The stored referral code or null
+   */
   static async getReferralCode() {
     try {
       if (Platform.OS === 'web') {
@@ -36,7 +47,10 @@ class ReferralCodeManager {
     }
   }
 
-  // Clear referral code (after successful use)
+  /**
+   * Clear stored referral code from platform storage
+   * @returns {Promise<boolean>} Success status
+   */
   static async clearReferralCode() {
     try {
       if (Platform.OS === 'web') {
@@ -52,7 +66,11 @@ class ReferralCodeManager {
     }
   }
 
-  // Extract code from URL (web only)
+  /**
+   * Extract referral code from URL query parameters (web only)
+   * Automatically cleans the URL after extraction
+   * @returns {string|null} The extracted referral code or null
+   */
   static extractFromURL() {
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       try {
@@ -72,7 +90,11 @@ class ReferralCodeManager {
     return null;
   }
 
-  // Initialize and check for referral code
+  /**
+   * Initialize referral code manager and check for existing codes
+   * Checks URL first (web), then stored codes
+   * @returns {Promise<string|null>} The found referral code or null
+   */
   static async initialize() {
     // First check URL (web only)
     const urlCode = this.extractFromURL();

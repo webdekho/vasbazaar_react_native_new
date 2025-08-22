@@ -1,5 +1,7 @@
-import { AuthContext } from '../../context/AuthContext';
+// React imports
 import React, { useContext, useEffect, useRef, useState } from 'react';
+
+// React Native imports
 import {
   Alert,
   Animated,
@@ -13,15 +15,42 @@ import {
   TextInput,
   View,
 } from 'react-native';
+
+// Third-party library imports
+import PropTypes from 'prop-types';
 import {
   Button,
   TextInput as PaperTextInput,
 } from 'react-native-paper';
+
+// Local imports
+import { AuthContext } from '../../context/AuthContext';
 import { verifyAadhaarOTP } from '../../Services/ApiServices';
 import TopAuthHeader from '../../components/TopAuthHeader';
 
 const { width, height } = Dimensions.get('window');
 
+/**
+ * AadhaarOtpValidateScreen - Screen for validating Aadhaar OTP during user authentication
+ * 
+ * This component handles the verification of OTP sent to user's mobile number for Aadhaar validation.
+ * Features include:
+ * - 6-digit OTP input with individual fields
+ * - Auto-focus and navigation between input fields
+ * - OTP validation and error handling
+ * - Resend OTP functionality with timer
+ * - Animated UI elements for better user experience
+ * - Back button handling with confirmation dialog
+ * 
+ * @param {Object} props - Component props
+ * @param {Object} props.route - Navigation route object containing params
+ * @param {string} props.route.params.aadhaar_number - User's Aadhaar number
+ * @param {string} props.route.params.sessionToken - Session token for API calls
+ * @param {string} props.route.params.ref_id - Reference ID for OTP verification
+ * @param {string} props.route.params.permanentToken - Permanent token for authentication
+ * @param {Object} props.navigation - Navigation object for screen navigation
+ * @returns {JSX.Element} The rendered AadhaarOtpValidateScreen component
+ */
 export default function AadhaarOtpValidateScreen({ route, navigation }) {
   // Removed expo-router usage
   const authContext = useContext(AuthContext);
@@ -197,7 +226,6 @@ export default function AadhaarOtpValidateScreen({ route, navigation }) {
     
     try {
       const response = await verifyAadhaarOTP(otpCode, ref_id, sessionToken);
-      console.log("Aadhaar OTP Verification Response", response);
       
       if (response?.status === 'success') {
         const data = response.data;
@@ -222,7 +250,6 @@ export default function AadhaarOtpValidateScreen({ route, navigation }) {
         setErrorMessage(response?.message || "Invalid OTP. Please try again.");
       }
     } catch (error) {
-      console.error("Aadhaar OTP Verification Error", error);
       setErrorMessage("Network error. Please check your connection and try again.");
     } finally {
       setLoading(false);
@@ -565,3 +592,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
+// PropTypes validation
+AadhaarOtpValidateScreen.propTypes = {
+  route: PropTypes.shape({
+    params: PropTypes.shape({
+      aadhaar_number: PropTypes.string,
+      sessionToken: PropTypes.string,
+      ref_id: PropTypes.string,
+      permanentToken: PropTypes.string,
+    }),
+  }).isRequired,
+  navigation: PropTypes.shape({
+    navigate: PropTypes.func.isRequired,
+    goBack: PropTypes.func.isRequired,
+  }).isRequired,
+};

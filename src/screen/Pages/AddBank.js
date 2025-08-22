@@ -1,4 +1,3 @@
-import CommonHeader2 from '../../components/CommoHedder2';
 import React, { useRef, useState } from 'react';
 import {
   Dimensions,
@@ -11,6 +10,9 @@ import {
 } from 'react-native';
 import { Button, TextInput, Title } from 'react-native-paper';
 import Carousel from 'react-native-snap-carousel';
+import PropTypes from 'prop-types';
+
+import CommonHeader2 from '../../components/CommoHedder2';
     
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -20,6 +22,21 @@ const advertisementImages = [
   require('../../../assets/images/slider1.png'),
 ];
 
+/**
+ * AddBank component for adding bank account details
+ * 
+ * Features:
+ * - Advertisement carousel display
+ * - Bank selection form
+ * - Account number input with validation
+ * - Keyboard avoiding view for better UX
+ * - Multiple advertisement sliders
+ * 
+ * @component
+ * @param {Object} props - Component props
+ * @param {Object} props.navigation - Navigation object for screen transitions
+ * @returns {JSX.Element} The AddBank component
+ */
 const AddBank = ({ navigation }) => {
   const [bank, setBank] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
@@ -83,7 +100,10 @@ const AddBank = ({ navigation }) => {
 
         <Button
           mode="contained"
-          onPress={() => console.log('Update')}
+          onPress={() => {
+            // Handle bank account update logic here
+            // For now, just log the action
+          }}
           style={styles.button}
           contentStyle={styles.buttonContent}
         >
@@ -111,6 +131,10 @@ const AddBank = ({ navigation }) => {
     </KeyboardAvoidingView>
     </>
   );
+};
+
+AddBank.propTypes = {
+  navigation: PropTypes.object.isRequired,
 };
 
 export default AddBank;

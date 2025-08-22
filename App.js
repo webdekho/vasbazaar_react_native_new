@@ -5,7 +5,9 @@ import { DefaultTheme, Provider as PaperProvider } from 'react-native-paper';
 import { Platform, Linking } from 'react-native';
 import StackNavigation from './src/Navigation/StackNavigation';
 import { AuthProvider } from './src/context/AuthContext';
+import { PWAProvider } from './src/context/PWAContext';
 import ErrorBoundary from './src/components/ErrorBoundary';
+import VersionChecker from './src/components/VersionChecker';
 import CrashReportingService from './src/Services/CrashReportingService';
 
 const theme = {
@@ -17,16 +19,13 @@ const theme = {
   },
 };
 
-const linking = {
-  prefixes: ['vasbazaar://', 'http://localhost:8081', 'https://localhost:8081'],
+// Simplified linking configuration for web compatibility
+const linking = Platform.OS === 'web' ? undefined : {
+  prefixes: ['vasbazaar://'],
   config: {
     screens: {
-      DeepLinkHome: {
-        path: '/',
-        exact: true,
-      },
       sign_in: {
-        path: 'sign_in',
+        path: '/sign_in',
         parse: {
           code: (code) => code || '',
         },
@@ -69,10 +68,7 @@ const linking = {
           },
         },
       },
-      HomeRoute: {
-        path: '/Home',
-      },
-      PinValidate: 'PinValidate',
+      PinValidate: '/PinValidate',
     },
   },
 };
@@ -172,18 +168,22 @@ export default function App() {
 
   return (
     <ErrorBoundary screenName="App" onError={handleError}>
-      <AuthProvider>
-        <PaperProvider theme={theme}>
-          <NavigationContainer 
-            ref={navigationRef}
-            linking={linking}
-          >
-            <ErrorBoundary screenName="Navigation">
-              <StackNavigation initialReferralCode={initialReferralCode} />
-            </ErrorBoundary>
-          </NavigationContainer>
-        </PaperProvider>
-      </AuthProvider>
+      <PWAProvider>
+        <VersionChecker>
+          <AuthProvider>
+            <PaperProvider theme={theme}>
+              <NavigationContainer 
+                ref={navigationRef}
+                linking={Platform.OS === 'web' ? { enabled: false } : linking}
+              >
+                <ErrorBoundary screenName="Navigation">
+                  <StackNavigation initialReferralCode={initialReferralCode} />
+                </ErrorBoundary>
+              </NavigationContainer>
+            </PaperProvider>
+          </AuthProvider>
+        </VersionChecker>
+      </PWAProvider>
     </ErrorBoundary>
   );
 }

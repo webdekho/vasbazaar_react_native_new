@@ -1,5 +1,3 @@
-import TopAuthHeader from '../../components/TopAuthHeader';
-import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -18,10 +16,22 @@ import {
   Button,
   TextInput as PaperTextInput,
 } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
+import PropTypes from 'prop-types';
+
 import { sendAadhaarOTP } from '../../Services/ApiServices';
+import TopAuthHeader from '../../components/TopAuthHeader';
 
 const { width, height } = Dimensions.get('window');
 
+/**
+ * Aadhaar Number Input Screen Component
+ * Handles Aadhaar number input and OTP sending for verification
+ * 
+ * @param {Object} route - Navigation route object containing session and permanent tokens
+ * @param {Object} navigation - Navigation object for screen transitions
+ * @returns {JSX.Element} Aadhaar number input screen
+ */
 export default function AadhaarNumberScreen({ route, navigation }) {
   // State management
   const [aadhaarParts, setAadhaarParts] = useState(['', '', '']);

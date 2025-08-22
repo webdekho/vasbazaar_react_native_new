@@ -618,7 +618,7 @@ const styles = StyleSheet.create({
   // Complaint Card Styles
   complaintCard: {
     backgroundColor: '#FFFFFF',
-    marginHorizontal: 16,
+    // marginHorizontal: 16,
     marginVertical: 8,
     borderRadius: 12,
     padding: 16,

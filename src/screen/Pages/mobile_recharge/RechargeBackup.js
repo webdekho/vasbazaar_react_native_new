@@ -219,7 +219,7 @@ const {
         left={(props) => (
           <Avatar.Image
             {...props}
-            source={Icons[offer.categoryId?.name?.toLowerCase()] || require('../../../../assets/vasbazaar_favicon.png')}
+            source={Icons[offer.categoryId?.name?.toLowerCase()] || require('../../../../assets/icons/coupon.png')}
           />
         )}
         right={() => (
@@ -257,7 +257,7 @@ const {
               left={(props) => (
                 <Avatar.Image
                   {...props}
-                  source={Icons['coupon'] || require('../../../../assets/vasbazaar_favicon.png')}
+                  source={Icons['coupon'] || require('../../../../assets/icons/coupon.png')}
                 />
               )}
             />
@@ -323,7 +323,7 @@ const {
                     left={(props) => (
                       <Avatar.Image
                         {...props}
-                        source={Icons[offer.type] || require('../../../../assets/vasbazaar_favicon.png')}
+                        source={Icons[offer.type] || require('../../../../assets/icons/coupon.png')}
                       />
                     )}
                     right={() => (

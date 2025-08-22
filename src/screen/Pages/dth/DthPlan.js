@@ -220,8 +220,8 @@ export default function DthPlan({ route, navigation }) {
               marginBottom: '16px',
               fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
             }}>
-              <img
-                src={logo || '/assets/icons/default.png'}
+            <img
+                src={logo || require('../../../../assets/icons/default.png')}
                 alt="Operator Logo"
                 style={{
                   width: '45px',

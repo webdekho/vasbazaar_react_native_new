@@ -1,5 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useState } from 'react';
 import { 
   Image, 
@@ -10,14 +8,16 @@ import {
   View, 
   Platform 
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import PropTypes from 'prop-types';
 
 // Conditional import for MaterialIcons
 let MaterialIcons;
 try {
   MaterialIcons = require('react-native-vector-icons/MaterialIcons').default;
 } catch (error) {
-  console.warn('MaterialIcons not available:', error);
   MaterialIcons = null;
 }
 
@@ -34,6 +34,34 @@ const STATUS_BAR_HEIGHT = Platform.select({
   default: 24,
 });
 
+/**
+ * Common application header component with customizable content and styling.
+ * Supports back navigation, profile image display, search functionality, and notifications.
+ * 
+ * @component
+ * @param {Object} props - Component properties
+ * @param {string} [props.title] - Header title text
+ * @param {boolean} [props.showBackButton=false] - Whether to show back navigation button
+ * @param {Function} [props.onBackPress] - Custom back button press handler
+ * @param {Object} [props.headerStyle] - Custom header container styles
+ * @param {Object} [props.titleStyle] - Custom title text styles
+ * @param {React.ReactNode} [props.leftComponent] - Custom left section component
+ * @param {React.ReactNode} [props.rightComponent] - Custom right section component
+ * @param {React.ReactNode} [props.centerComponent] - Custom center section component
+ * @returns {React.ReactElement} The rendered CommonHeader component
+ * 
+ * @example
+ * // Basic header with title
+ * <CommonHeader title="My Page" />
+ * 
+ * @example
+ * // Header with back button
+ * <CommonHeader 
+ *   title="Settings" 
+ *   showBackButton={true}
+ *   onBackPress={() => console.log('Going back')}
+ * />
+ */
 export default function CommonHeader({ 
   title,
   showBackButton = false,
@@ -55,13 +83,17 @@ export default function CommonHeader({
   
   const PROFILE_PHOTO_KEY = 'profile_photo';
 
-  // Load profile photo
+  /**
+   * Loads user profile photo from AsyncStorage
+   * @async
+   * @function loadProfilePhoto
+   * @returns {Promise<void>}
+   */
   const loadProfilePhoto = useCallback(async () => {
     try {
       const storedPhotoUrl = await AsyncStorage.getItem(PROFILE_PHOTO_KEY);
       setProfilePhotoUrl(storedPhotoUrl);
     } catch (error) {
-      console.error('Error loading profile photo:', error);
       setProfilePhotoUrl(null);
     }
   }, []);
@@ -73,16 +105,27 @@ export default function CommonHeader({
     }, [loadProfilePhoto])
   );
 
-  // Handle back button press
+  /**
+   * Handles back button press with custom or default navigation
+   * @function handleBackPress
+   */
   const handleBackPress = () => {
-    if (onBackPress) {
-      onBackPress();
-    } else {
-      navigation.goBack();
+    try {
+      if (onBackPress) {
+        onBackPress();
+      } else {
+        navigation.goBack();
+      }
+    } catch (error) {
+      // Fallback for navigation errors
     }
   };
 
-  // Profile image component
+  /**
+   * Renders user profile image with error handling
+   * @component
+   * @returns {React.ReactElement} Profile image component
+   */
   const ProfileImage = () => (
     <Image
       style={styles.profileImage}
@@ -92,7 +135,11 @@ export default function CommonHeader({
     />
   );
 
-  // Default left component (profile or back button)
+  /**
+   * Default left section component - shows either back button or profile/logo
+   * @component
+   * @returns {React.ReactElement} Left section component
+   */
   const DefaultLeftComponent = () => {
     if (showBackButton) {
       return (
@@ -124,7 +171,11 @@ export default function CommonHeader({
     );
   };
 
-  // Default center component (title)
+  /**
+   * Default center section component - displays header title
+   * @component
+   * @returns {React.ReactElement|null} Center section component
+   */
   const DefaultCenterComponent = () => {
     if (!title) return null;
     
@@ -135,7 +186,11 @@ export default function CommonHeader({
     );
   };
 
-  // Default right component (search + notifications)
+  /**
+   * Default right section component - displays search and notification buttons
+   * @component
+   * @returns {React.ReactElement} Right section component
+   */
   const DefaultRightComponent = () => (
     <View style={styles.rightContainer}>
       <Pressable 
@@ -313,7 +368,18 @@ const styles = StyleSheet.create({
   },
 });
 
-// PropTypes for better documentation (optional)
+// PropTypes validation
+CommonHeader.propTypes = {
+  title: PropTypes.string,
+  showBackButton: PropTypes.bool,
+  onBackPress: PropTypes.func,
+  headerStyle: PropTypes.object,
+  titleStyle: PropTypes.object,
+  leftComponent: PropTypes.node,
+  rightComponent: PropTypes.node,
+  centerComponent: PropTypes.node,
+};
+
 CommonHeader.defaultProps = {
   showBackButton: false,
   title: null,

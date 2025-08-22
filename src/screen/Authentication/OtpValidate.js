@@ -1,6 +1,3 @@
-import { AuthContext } from '../../context/AuthContext';
-import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useContext, useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   ActivityIndicator,
@@ -16,12 +13,25 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
+import PropTypes from 'prop-types';
+
+import { AuthContext } from '../../context/AuthContext';
 import { verifyOTP } from '../../Services/ApiServices';
 import TopAuthHeader from '../../components/TopAuthHeader';
 import OptimizedOtpInput from '../../components/OptimizedOtpInput';
 
 const { width, height } = Dimensions.get('window');
 
+/**
+ * OTP Validation Screen Component
+ * Handles OTP input, validation, and verification for user authentication
+ * 
+ * @param {Object} route - Navigation route object containing params
+ * @param {Object} navigation - Navigation object for screen transitions
+ * @returns {JSX.Element} OTP validation screen
+ */
 export default function OtpValidateScreen({ route, navigation }) {
   const authContext = useContext(AuthContext);
   const { login, updateUserData } = authContext;
@@ -581,3 +591,18 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+
+// PropTypes for better type checking and documentation
+OtpValidateScreen.propTypes = {
+  route: PropTypes.shape({
+    params: PropTypes.shape({
+      mobileNumber: PropTypes.string,
+      code: PropTypes.string,
+      response: PropTypes.object,
+    }),
+  }).isRequired,
+  navigation: PropTypes.shape({
+    navigate: PropTypes.func.isRequired,
+    goBack: PropTypes.func.isRequired,
+  }).isRequired,
+};

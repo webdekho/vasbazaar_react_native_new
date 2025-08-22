@@ -1,5 +1,3 @@
-import { AuthContext } from '../../context/AuthContext';
-import { Ionicons } from '@expo/vector-icons';
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -26,7 +24,11 @@ import {
   Surface,
   useTheme,
 } from 'react-native-paper';
-import { pinLogin, sendPinToWhatsapp,sendOTPPin } from '../../Services/ApiServices';
+import { Ionicons } from '@expo/vector-icons';
+import PropTypes from 'prop-types';
+
+import { AuthContext } from '../../context/AuthContext';
+import { pinLogin, sendPinToWhatsapp, sendOTPPin } from '../../Services/ApiServices';
 import TopAuthHeader from '../../components/TopAuthHeader';
 
 const { width, height } = Dimensions.get('window');

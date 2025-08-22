@@ -2,6 +2,7 @@ import { AuthContext } from '../context/AuthContext';
 import { CommonActions } from '@react-navigation/native';
 import { useContext, useEffect } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
+import PropTypes from 'prop-types';
 
 export default function DeepLinkHandler({ navigation, route }) {
   const { userToken, secureToken, logout } = useContext(AuthContext);
@@ -67,3 +68,13 @@ export default function DeepLinkHandler({ navigation, route }) {
     </View>
   );
 }
+
+// PropTypes validation
+DeepLinkHandler.propTypes = {
+  navigation: PropTypes.object.isRequired,
+  route: PropTypes.object,
+};
+
+DeepLinkHandler.defaultProps = {
+  route: null,
+};

@@ -382,7 +382,7 @@ const allPlans = categories.slice(1).flatMap((category, catIndex) =>
             alignItems: 'center'
           }}>
             <img
-              src={companyLogo || '/assets/icons/default.png'}
+              src={companyLogo || require('../../../../assets/icons/default.png')}
               alt="Operator Logo"
               style={{
                 width: '45px',

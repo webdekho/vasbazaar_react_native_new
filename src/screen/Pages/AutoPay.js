@@ -97,6 +97,8 @@ export default function AutoPay() {
   );
 }
 
+AutoPay.propTypes = {};
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,

@@ -1,14 +1,19 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
-// import { BASE_URL } from './Base_Url';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Configuration constants
 const VERSION_CHECK_KEY = 'last_version_check';
-const CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
-const BASE_URL = 'https://vasbazaar.web.webdekho.in';
+const CHECK_INTERVAL = 1 * 60 * 1000; // 5 minutes
+const VERSION_BASE_URL = 'https://vasbazaar.web.webdekho.in';
 
+/**
+ * Version Service Class
+ * Handles app version checking, update notifications, and version management
+ * Provides functionality for checking app updates and managing version lifecycle
+ */
 class VersionService {
   constructor() {
-    this.currentVersion = '1.0.0'; // This should match package.json version
+    this.currentVersion = '1.0.1'; // This should match package.json version
     this.isChecking = false;
     this.updateCallbacks = [];
   }
@@ -34,7 +39,10 @@ class VersionService {
       try {
         callback(latestVersion, updateInfo);
       } catch (error) {
-        console.error('Version update callback error:', error);
+        // Silently handle callback errors in production
+        if (__DEV__) {
+          console.error('Version update callback error:', error);
+        }
       }
     });
   }
@@ -89,7 +97,7 @@ class VersionService {
   // Get latest version from API
   async getLatestVersion() {
     try {
-      const response = await fetch(BASE_URL + '/version.php', {
+      const response = await fetch(VERSION_BASE_URL + '/version.php', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

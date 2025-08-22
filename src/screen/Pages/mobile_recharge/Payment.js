@@ -1,18 +1,22 @@
-import CommonHeader2 from '../../../components/CommoHedder2';
-import { AuthContext } from '../../../context/AuthContext';
-import { getRecords, postRequest } from '../../../Services/ApiServices';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
-  Modal, Platform, ScrollView,
+  Modal,
+  Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Avatar, Button, Card, List } from 'react-native-paper';
+import PropTypes from 'prop-types';
+
+import { AuthContext } from '../../../context/AuthContext';
+import { getRecords, postRequest } from '../../../Services/ApiServices';
+import CommonHeader2 from '../../../components/CommoHedder2';
 
 export default function Payment({ route, navigation }) {
   const authContext = useContext(AuthContext);

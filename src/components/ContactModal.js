@@ -1,5 +1,33 @@
+import React from 'react';
 import { Image, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import PropTypes from 'prop-types';
 
+/**
+ * Contact confirmation modal component that displays success message
+ * after user submits a contact form or inquiry.
+ * 
+ * @component
+ * @param {Object} props - Component properties
+ * @param {boolean} props.visible - Whether the modal is visible
+ * @param {Function} props.onClose - Callback function called when modal is closed
+ * @param {string} [props.bookingNumber] - Booking number for reference (currently unused)
+ * @returns {React.ReactElement} The rendered ModalContact component
+ * 
+ * @example
+ * // Basic contact modal
+ * <ModalContact 
+ *   visible={showModal}
+ *   onClose={() => setShowModal(false)}
+ * />
+ * 
+ * @example
+ * // Contact modal with booking reference
+ * <ModalContact 
+ *   visible={showModal}
+ *   onClose={() => setShowModal(false)}
+ *   bookingNumber="BK123456"
+ * />
+ */
 const ModalContact = ({ visible, onClose, bookingNumber }) => {
   return (
     <Modal
@@ -13,6 +41,9 @@ const ModalContact = ({ visible, onClose, bookingNumber }) => {
           <Image
             source={require('../../assets/images/check.png')} 
             style={styles.image}
+            onError={() => {
+              // Handle image loading error silently
+            }}
           />
           <Text style={styles.title}>Sent</Text>
           <Text style={styles.message}>
@@ -26,6 +57,17 @@ const ModalContact = ({ visible, onClose, bookingNumber }) => {
       </View>
     </Modal>
   );
+};
+
+// PropTypes validation
+ModalContact.propTypes = {
+  visible: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  bookingNumber: PropTypes.string,
+};
+
+ModalContact.defaultProps = {
+  bookingNumber: null,
 };
 
 export default ModalContact;

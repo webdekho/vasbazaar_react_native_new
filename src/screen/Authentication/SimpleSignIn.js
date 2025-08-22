@@ -1,4 +1,7 @@
+// React imports
 import React, { useState } from 'react';
+
+// React Native imports
 import {
   View,
   Text,
@@ -7,9 +10,29 @@ import {
   SafeAreaView,
   Alert,
 } from 'react-native';
+
+// Third-party library imports
+import PropTypes from 'prop-types';
+
+// Local imports
 import SimpleCustomInput from '../../components/SimpleCustomInput';
 import TopAuthHeader from '../../components/TopAuthHeader';
 
+/**
+ * SimpleSignIn - Basic sign-in screen for mobile number authentication
+ * 
+ * This component provides a simple interface for users to enter their mobile number
+ * and receive an OTP for authentication. Features include:
+ * - Mobile number input with validation
+ * - OTP sending functionality
+ * - Loading states and user feedback
+ * - Navigation to OTP validation screen
+ * 
+ * @param {Object} props - Component props
+ * @param {Object} props.navigation - Navigation object for screen navigation
+ * @param {Object} props.route - Navigation route object containing params
+ * @returns {JSX.Element} The rendered SimpleSignIn component
+ */
 export default function SimpleSignIn({ navigation, route }) {
   const [mobile, setMobile] = useState('');
   const [loading, setLoading] = useState(false);
@@ -120,3 +143,14 @@ const styles = StyleSheet.create({
     marginTop: 30,
   },
 });
+
+// PropTypes validation
+SimpleSignIn.propTypes = {
+  navigation: PropTypes.shape({
+    navigate: PropTypes.func.isRequired,
+    goBack: PropTypes.func.isRequired,
+  }).isRequired,
+  route: PropTypes.shape({
+    params: PropTypes.object,
+  }),
+};

@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { ActivityIndicator, Avatar, Button, Card, List, Text, TextInput } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
+import PropTypes from 'prop-types';
 
 import CommonHeader2 from '../../../components/CommoHedder2';
 import { AuthContext } from '../../../context/AuthContext';
@@ -390,6 +391,11 @@ export default function ViewBill({ route, navigation }) {
 
   return renderDefaultLayout();
 }
+
+ViewBill.propTypes = {
+  route: PropTypes.object.isRequired,
+  navigation: PropTypes.object.isRequired,
+};
 
 const styles = StyleSheet.create({
   container: { 

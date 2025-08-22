@@ -1,5 +1,6 @@
 import React, { useContext } from 'react';
 import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
+import PropTypes from 'prop-types';
 import { AuthContext } from '../context/AuthContext';
 import AppStack from './AppStack';
 import AuthStack from './AuthStack';
@@ -57,5 +58,13 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 });
+
+Navigation.propTypes = {
+  initialReferralCode: PropTypes.string,
+};
+
+Navigation.defaultProps = {
+  initialReferralCode: null,
+};
 
 export default Navigation;

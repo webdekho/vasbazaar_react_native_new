@@ -15,12 +15,13 @@
       "googleServicesFile": "./google-services.json",
       "infoPlist": {
         "NSContactsUsageDescription": "This app needs access to your contacts to display them for recharging"
-      }
+      },
+      "jsEngine": "hermes"
     },
     "android": {
       "icon": "./assets/app_icon/android/ic_launcher-web.png",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/app_icon/android/ic_launcher-web.png",
+        "foregroundImage": "./assets/vasbazaar_logo.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
@@ -35,24 +36,70 @@
         "android.permission.READ_CONTACTS",
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.READ_EXTERNAL_STORAGE"
-      ]
+      ],
+      "jsEngine": "hermes"
     },
     "plugins": [
       [
         "expo-splash-screen",
         {
-          "image": "./assets/vasbazaar_logo_vertical.png",
+          "image": "./assets/vasbazaar_logo.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
       ],
       "expo-secure-store",
-      "expo-router",
       "expo-web-browser",
       "@react-native-firebase/app",
       "@react-native-firebase/crashlytics"
     ],
+    "web": {
+      "favicon": "./assets/vasbazaar_favicon.png",
+      "bundler": "metro",
+      "output": "single",
+      "lang": "en",
+      "name": "vasbazaar",
+      "shortName": "vasbazaar",
+      "description": "Your one-stop solution for mobile recharges, bill payments, and more",
+      "themeColor": "#ffffff",
+      "backgroundColor": "#ffffff",
+      "display": "standalone",
+      "orientation": "portrait",
+      "startUrl": "/",
+      "icons": [
+        {
+          "src": "./assets/app-icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png",
+          "purpose": "any"
+        },
+        {
+          "src": "./assets/app-icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png",
+          "purpose": "maskable"
+        },
+        {
+          "src": "./assets/app-icon-512.png",
+          "sizes": "512x512",
+          "type": "image/png",
+          "purpose": "any"
+        },
+        {
+          "src": "./assets/app-icon-512.png",
+          "sizes": "512x512",
+          "type": "image/png",
+          "purpose": "maskable"
+        },
+        {
+          "src": "./assets/app-icon-1024.png",
+          "sizes": "1024x1024",
+          "type": "image/png",
+          "purpose": "any"
+        }
+      ]
+    },
     "extra": {
       "eas": {
         "projectId": "7656900a-4c68-4718-aed3-c400631ef935"

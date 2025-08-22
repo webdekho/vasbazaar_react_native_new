@@ -1,9 +1,3 @@
-import { getRecords } from '../../../Services/ApiServices';
-import { styles, styles2 } from '../../../components/Css';
-import imageMap from '../../../components/icons';
-import { AuthContext } from '../../../context/AuthContext';
-import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useCallback, useContext, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -16,6 +10,16 @@ import {
   Text,
   View
 } from 'react-native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import PropTypes from 'prop-types';
+
+import { AuthContext } from '../../../context/AuthContext';
+import { getRecords } from '../../../Services/ApiServices';
+import { styles, styles2 } from '../../../components/Css';
+import imageMap from '../../../components/icons';
+import CardSlider from '../../../components/CardSlider';
+import HomeInstallPrompt from '../../../components/HomeInstallPrompt';
 // Platform-specific SVG imports
 let SvgXml;
 if (Platform.OS !== 'web') {
@@ -26,8 +30,6 @@ if (Platform.OS !== 'web') {
     console.warn('react-native-svg not available, using Image fallback');
   }
 }
-import CardSlider from '../../../components/CardSlider';
-import HomeInstallPrompt from '../../../components/HomeInstallPrompt';
 
 const { width } = Dimensions.get('window');
 

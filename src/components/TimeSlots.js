@@ -1,12 +1,36 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import PropTypes from 'prop-types';
 
+/**
+ * Time slots selection component that categorizes and displays available time slots.
+ * Organizes slots into morning and evening categories for better user experience.
+ * 
+ * @component
+ * @param {Object} props - Component properties
+ * @param {Array} props.slots - Array of available time slots
+ * @param {Function} props.setSelectedSlotId - Callback to set selected slot ID
+ * @param {string|number} props.selectedSlotId - Currently selected slot ID
+ * @returns {React.ReactElement} The rendered TimeSlots component
+ * 
+ * @example
+ * // Basic time slots usage
+ * <TimeSlots 
+ *   slots={availableSlots}
+ *   selectedSlotId={selectedId}
+ *   setSelectedSlotId={setSelectedId}
+ * />
+ */
 const TimeSlots = ({ slots, setSelectedSlotId, selectedSlotId }) => {
   const [morningSlots, setMorningSlots] = useState([]);
   const [eveningSlots, setEveningSlots] = useState([]);
   // const [selectedSlotId, setSelectedSlotId] = useState(null);
 
   useEffect(() => {
+    /**
+     * Categorizes time slots into morning and evening based on time
+     * @function categorizeSlots
+     */
     const categorizeSlots = () => {
       const morning = [];
       const evening = [];
@@ -115,9 +139,24 @@ const TimeSlots = ({ slots, setSelectedSlotId, selectedSlotId }) => {
   );
 };
 
+// PropTypes validation
+TimeSlots.propTypes = {
+  slots: PropTypes.arrayOf(PropTypes.shape({
+    slot_id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    slot: PropTypes.string.isRequired,
+    status: PropTypes.string.isRequired,
+  })).isRequired,
+  setSelectedSlotId: PropTypes.func.isRequired,
+  selectedSlotId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+};
+
+TimeSlots.defaultProps = {
+  selectedSlotId: null,
+};
+
 export default TimeSlots;
 
-// Paste your CSS styles here
+// Styles
 const styles = StyleSheet.create({
     container: {
         flex: 1,

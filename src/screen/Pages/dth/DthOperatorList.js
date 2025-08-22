@@ -1,12 +1,28 @@
-import CommonHeader2 from '../../../components/CommoHedder2';
-import { AuthContext } from '../../../context/AuthContext';
-import { getRecords } from '../../../Services/ApiServices';
 import React, { useContext, useEffect, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { IconButton } from 'react-native-paper';
-// import AsyncStorage from '@react-native-async-storage/async-storage';
+import PropTypes from 'prop-types';
 
-export default function DthOperatorList({ route,navigation }) {
+import CommonHeader2 from '../../../components/CommoHedder2';
+import { AuthContext } from '../../../context/AuthContext';
+import { getRecords } from '../../../Services/ApiServices';
+
+/**
+ * DthOperatorList component for displaying DTH service providers
+ * 
+ * Features:
+ * - Search functionality to filter DTH operators
+ * - Loading states and error handling
+ * - Navigation to DTH recharge screen with selected operator
+ * - Responsive list layout for operator selection
+ * 
+ * @component
+ * @param {Object} props - Component props
+ * @param {Object} props.route - Route object containing service parameters
+ * @param {Object} props.navigation - Navigation object for screen transitions
+ * @returns {JSX.Element} The DthOperatorList component
+ */
+export default function DthOperatorList({ route, navigation }) {
     const [search, setSearch] = useState('');
     const authContext = useContext(AuthContext);
     const { userData, userToken } = authContext;
@@ -26,7 +42,6 @@ export default function DthOperatorList({ route,navigation }) {
                 setOperatorList(response.data);
             }
             } catch (error) {
-                console.error('Services fetch error', error);
                 setIsLoading(false);
             } finally {
                 setIsLoading(false);
@@ -173,3 +188,8 @@ const styles = StyleSheet.create({
     flex: 1,
   }
 });
+
+DthOperatorList.propTypes = {
+  route: PropTypes.object.isRequired,
+  navigation: PropTypes.object.isRequired,
+};
