@@ -124,9 +124,6 @@ export default function PendingScreen() {
     );
   };
 
-  const handleContactSupport = () => {
-    router.push('/main/HelpScreen');
-  };
 
   const fetchPaymentUrl = async (upiToken) => {
     if (!upiToken) {
@@ -160,18 +157,6 @@ export default function PendingScreen() {
   const openPaymentWindow = async(paymentUrl) => {
     if (Platform.OS === 'web') {
       try {
-        // Show warning about potential security message
-        const userConfirmed = window.confirm(
-          'You will be redirected to the payment gateway.\n\n' +
-          'Note: If you see a security warning from your browser, it\'s because the payment gateway uses test/staging URLs. ' +
-          'You can safely proceed by clicking "Advanced" and then "Proceed to site" if you trust this payment.\n\n' +
-          'Click OK to continue to payment.'
-        );
-        
-        if (!userConfirmed) {
-          return;
-        }
-        
         const paymentWindow = window.open(
           paymentUrl, 
           'payment',
@@ -179,45 +164,8 @@ export default function PendingScreen() {
         );
 
         if (paymentWindow) {
-          // Monitor the payment window
-          const checkClosed = setInterval(() => {
-            if (paymentWindow.closed) {
-              clearInterval(checkClosed);
-              
-              // Show completion message with enhanced instructions
-              setTimeout(() => {
-                const result = window.confirm(
-                  'Payment window has been closed.\n\n' +
-                  'If you saw a "Dangerous site" warning:\n' +
-                  '1. This is normal for test payment gateways\n' +
-                  '2. If you completed the payment by proceeding anyway, click OK\n' +
-                  '3. If you cancelled due to the warning, click Cancel\n\n' +
-                  'Did you complete your payment successfully?'
-                );
-                
-                if (result) {
-                  // User confirms payment was successful
-                  router.replace({
-                    pathname: '/main/common/SuccessScreen',
-                    params: {
-                      ...params,
-                      response: JSON.stringify({ status: 'success', message: 'Payment completed successfully' }),
-                    }
-                  });
-                } else {
-                  // User indicated payment was not completed
-                  Alert.alert(
-                    'Payment Not Completed',
-                    'If you encountered a browser security warning:\n• This is common with test/staging payment gateways\n• The payment gateway is safe to use\n• You can try again and click "Advanced" → "Proceed to site" when you see the warning'
-                  );
-                }
-              }, 1000);
-            }
-          }, 1000);
-
           // Focus the payment window
           paymentWindow.focus();
-          
         } else {
           // Popup was blocked
           Alert.alert(
@@ -279,48 +227,6 @@ export default function PendingScreen() {
           </ThemedText>
         </ThemedView>
 
-        {/* Status Update */}
-        <ThemedView style={styles.statusCard}>
-          <ThemedView style={styles.statusHeader}>
-            <FontAwesome name="info-circle" size={16} color="#FF9800" />
-            <ThemedText style={styles.statusTitle}>Processing Status</ThemedText>
-          </ThemedView>
-          
-          <ThemedView style={styles.statusSteps}>
-            <ThemedView style={styles.statusStep}>
-              <ThemedView style={[styles.stepIcon, { backgroundColor: '#4CAF50' }]}>
-                <FontAwesome name="check" size={12} color="white" />
-              </ThemedView>
-              <ThemedText style={styles.stepText}>Payment Initiated</ThemedText>
-            </ThemedView>
-            
-            <ThemedView style={styles.statusStep}>
-              <ThemedView style={[styles.stepIcon, { backgroundColor: '#4CAF50' }]}>
-                <FontAwesome name="check" size={12} color="white" />
-              </ThemedView>
-              <ThemedText style={styles.stepText}>Amount Debited</ThemedText>
-            </ThemedView>
-            
-            <ThemedView style={styles.statusStep}>
-              <Animated.View style={[styles.stepIcon, { backgroundColor: '#FF9800', transform: [{ rotate: spin }] }]}>
-                <FontAwesome name="clock-o" size={12} color="white" />
-              </Animated.View>
-              <ThemedText style={[styles.stepText, { color: '#FF9800' }]}>Verifying Transaction</ThemedText>
-            </ThemedView>
-            
-            <ThemedView style={styles.statusStep}>
-              <ThemedView style={[styles.stepIcon, { backgroundColor: '#ccc' }]}>
-                <FontAwesome name="gift" size={12} color="white" />
-              </ThemedView>
-              <ThemedText style={[styles.stepText, { opacity: 0.5 }]}>Service Activation</ThemedText>
-            </ThemedView>
-          </ThemedView>
-          
-          <ThemedView style={styles.countdownContainer}>
-            <ThemedText style={styles.countdownLabel}>Auto-checking in:</ThemedText>
-            <ThemedText style={styles.countdownTime}>{formatTime(countdown)}</ThemedText>
-          </ThemedView>
-        </ThemedView>
 
         {/* Transaction Details */}
         <ThemedView style={styles.detailsCard}>
@@ -405,35 +311,6 @@ export default function PendingScreen() {
           </ThemedView>
         </ThemedView>
 
-        {/* What's Happening */}
-        <ThemedView style={styles.infoCard}>
-          <ThemedText style={styles.infoTitle}>What's happening now?</ThemedText>
-          <ThemedView style={styles.infoItem}>
-            <FontAwesome name="check" size={14} color="#4CAF50" />
-            <ThemedText style={styles.infoText}>Your payment has been processed</ThemedText>
-          </ThemedView>
-          <ThemedView style={styles.infoItem}>
-            <FontAwesome name="clock-o" size={14} color="#FF9800" />
-            <ThemedText style={styles.infoText}>We're confirming with the service provider</ThemedText>
-          </ThemedView>
-          <ThemedView style={styles.infoItem}>
-            <FontAwesome name="bell" size={14} color="#000000" />
-            <ThemedText style={styles.infoText}>You'll get SMS/Email confirmation once completed</ThemedText>
-          </ThemedView>
-        </ThemedView>
-
-        {/* Typical Time */}
-        <ThemedView style={styles.timeCard}>
-          <ThemedText style={styles.timeTitle}>Typical Processing Time</ThemedText>
-          <ThemedView style={styles.timeInfo}>
-            <FontAwesome name="clock-o" size={16} color="#000000" />
-            <ThemedText style={styles.timeText}>
-              {transactionData.type === 'prepaid' && '2-5 minutes for mobile recharge'}
-              {transactionData.type === 'dth' && '5-15 minutes for DTH recharge'}
-              {transactionData.type === 'bill' && '1-24 hours for bill payment confirmation'}
-            </ThemedText>
-          </ThemedView>
-        </ThemedView>
       </ScrollView>
 
       {/* Bottom Actions */}
@@ -445,25 +322,19 @@ export default function PendingScreen() {
         >
           {isChecking ? (
             <ThemedView style={styles.checkingContainer}>
-              <FontAwesome name="spinner" size={16} color="#000000" />
+              <FontAwesome name="spinner" size={16} color="#ffffff" />
               <ThemedText style={styles.checkButtonText}>Checking...</ThemedText>
             </ThemedView>
           ) : (
-            <ThemedText style={styles.checkButtonText}>Check Status Now</ThemedText>
+            <ThemedText style={styles.checkButtonText}>Check Status</ThemedText>
           )}
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.supportButton} onPress={handleContactSupport}>
-          <FontAwesome name="support" size={16} color="white" />
-          <ThemedText style={styles.supportButtonText}>Get Help</ThemedText>
+        <TouchableOpacity style={styles.homeButton} onPress={handleGoHome}>
+          <FontAwesome name="home" size={16} color="white" />
+          <ThemedText style={styles.homeButtonText}>Go to Home</ThemedText>
         </TouchableOpacity>
       </ThemedView>
-
-      {/* Home Button */}
-      <TouchableOpacity style={styles.homeButton} onPress={handleGoHome}>
-        <FontAwesome name="home" size={16} color="#000000" />
-        <ThemedText style={styles.homeButtonText}>Go to Home</ThemedText>
-      </TouchableOpacity>
     </ThemedView>
   );
 }
@@ -475,7 +346,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    paddingBottom: 160,
+    paddingBottom: 100,
   },
   pendingContainer: {
     alignItems: 'center',
@@ -559,8 +430,16 @@ const styles = StyleSheet.create({
   detailsCard: {
     backgroundColor: '#f8f8f8',
     borderRadius: 12,
-    padding: 20,
-    marginBottom: 20,
+    padding: 18,
+    marginBottom: 15,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   detailsHeader: {
     flexDirection: 'row',
@@ -586,34 +465,46 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   detailsList: {
-    gap: 12,
+    gap: 8,
   },
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
   },
   detailLabel: {
     fontSize: 14,
-    opacity: 0.7,
+    color: '#666',
+    fontWeight: '500',
     flex: 1,
   },
   detailValue: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
+    color: '#333',
     flex: 1,
     textAlign: 'right',
   },
   amountRow: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
   },
   amountLabel: {
     fontSize: 16,
     fontWeight: '600',
+    color: '#333',
     flex: 1,
   },
   amountValue: {
@@ -669,7 +560,7 @@ const styles = StyleSheet.create({
   },
   bottomActions: {
     position: 'absolute',
-    bottom: 60,
+    bottom: 0,
     left: 0,
     right: 0,
     flexDirection: 'row',
@@ -680,18 +571,17 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   checkButton: {
-    flex: 2,
+    flex: 1,
     padding: 16,
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#000000',
+    backgroundColor: '#000000',
     alignItems: 'center',
   },
   checkButtonDisabled: {
-    borderColor: '#ccc',
+    backgroundColor: '#ccc',
   },
   checkButtonText: {
-    color: '#000000',
+    color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -700,7 +590,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  supportButton: {
+  homeButton: {
     flex: 1,
     padding: 16,
     borderRadius: 8,
@@ -710,26 +600,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
   },
-  supportButtonText: {
+  homeButtonText: {
     color: '#ffffff',
     fontSize: 16,
-    fontWeight: '600',
-  },
-  homeButton: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    backgroundColor: '#f8f8f8',
-    gap: 8,
-  },
-  homeButtonText: {
-    color: '#000000',
-    fontSize: 14,
     fontWeight: '600',
   },
 });

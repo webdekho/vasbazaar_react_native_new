@@ -11,6 +11,7 @@ import {
 import { useRouter, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import Header, { HeaderPresets } from '@/components/Header';
@@ -412,7 +413,7 @@ export default function ProfileScreen() {
               />
             ) : (
               <ThemedView style={styles.placeholderImage}>
-                <FontAwesome name="user" size={50} color="#999" />
+                <MaterialIcons name="person" size={60} color="#999" />
               </ThemedView>
             )}
             {uploading && (

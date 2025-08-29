@@ -3,6 +3,7 @@ import { StyleSheet, TouchableOpacity, StatusBar, Platform, Text, Image } from '
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import Logo from '@/components/Logo';
@@ -152,7 +153,7 @@ export default function Header({
                 />
               ) : (
                 <ThemedView style={styles.userAvatar}>
-                  <ThemedText style={styles.userAvatarText}>{userInitial}</ThemedText>
+                  <MaterialIcons name="person" size={24} color="#FFFFFF" />
                 </ThemedView>
               )}
             </TouchableOpacity>

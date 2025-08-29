@@ -5,10 +5,12 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { authenticateWithPin } from '../../services';
 import { saveSessionToken } from '../../services/auth/sessionManager';
+import { useAuth } from '../hooks/useAuth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function PinValidateScreen() {
   const router = useRouter();
+  const { refreshAuth } = useAuth();
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -88,24 +90,23 @@ export default function PinValidateScreen() {
         // Update user data in AsyncStorage
         await AsyncStorage.setItem('userData', JSON.stringify(userData));
         
-        // Navigate to main home screen
-        console.log("redirect to home");
-        // Add a small delay to ensure tokens are saved before navigation
-        setTimeout(() => {
-          // Try multiple navigation approaches
-          try {
-            router.replace('/(tabs)/home');
-          } catch (error1) {
-            console.log("First navigation attempt failed:", error1);
-            try {
-              router.push('/(tabs)/home');
-            } catch (error2) {
-              console.log("Second navigation attempt failed:", error2);
-              // Fallback navigation
-              router.replace('/(tabs)');
-            }
-          }
-        }, 100);
+        // Set bypass flag to prevent AuthGuard interference
+        await AsyncStorage.setItem('pinValidationSuccess', 'true');
+        
+        console.log('PIN validation successful, setting bypass flag and navigating to home');
+        
+        // Refresh auth state to trigger AuthGuard navigation
+        setTimeout(async () => {
+          await refreshAuth();
+          
+          // Clear bypass flag after a delay to allow navigation to complete
+          setTimeout(() => {
+            AsyncStorage.removeItem('pinValidationSuccess');
+          }, 1000);
+          
+          // Navigate to home
+          router.replace('/(tabs)/home');
+        }, 200);
         
       } else {
         setError('Incorrect PIN. Please try again.');

@@ -259,10 +259,16 @@ export default function Sidebar({ visible, onClose, userInfo }) {
     <ThemedView style={styles.userProfileSection}>
       <ThemedView style={styles.userHeader}>
         <TouchableOpacity onPress={handleProfilePhotoPress} disabled={!profilePhoto}>
-          <Image 
-            source={profilePhoto ? { uri: profilePhoto } : (defaultUserInfo.avatar || require('@/assets/images/avatar.jpg'))} 
-            style={styles.userAvatar}
-          />
+          {profilePhoto ? (
+            <Image 
+              source={{ uri: profilePhoto }} 
+              style={styles.userAvatar}
+            />
+          ) : (
+            <ThemedView style={[styles.userAvatar, styles.userAvatarPlaceholder]}>
+              <MaterialIcons name="person" size={36} color="#FFFFFF" />
+            </ThemedView>
+          )}
         </TouchableOpacity>
         <ThemedView style={styles.userTextInfo}>
           <ThemedText style={styles.userName}>
@@ -548,6 +554,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+  },
+  userAvatarPlaceholder: {
+    backgroundColor: '#6B7280',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   userTextInfo: {
     flex: 1,

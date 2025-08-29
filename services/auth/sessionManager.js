@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SESSION_TOKEN_KEY = 'sessionToken';
 const SESSION_EXPIRY_KEY = 'sessionExpiry';
-const SESSION_DURATION = 10 * 60 * 1000; // 10 minutes in milliseconds
+const SESSION_DURATION = 60 * 60 * 1000; // 60 minutes (1 hour) in milliseconds
 
 // Prevent excessive session checks
 let lastSessionCheck = 0;
@@ -123,7 +123,7 @@ export const getRemainingSessionTime = async () => {
 };
 
 /**
- * Extend session by another 10 minutes
+ * Extend session by another 1 hour
  * @returns {boolean} True if session was extended successfully
  */
 export const extendSession = async () => {

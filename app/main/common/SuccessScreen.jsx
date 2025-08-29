@@ -1,68 +1,40 @@
-import React, { useEffect, useState } from "react";
-import {
-  Alert,
-  Clipboard,
-  Dimensions,
-  Image,
-  Linking,
-  ScrollView,
-  Share,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useState, useEffect } from 'react';
+import { StyleSheet, ScrollView, TouchableOpacity, Alert, Clipboard } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import MainHeader from '@/components/MainHeader';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const { width } = Dimensions.get("window");
-
-/**
- * SuccessScreen component for displaying payment status and results
- * 
- * Features:
- * - Dynamic status display (success, pending, failed)
- * - Cashback information display
- * - Transaction details with reference IDs
- * - Referral link sharing functionality
- * - WhatsApp integration for sharing
- * - Status-specific action buttons
- * - Responsive layout with animations
- */
 export default function SuccessScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const [referenceLink, setReferenceLink] = useState("https://vasbazaar.web.webdekho.in"); // Default fallback
-  
-  // Extract transaction data from params
-  const {
-    plan = { price: params.amount || params.finalAmount || "0" },
-    serviceId = params.serviceId,
-    operator_id = params.operator_id,
-    circleCode = params.circleCode,
-    companyLogo = params.companyLogo,
-    name = params.contactName || params.customerName,
-    mobile = params.phoneNumber || params.subscriberId || params.accountNumber,
-    operator = params.operator || params.billerName,
-    circle = params.circle,
-    coupon = params.coupon,
-    coupon2 = params.coupon2,
-    userData = {},
-    response = {
-        "status": params.status || "SUCCESS", // Can be SUCCESS, PENDING, FAILED
-        "message": params.message || "Transaction Success.",
-        "requestId": params.requestId || params.transactionId || "REQ" + Date.now().toString().slice(-6),
-        "referenceId": params.referenceId || "REF" + Date.now().toString().slice(-8),
-        "vendorRefId": params.vendorRefId || "VND" + Date.now().toString().slice(-10),
-        "commission": parseFloat(params.commission) || parseFloat(params.discount) || 0.02,
-        "categoryId": params.categoryId || 1
-    },
-  } = params;
+  const [referenceLink, setReferenceLink] = useState("https://vasbazaar.web.webdekho.in");
 
-  // Generate or get reference link
+  // Extract transaction data from params
+  const transactionData = {
+    type: params.type || 'recharge',
+    amount: parseFloat(params.finalAmount) || parseFloat(params.amount) || parseFloat(params.plan ? JSON.parse(params.plan).price?.replace(/[₹,\s]/g, '') : 0) || 0,
+    phoneNumber: params.phoneNumber || params.mobile || '',
+    subscriberId: params.subscriberId || '',
+    accountNumber: params.accountNumber || '',
+    operator: params.operator || params.billerName || '',
+    billerName: params.billerName || '',
+    customerName: params.customerName || params.contactName || params.name || '',
+    contactName: params.contactName || params.name || '',
+    paymentMethod: params.paymentType || 'upi',
+    transactionId: params.requestId || params.transactionId || 'TXN' + Date.now(),
+    referenceId: params.referenceId || 'REF' + Date.now().toString().slice(-8),
+    timestamp: new Date().toLocaleString(),
+    commission: parseFloat(params.commission) || 0.02,
+    status: params.status || 'SUCCESS'
+  };
+
+  useEffect(() => {
+    GetReferenceLink();
+  }, []);
+
+  // Get reference link
   const GetReferenceLink = async () => {
     try {
       const key = 'VAS_QR_STRING';
@@ -75,67 +47,11 @@ export default function SuccessScreen() {
     }
   };
 
-  useEffect(() => {
-    GetReferenceLink();
-  }, [userData?.mobile, mobile]);
-
-  // Get status configuration
-  const getStatusConfig = () => {
-    const status = response?.status?.toUpperCase();
-    
-    switch (status) {
-      case 'SUCCESS':
-        return {
-          backgroundColor: '#E8F5E8',
-          iconBackground: '#FFFFFF',
-          borderColor: '#4CAF50',
-          icon: '✅',
-          title: 'Payment Successful!',
-          subtitle: 'Your transaction has been completed successfully',
-          titleColor: '#2E7D32',
-          subtitleColor: '#4CAF50',
-          showCashback: true,
-          showReferral: true
-        };
-      case 'PENDING':
-        return {
-          backgroundColor: '#FFF8E1',
-          iconBackground: '#FFFFFF',
-          borderColor: '#FF9800',
-          icon: '⏳',
-          title: 'Payment Pending',
-          subtitle: 'Your transaction is being processed',
-          titleColor: '#F57C00',
-          subtitleColor: '#FF9800',
-          showCashback: false,
-          showReferral: false
-        };
-      default: // FAILED or any other status
-        return {
-          backgroundColor: '#FFEBEE',
-          iconBackground: '#FFFFFF',
-          borderColor: '#F44336',
-          icon: '❌',
-          title: 'Payment Failed',
-          subtitle: 'Your transaction could not be completed',
-          titleColor: '#D32F2F',
-          subtitleColor: '#F44336',
-          showCashback: false,
-          showReferral: false
-        };
-    }
+  const handleGoHome = () => {
+    router.replace('/(tabs)/home');
   };
 
-  const statusConfig = getStatusConfig();
-  const isSuccess = response?.status?.toUpperCase() === 'SUCCESS';
-  const isPending = response?.status?.toUpperCase() === 'PENDING';
-
-  const copyToClipboard = () => {
-    Clipboard.setString(referenceLink);
-    Alert.alert("Copied", "Referral link copied to clipboard!");
-  };
-
-  const shareReferralLink = async () => {
+  const handleShareReferral = async () => {
     if (!referenceLink) {
       Alert.alert("Error", "Referral link not available.");
       return;
@@ -143,346 +59,449 @@ export default function SuccessScreen() {
 
     try {
       const message = `🎉 Turn your transactions into earnings! Join vasbazaar today & get cashback on every spend. Sign up here: ${referenceLink}`;
-      const encodedMessage = encodeURIComponent(message);
-      const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
-
-      const canOpen = await Linking.canOpenURL(whatsappUrl);
-      if (canOpen) {
-        await Linking.openURL(whatsappUrl);
-      } else {
-        Alert.alert('Error', 'WhatsApp is not installed on this device');
-      }
+      
+      // For web, copy to clipboard and show alert
+      await Clipboard.setString(message);
+      Alert.alert(
+        'Referral Link Copied!',
+        'Share this link with your friends to earn rewards.',
+        [{ text: 'OK' }]
+      );
     } catch (error) {
-      Alert.alert("Error", "Unable to share to WhatsApp.");
+      Alert.alert("Error", "Unable to copy referral link.");
     }
   };
 
-  const getHeaderTitle = () => {
-    if (isSuccess) return "Congratulations!";
-    if (isPending) return "Processing...";
-    return "Transaction Status";
+  const handleViewHistory = () => {
+    router.push('/(tabs)/history');
   };
 
-  const handleGoHome = () => {
-    router.replace('/(tabs)/home');
+  const getServiceTitle = () => {
+    switch (transactionData.type) {
+      case 'prepaid': return 'Mobile Recharge';
+      case 'dth': return 'DTH Recharge';
+      case 'bill': return 'Bill Payment';
+      default: return 'Service';
+    }
   };
 
-  const handleRechargeAgain = () => {
-    router.back();
+  const getPaymentMethodName = (method) => {
+    switch (method) {
+      case 'upi': return 'UPI';
+      case 'card': return 'Credit/Debit Card';
+      case 'netbanking': return 'Net Banking';
+      case 'wallet': return 'Digital Wallet';
+      case 'payu': return 'PayU Gateway';
+      case 'cod': return 'Cash on Delivery';
+      default: return method;
+    }
   };
 
   return (
-    <>
-      <MainHeader heading={getHeaderTitle()} showBackButton={false} />
-      
-      <ScrollView 
-        style={styles.container} 
-        showsVerticalScrollIndicator={false}
-        bounces={true}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* Cashback Section for Success */}
-        {statusConfig.showCashback && (
-          <View style={styles.cashbackCard}>
-            <Text style={styles.cashbackTitle}>🏆 Congratulations!</Text>
-            <Text style={styles.cashbackAmount}>
-              You've won ₹{response?.commission ? response.commission.toFixed(2) : '0'}
-            </Text>
-            <Text style={styles.cashbackText}>
-              Your cashback will be credited to your wallet instantly
-            </Text>
-          </View>
+    <ThemedView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Success Animation */}
+        <ThemedView style={styles.successContainer}>
+          <ThemedView style={styles.successIconContainer}>
+            <FontAwesome name="check-circle" size={80} color="#4CAF50" />
+          </ThemedView>
+          <ThemedText style={styles.successTitle}>Transaction Successful!</ThemedText>
+          <ThemedText style={styles.successSubtitle}>
+            Your {getServiceTitle().toLowerCase()} has been completed successfully.
+          </ThemedText>
+        </ThemedView>
+
+        {/* Cashback Card */}
+        {transactionData.commission > 0 && (
+          <ThemedView style={styles.cashbackCard}>
+            <ThemedText style={styles.cashbackTitle}>Congratulations! 🎉</ThemedText>
+            
+            <ThemedText style={styles.cashbackAmount}>
+              ₹{transactionData.commission.toFixed(2)} Cashback Earned
+            </ThemedText>
+            <ThemedText style={styles.cashbackText}>
+              Your cashback has been credited to your wallet instantly
+            </ThemedText>
+          </ThemedView>
         )}
 
-        {/* Status Card */}
-        <View style={[styles.statusCard, { 
-          backgroundColor: statusConfig.backgroundColor,
-          borderColor: statusConfig.borderColor 
-        }]}>
-          <View style={[styles.iconContainer, { 
-            backgroundColor: statusConfig.iconBackground,
-            borderColor: statusConfig.borderColor 
-          }]}>
-            <Text style={styles.statusIcon}>{statusConfig.icon}</Text>
-          </View>
-          <Text style={[styles.statusTitle, { color: statusConfig.titleColor }]}>
-            {statusConfig.title}
-          </Text>
-          <Text style={[styles.statusSubtitle, { color: statusConfig.subtitleColor }]}>
-            {statusConfig.subtitle}
-          </Text>
-        </View>
 
         {/* Transaction Details */}
-        <View style={styles.detailsCard}>
-          <Text style={styles.detailsTitle}>Transaction Detail</Text>
-          
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Amount:</Text>
-            <Text style={styles.detailValue}>₹{plan?.price || 'N/A'}</Text>
-          </View>
-          
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Request ID:</Text>
-            <Text style={styles.detailValue}>{response?.requestId || '--'}</Text>
-          </View>
-          
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Reference ID:</Text>
-            <Text style={[styles.detailValue, styles.referenceId]}>
-              {response?.referenceId || '--'}
-            </Text>
-          </View>
+        <ThemedView style={styles.detailsCard}>
+          <ThemedView style={styles.detailsHeader}>
+            <ThemedText style={styles.detailsTitle}>Transaction Details</ThemedText>
+            <ThemedView style={[styles.statusBadge, { backgroundColor: '#4CAF50' }]}>
+              <FontAwesome name="check-circle" size={12} color="white" />
+              <ThemedText style={styles.statusText}>SUCCESS</ThemedText>
+            </ThemedView>
+          </ThemedView>
 
-          {name && (
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Name:</Text>
-              <Text style={styles.detailValue}>{name}</Text>
-            </View>
-          )}
-
-          {mobile && (
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Number:</Text>
-              <Text style={styles.detailValue}>{mobile}</Text>
-            </View>
-          )}
-
-          {operator && (
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Operator:</Text>
-              <Text style={styles.detailValue}>{operator}</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Action Buttons */}
-        <View style={styles.actionButtons}>
-          {isSuccess ? (
-            <>
-              <TouchableOpacity style={styles.shareButton} onPress={shareReferralLink}>
-                <Text style={styles.shareButtonText}>📤 Refer & Earn</Text>
-              </TouchableOpacity>
-              
+          <ThemedView style={styles.detailsList}>
+            <ThemedView style={styles.detailRow}>
+              <ThemedText style={styles.detailLabel}>Transaction ID:</ThemedText>
               <TouchableOpacity 
-                style={styles.homeButton} 
-                onPress={handleGoHome}
+                onPress={() => {
+                  Clipboard.setString(transactionData.transactionId);
+                  Alert.alert('Copied!', 'Transaction ID copied to clipboard');
+                }}
               >
-                <Text style={styles.buttonText}>🏠 Go to Home</Text>
+                <ThemedText style={[styles.detailValue, styles.copyableText]}>
+                  {transactionData.transactionId} 📋
+                </ThemedText>
               </TouchableOpacity>
-            </>
-          ) : (
-            <>
-              <TouchableOpacity 
-                style={[
-                  styles.homeButton, 
-                  !isPending && styles.fullWidthButton
-                ]} 
-                onPress={handleGoHome}
-              >
-                <Text style={styles.buttonText}>
-                  {isPending ? '🏠 Go to Home' : '🏠 Go to Home'}
-                </Text>
-              </TouchableOpacity>
-              
-              {!isPending && (
+            </ThemedView>
+
+            {transactionData.referenceId && (
+              <ThemedView style={styles.detailRow}>
+                <ThemedText style={styles.detailLabel}>Reference ID:</ThemedText>
                 <TouchableOpacity 
-                  style={styles.retryButton}
-                  onPress={handleRechargeAgain}
+                  onPress={() => {
+                    Clipboard.setString(transactionData.referenceId);
+                    Alert.alert('Copied!', 'Reference ID copied to clipboard');
+                  }}
                 >
-                  <Text style={styles.buttonText}>🔄 Retry Payment</Text>
+                  <ThemedText style={[styles.detailValue, styles.copyableText]}>
+                    {transactionData.referenceId} 📋
+                  </ThemedText>
                 </TouchableOpacity>
-              )}
-            </>
-          )}
-        </View>
+              </ThemedView>
+            )}
+            
+            <ThemedView style={styles.detailRow}>
+              <ThemedText style={styles.detailLabel}>Service:</ThemedText>
+              <ThemedText style={styles.detailValue}>{getServiceTitle()}</ThemedText>
+            </ThemedView>
+
+            {transactionData.type === 'prepaid' && (
+              <>
+                {transactionData.contactName && (
+                  <ThemedView style={styles.detailRow}>
+                    <ThemedText style={styles.detailLabel}>Name:</ThemedText>
+                    <ThemedText style={styles.detailValue}>{transactionData.contactName}</ThemedText>
+                  </ThemedView>
+                )}
+                <ThemedView style={styles.detailRow}>
+                  <ThemedText style={styles.detailLabel}>Mobile Number:</ThemedText>
+                  <ThemedText style={styles.detailValue}>{transactionData.phoneNumber}</ThemedText>
+                </ThemedView>
+                <ThemedView style={styles.detailRow}>
+                  <ThemedText style={styles.detailLabel}>Operator:</ThemedText>
+                  <ThemedText style={styles.detailValue}>{transactionData.operator}</ThemedText>
+                </ThemedView>
+              </>
+            )}
+
+            {transactionData.type === 'dth' && (
+              <>
+                <ThemedView style={styles.detailRow}>
+                  <ThemedText style={styles.detailLabel}>Operator:</ThemedText>
+                  <ThemedText style={styles.detailValue}>{transactionData.operator}</ThemedText>
+                </ThemedView>
+                <ThemedView style={styles.detailRow}>
+                  <ThemedText style={styles.detailLabel}>Subscriber ID:</ThemedText>
+                  <ThemedText style={styles.detailValue}>{transactionData.subscriberId}</ThemedText>
+                </ThemedView>
+              </>
+            )}
+
+            {transactionData.type === 'bill' && (
+              <>
+                <ThemedView style={styles.detailRow}>
+                  <ThemedText style={styles.detailLabel}>Biller:</ThemedText>
+                  <ThemedText style={styles.detailValue}>{transactionData.billerName}</ThemedText>
+                </ThemedView>
+                <ThemedView style={styles.detailRow}>
+                  <ThemedText style={styles.detailLabel}>Account Number:</ThemedText>
+                  <ThemedText style={styles.detailValue}>{transactionData.accountNumber}</ThemedText>
+                </ThemedView>
+              </>
+            )}
+
+            <ThemedView style={styles.detailRow}>
+              <ThemedText style={styles.detailLabel}>Payment Method:</ThemedText>
+              <ThemedText style={styles.detailValue}>{getPaymentMethodName(transactionData.paymentMethod)}</ThemedText>
+            </ThemedView>
+
+            <ThemedView style={[styles.detailRow, styles.amountRow]}>
+              <ThemedText style={styles.amountLabel}>Amount:</ThemedText>
+              <ThemedText style={styles.amountValue}>₹{transactionData.amount.toFixed(2)}</ThemedText>
+            </ThemedView>
+
+            <ThemedView style={styles.detailRow}>
+              <ThemedText style={styles.detailLabel}>Date & Time:</ThemedText>
+              <ThemedText style={styles.detailValue}>{transactionData.timestamp}</ThemedText>
+            </ThemedView>
+          </ThemedView>
+        </ThemedView>
+
+
       </ScrollView>
-    </>
+
+      {/* Bottom Actions */}
+      <ThemedView style={styles.bottomActions}>
+        <TouchableOpacity 
+          style={styles.shareButton} 
+          onPress={handleShareReferral}
+        >
+          <ThemedText style={styles.shareButtonText}>Share & Earn</ThemedText>
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.homeButton} onPress={handleGoHome}>
+          <FontAwesome name="home" size={16} color="white" />
+          <ThemedText style={styles.homeButtonText}>Go to Home</ThemedText>
+        </TouchableOpacity>
+      </ThemedView>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8F9FA",
+    paddingTop: 50,
   },
-  scrollContent: {
-    flexGrow: 1,
-    paddingBottom: 20,
-  },
-  statusCard: {
-    margin: 16,
-    borderRadius: 20,
-    padding: 30,
-    alignItems: "center",
-    elevation: 6,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    borderWidth: 2,
-  },
-  iconContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    borderWidth: 3,
-  },
-  statusIcon: {
-    fontSize: 60,
-  },
-  statusTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  statusSubtitle: {
-    fontSize: 16,
-    textAlign: "center",
-    fontWeight: "500",
-  },
-  detailsCard: {
-    backgroundColor: "#FFFFFF",
-    margin: 16,
-    marginTop: 0,
-    borderRadius: 16,
+  content: {
     padding: 20,
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    paddingBottom: 100,
   },
-  detailsTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 15,
-    textAlign: "center",
+  successContainer: {
+    alignItems: 'center',
+    marginBottom: 30,
+    paddingVertical: 20,
   },
-  detailRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
+  successIconContainer: {
+    marginBottom: 20,
   },
-  detailLabel: {
+  successTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#4CAF50',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  successSubtitle: {
     fontSize: 16,
-    color: "#666",
-    fontWeight: "500",
-  },
-  detailValue: {
-    fontSize: 16,
-    color: "#333",
-    fontWeight: "600",
-    flex: 1,
-    textAlign: "right",
-  },
-  referenceId: {
-    fontFamily: "monospace",
-    backgroundColor: "#F5F5F5",
-    padding: 6,
-    borderRadius: 6,
-    fontSize: 14,
+    opacity: 0.7,
+    textAlign: 'center',
+    lineHeight: 22,
+    paddingHorizontal: 20,
   },
   cashbackCard: {
-    backgroundColor: "#000000ff",
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 0,
-    borderRadius: 16,
+    backgroundColor: '#000000',
+    borderRadius: 12,
     padding: 20,
-    alignItems: "center",
-    borderLeftWidth: 4,
-    borderLeftColor: "#FF9800",
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
+    marginBottom: 20,
   },
   cashbackTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#FFD700",
-    marginBottom: 10,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFD700',
+    textAlign: 'center',
+    marginBottom: 15,
   },
   cashbackAmount: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#FFD700",
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFD700',
     marginBottom: 8,
+    textAlign: 'center',
   },
   cashbackText: {
     fontSize: 14,
-    color: "#CCCCCC",
-    textAlign: "center",
+    color: '#CCCCCC',
+    textAlign: 'center',
   },
-  shareButton: {
-    backgroundColor: "#000",
-    padding: 16,
+  statusCard: {
+    backgroundColor: '#e8f5e8',
     borderRadius: 12,
-    width: "48%",
-    alignItems: "center",
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
+    padding: 20,
+    marginBottom: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: '#4CAF50',
   },
-  shareButtonText: {
-    color: "#FFF",
-    fontWeight: "bold",
+  statusHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  statusTitle: {
     fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+    color: '#4CAF50',
   },
-  actionButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    margin: 16,
-    marginTop: 0,
+  statusSteps: {
+    marginBottom: 0,
+  },
+  statusStep: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  stepIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  stepText: {
+    fontSize: 14,
+    flex: 1,
+  },
+  detailsCard: {
+    backgroundColor: '#f8f8f8',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 20,
+  },
+  detailsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  detailsTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  statusText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  detailsList: {
     gap: 12,
   },
-  homeButton: {
-    backgroundColor: "#000",
-    padding: 16,
-    borderRadius: 12,
-    width: "48%",
-    alignItems: "center",
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
   },
-  retryButton: {
-    backgroundColor: "#000",
-    padding: 16,
-    borderRadius: 12,
-    width: "48%",
-    alignItems: "center",
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
+  detailLabel: {
+    fontSize: 14,
+    opacity: 0.7,
+    flex: 1,
   },
-  fullWidthButton: {
-    width: "100%",
+  detailValue: {
+    fontSize: 14,
+    fontWeight: '500',
+    flex: 1,
+    textAlign: 'right',
   },
-  buttonText: {
-    color: "#FFF",
-    fontWeight: "bold",
+  copyableText: {
+    color: '#4CAF50',
+    textDecorationLine: 'underline',
+  },
+  amountRow: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  amountLabel: {
     fontSize: 16,
+    fontWeight: '600',
+    flex: 1,
+  },
+  amountValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#4CAF50',
+    flex: 1,
+    textAlign: 'right',
+  },
+  infoCard: {
+    backgroundColor: '#e8f4f8',
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 15,
+  },
+  infoTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  infoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  infoText: {
+    fontSize: 14,
+    marginLeft: 10,
+    opacity: 0.8,
+    flex: 1,
+  },
+  timeCard: {
+    backgroundColor: '#f0f9f0',
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 20,
+  },
+  timeTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  timeInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  timeText: {
+    fontSize: 14,
+    marginLeft: 10,
+    color: '#4CAF50',
+    fontWeight: '500',
+    flex: 1,
+  },
+  bottomActions: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    padding: 20,
+    backgroundColor: 'white',
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    gap: 12,
+  },
+  shareButton: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 8,
+    backgroundColor: '#000000',
+    alignItems: 'center',
+  },
+  shareButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  homeButton: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 8,
+    backgroundColor: '#000000',
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  homeButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

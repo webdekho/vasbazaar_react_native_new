@@ -156,14 +156,6 @@ export default function FailedScreen() {
           </ThemedText>
         </ThemedView>
 
-        {/* Failure Reason */}
-        <ThemedView style={styles.reasonCard}>
-          <ThemedView style={styles.reasonHeader}>
-            <FontAwesome name="exclamation-triangle" size={16} color="#FF9800" />
-            <ThemedText style={styles.reasonTitle}>What went wrong?</ThemedText>
-          </ThemedView>
-          <ThemedText style={styles.reasonText}>{transactionData.reason}</ThemedText>
-        </ThemedView>
 
         {/* Transaction Details */}
         <ThemedView style={styles.detailsCard}>
@@ -237,7 +229,7 @@ export default function FailedScreen() {
             </ThemedView>
 
             <ThemedView style={[styles.detailRow, styles.amountRow]}>
-              <ThemedText style={styles.amountLabel}>Attempted Amount:</ThemedText>
+              <ThemedText style={styles.amountLabel}>Amount:</ThemedText>
               <ThemedText style={styles.amountValue}>₹{transactionData.amount.toFixed(2)}</ThemedText>
             </ThemedView>
 
@@ -274,12 +266,12 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    paddingBottom: 180,
+    paddingBottom: 80,
   },
   failureContainer: {
     alignItems: 'center',
-    marginBottom: 30,
-    paddingVertical: 20,
+    marginBottom: 20,
+    paddingVertical: 15,
   },
   failureIconContainer: {
     marginBottom: 20,
@@ -325,8 +317,16 @@ const styles = StyleSheet.create({
   detailsCard: {
     backgroundColor: '#f8f8f8',
     borderRadius: 12,
-    padding: 20,
-    marginBottom: 20,
+    padding: 18,
+    marginBottom: 15,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   detailsHeader: {
     flexDirection: 'row',
@@ -352,34 +352,46 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   detailsList: {
-    gap: 12,
+    gap: 8,
   },
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
   },
   detailLabel: {
     fontSize: 14,
-    opacity: 0.7,
+    color: '#666',
+    fontWeight: '500',
     flex: 1,
   },
   detailValue: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
+    color: '#333',
     flex: 1,
     textAlign: 'right',
   },
   amountRow: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
   },
   amountLabel: {
     fontSize: 16,
     fontWeight: '600',
+    color: '#333',
     flex: 1,
   },
   amountValue: {
