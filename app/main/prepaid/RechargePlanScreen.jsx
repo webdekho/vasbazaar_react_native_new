@@ -43,10 +43,15 @@ export default function RechargePlanScreen() {
   
   // Parse operator info  
   const operatorData = params?.operatorData ? JSON.parse(params.operatorData) : {};
-  console.log('Operator Data:', operatorData);
+  console.log('RechargePlanScreen - Received params:', {
+    operatorCode: params?.operatorCode,
+    operatorData: operatorData,
+    fromDues: params?.fromDues
+  });
   
   // Get operator code from operatorData or params
   const operatorCode = params?.operatorCode || operatorData?.opCode || '';
+  console.log('RechargePlanScreen - Using operatorCode:', operatorCode);
   
   // Parse contact info
   let contact = {};
@@ -63,17 +68,20 @@ export default function RechargePlanScreen() {
   
   const [circle] = useState(params?.circle || operatorData?.circle || 'Circle');
   const [circleCode] = useState(operatorData?.circleCode || '');
-  const [operatorId, setOperatorId] = useState(params?.operator_id || null);
-  const [logo, setLogo] = useState(params?.companyLogo || operatorData?.logo || '');
-  const [operator, setOperator] = useState(params?.operator || operatorData?.operator || 'Operator');
+  const [operatorId, setOperatorId] = useState(params?.operator_id || operatorData?.operatorId || null);
+  const [logo, setLogo] = useState(params?.companyLogo || operatorData?.operatorLogo || operatorData?.logo || '');
+  const [operator, setOperator] = useState(params?.operator || operatorData?.operatorName || operatorData?.operator || 'Operator');
   const [name] = useState(contactName || 'Customer');
   
   useEffect(() => {
     const init = async () => {
+      // First get operator list
+      await getOperatorList(serviceId);
+      
+      // If we have operator code, fetch plans and try to match operator
       if (operatorCode) {
         await fetchPlan(operatorCode);
       }
-      await getOperatorList(serviceId);
     };
     init();
   }, []);
@@ -133,6 +141,41 @@ export default function RechargePlanScreen() {
       
       if (response?.status === 'success') {
         setOperatorList(response.data);
+        
+        // Auto-select operator if operatorCode is provided
+        if (operatorCode && response.data) {
+          console.log('Looking for operator with code:', operatorCode, 'in operators:', response.data.map(op => ({ name: op.operatorName, code: op.operatorCode || op.opCode })));
+          
+          const matchingOperator = response.data.find(op => 
+            op.operatorCode === operatorCode || op.opCode === operatorCode
+          );
+          
+          if (matchingOperator) {
+            console.log('Auto-selecting matching operator:', matchingOperator.operatorName);
+            setOperator(matchingOperator.operatorName);
+            setOperatorId(matchingOperator.id);
+            setLogo(matchingOperator.logo);
+          } else {
+            console.log('No matching operator found for code:', operatorCode);
+            console.log('Available operator codes:', response.data.map(op => op.operatorCode || op.opCode));
+            
+            // If we have operator data from params, use it as fallback
+            if (operatorData?.operatorName) {
+              console.log('Using fallback operator name:', operatorData.operatorName);
+              setOperator(operatorData.operatorName);
+            }
+            if (operatorData?.operatorLogo) {
+              setLogo(operatorData.operatorLogo);
+            }
+          }
+        } else if (operatorData?.operatorName) {
+          // If no operator code but we have operator name, use it
+          console.log('No operator code, using operator name from params:', operatorData.operatorName);
+          setOperator(operatorData.operatorName);
+          if (operatorData.operatorLogo) {
+            setLogo(operatorData.operatorLogo);
+          }
+        }
       }
     } catch (err) {
       console.error('Operator fetch error:', err);
@@ -252,9 +295,9 @@ export default function RechargePlanScreen() {
           name: `Custom Amount: ₹${searchQuery}`,
           price: `₹${searchQuery}`,
           validity: 'N/A',
-          data: 'Custom Recharge',
+          data: 'N/A',
         }),
-        circleCode: null,
+        circleCode: circleCode,
         companyLogo: logo,
         name, 
         mobile, 
@@ -459,6 +502,7 @@ export default function RechargePlanScreen() {
             <FlatList
               data={operatorList}
               keyExtractor={(_, index) => index.toString()}
+              showsVerticalScrollIndicator={false}
               renderItem={({ item }) => (
                 <Pressable
                   onPress={() => {
@@ -472,7 +516,7 @@ export default function RechargePlanScreen() {
                   }}
                   style={styles.operatorItem}
                 >
-                  <Avatar.Image source={{ uri: item.logo }} size={32} style={{ marginRight: 12 }} />
+                  <Avatar.Image source={{ uri: item.logo }} size={40} style={{ marginRight: 12, backgroundColor: '#FFFFFF' }} />
                   <Text>{item.operatorName}</Text>
                 </Pressable>
               )}
@@ -788,7 +832,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff', 
     margin: 20, 
     padding: 20, 
-    borderRadius: 12 
+    borderRadius: 12,
+    maxHeight: '80%'
   },
   modalTitle: { 
     fontWeight: '700', 

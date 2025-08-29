@@ -4,6 +4,8 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import Logo from '@/components/Logo';
+import ErrorMessage from '@/components/ErrorMessage';
+import SuccessMessage from '@/components/SuccessMessage';
 import { verifyAadhaarOtp, sendAadhaarOtp } from '../../services/aadhaar/aadhaarService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -17,6 +19,8 @@ export default function AadhaarOtpScreen() {
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isResending, setIsResending] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const inputRefs = useRef([]);
 
   useEffect(() => {
@@ -39,6 +43,14 @@ export default function AadhaarOtpScreen() {
       newOtp[index] = text;
       setOtp(newOtp);
 
+      // Clear error and success messages when user starts typing
+      if (errorMessage) {
+        setErrorMessage('');
+      }
+      if (successMessage) {
+        setSuccessMessage('');
+      }
+
       // Move to next input
       if (text && index < 5) {
         inputRefs.current[index + 1].focus();
@@ -55,44 +67,63 @@ export default function AadhaarOtpScreen() {
   const handleVerifyOtp = async () => {
     const otpString = otp.join('');
     if (otpString.length !== 6) {
-      Alert.alert('Error', 'Please enter a valid 6-digit OTP');
+      setErrorMessage('Please enter a valid 6-digit OTP');
       return;
     }
+
+    // Clear previous error messages
+    setErrorMessage('');
 
     setIsVerifying(true);
 
     try {
       // Get permanent token for API authentication
-      const permanentToken = await AsyncStorage.getItem('permanentToken');
+      const sessionToken = params.sessionToken;
       
-      if (!permanentToken) {
-        Alert.alert('Error', 'Authentication token not found. Please login again.');
-        router.push('/auth/LoginScreen');
+      if (!sessionToken) {
+        setErrorMessage('Authentication token not found. Please login again.');
+        setTimeout(() => router.push('/auth/LoginScreen'), 2000);
         return;
       }
 
       const refId = params.ref_id;
       if (!refId) {
-        Alert.alert('Error', 'Reference ID not found. Please try again.');
-        router.push('/auth/AadhaarScreen');
+        setErrorMessage('Reference ID not found. Please try again.');
+        setTimeout(() => router.push('/auth/AadhaarScreen'), 2000);
         return;
       }
 
       console.log('Verifying Aadhaar OTP:', { otpLength: otpString.length, refId });
 
-      const response = await verifyAadhaarOtp(otpString, refId, permanentToken);
+      const response = await verifyAadhaarOtp(otpString, refId, sessionToken);
 
-      if (response.status === 'success') {
+      console.log('Aadhaar OTP Verification Response:', response);
+
+      // Check for success - handle both status and Status fields
+      const isSuccess = response?.status === 'success' || response?.Status === 'SUCCESS';
+
+      if (isSuccess) {
         console.log('Aadhaar OTP verified successfully');
         
         // Store Aadhaar verification data if needed
-        if (response.data) {
-          await AsyncStorage.setItem('aadhaarData', JSON.stringify(response.data));
-          console.log('Aadhaar data stored:', response.data.name);
-        }
+        // if (response.data) {
+        //   await AsyncStorage.setItem('aadhaarData', JSON.stringify(response.data));
+        //   console.log('Aadhaar data stored:', response.data.name);
+        // }
 
-        // Set bypass flag to prevent auth loops
-        await AsyncStorage.setItem('aadhaarVerificationSuccess', 'true');
+        // Update userData with verified status
+        try {
+          if (response.data) {
+            const aadhaarData = response.data;
+            aadhaarData.verified_status = 1; // Set verification status to 1 (verified)
+            await AsyncStorage.setItem('userData', JSON.stringify(aadhaarData));
+            console.log('Updated userData with verified_status = 1', aadhaarData);
+          } else {
+            console.log('No response data found');
+          }
+        } catch (error) {
+          console.error('Error updating userData verified_status:', error);
+        }
         
         // Navigate to PIN setup screen with all required data
         router.push({
@@ -101,17 +132,27 @@ export default function AadhaarOtpScreen() {
             mobileNumber: params.mobileNumber,
             aadhaarNumber: params.aadhaarNumber,
             referralCode: params.referralCode || undefined,
-            aadhaarVerified: 'true'
+            aadhaarVerified: 'true',
+            sessionToken: params.sessionToken
           }
         });
       } else {
-        // Handle API error
-        console.error('Failed to verify OTP:', response.message);
-        Alert.alert(
-          'Verification Failed', 
-          response.message || 'Invalid OTP. Please try again.',
-          [{ text: 'OK' }]
-        );
+        // Handle API failure - check both message fields and provide user-friendly messages
+        const errorMessage = response?.message || response?.Message || 'Invalid OTP. Please try again.';
+        const statusCode = response?.StatusCode || response?.statusCode;
+        
+        console.error('Aadhaar OTP Verification Failed:', {
+          status: response?.Status || response?.status,
+          statusCode: statusCode,
+          message: errorMessage,
+          fullResponse: response
+        });
+
+        // Display the raw API response message
+        console.log('Setting error message to:', errorMessage);
+        console.log('Original API message field:', response?.message);
+        console.log('Full response object:', JSON.stringify(response));
+        setErrorMessage(errorMessage);
         
         // Clear OTP for retry
         setOtp(['', '', '', '', '', '']);
@@ -119,7 +160,7 @@ export default function AadhaarOtpScreen() {
       }
     } catch (error) {
       console.error('Error verifying Aadhaar OTP:', error);
-      Alert.alert('Error', 'Network error. Please check your connection and try again.');
+      setErrorMessage('Network error. Please check your connection and try again.');
     } finally {
       setIsVerifying(false);
     }
@@ -132,26 +173,31 @@ export default function AadhaarOtpScreen() {
 
     try {
       // Get permanent token for API authentication
-      const permanentToken = await AsyncStorage.getItem('permanentToken');
+      const sessionToken = params.sessionToken;
       
-      if (!permanentToken) {
-        Alert.alert('Error', 'Authentication token not found. Please login again.');
+      if (!sessionToken) {
+        // Alert.alert('Error', 'Authentication token not found. Please login again.');
         router.push('/auth/LoginScreen');
         return;
       }
 
       const aadhaarNumber = params.aadhaarNumber;
       if (!aadhaarNumber) {
-        Alert.alert('Error', 'Aadhaar number not found. Please try again.');
+        // Alert.alert('Error', 'Aadhaar number not found. Please try again.');
         router.push('/auth/AadhaarScreen');
         return;
       }
 
       console.log('Resending Aadhaar OTP for:', aadhaarNumber);
 
-      const response = await sendAadhaarOtp(aadhaarNumber, permanentToken);
+      const response = await sendAadhaarOtp(aadhaarNumber, sessionToken);
 
-      if (response.status === 'success') {
+      console.log('Resend OTP Response:', response);
+
+      // Check for success - handle both status and Status fields
+      const isSuccess = response?.status === 'success' || response?.Status === 'SUCCESS';
+
+      if (isSuccess) {
         console.log('OTP resent successfully, new ref_id:', response.ref_id);
         
         // Update the ref_id parameter for this screen
@@ -160,17 +206,28 @@ export default function AadhaarOtpScreen() {
         // Reset timer
         setTimer(30);
         
-        Alert.alert('Success', 'OTP has been resent successfully!');
+        setSuccessMessage('OTP has been resent successfully!');
+        
+        // Clear success message after 3 seconds
+        setTimeout(() => {
+          setSuccessMessage('');
+        }, 3000);
       } else {
-        console.error('Failed to resend OTP:', response.message);
-        Alert.alert(
-          'Failed to Resend', 
-          response.message || 'Failed to resend OTP. Please try again.'
-        );
+        // Handle failure response
+        const errorMessage = response?.message || response?.Message || 'Failed to resend OTP. Please try again.';
+        
+        console.error('Failed to resend OTP:', {
+          status: response?.Status || response?.status,
+          statusCode: response?.StatusCode || response?.statusCode,
+          message: errorMessage,
+          fullResponse: response
+        });
+
+        setErrorMessage(`Failed to resend OTP: ${errorMessage}`);
       }
     } catch (error) {
       console.error('Error resending Aadhaar OTP:', error);
-      Alert.alert('Error', 'Network error. Please check your connection and try again.');
+      setErrorMessage('Network error. Please check your connection and try again.');
     } finally {
       setIsResending(false);
     }
@@ -220,6 +277,9 @@ export default function AadhaarOtpScreen() {
           </ThemedView>
 
           <ThemedView style={styles.form}>
+            {/* Error Message */}
+            
+
             <ThemedView style={styles.otpContainer}>
               <View style={styles.otpInputs}>
                 {otp.map((digit, index) => (
@@ -247,6 +307,11 @@ export default function AadhaarOtpScreen() {
                   </View>
                 ))}
               </View>
+
+              <ErrorMessage message={errorMessage} visible={!!errorMessage} />
+            
+            {/* Success Message */}
+            <SuccessMessage message={successMessage} visible={!!successMessage} />
 
               <ThemedView style={styles.timerContainer}>
                 {timer > 0 ? (
@@ -360,7 +425,7 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   welcomeTitle: {
-    fontSize: 32,
+    fontSize: 25,
     fontWeight: '700',
     color: '#374151',
     marginBottom: 8,
@@ -474,6 +539,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'transparent',
   },
   loadingSpinner: {
     marginRight: 8,

@@ -19,7 +19,7 @@ export const useAuth = () => {
  * Get authentication redirect path based on current state
  */
 export const getAuthRedirect = (authState) => {
-  if (authState.shouldRedirectToLogin) {
+  if (authState.shouldRedirectToLogin || !authState.isVerified) {
     return '/auth/LoginScreen';
   }
   
@@ -27,7 +27,7 @@ export const getAuthRedirect = (authState) => {
     return '/auth/PinValidateScreen';
   }
   
-  if (authState.isAuthenticated) {
+  if (authState.isAuthenticated && authState.isVerified) {
     return '/(tabs)/home';
   }
   

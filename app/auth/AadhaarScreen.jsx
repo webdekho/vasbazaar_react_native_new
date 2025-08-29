@@ -16,6 +16,7 @@ export default function AadhaarScreen() {
   const [isAadhaarFocused, setIsAadhaarFocused] = useState(false);
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
+  const [apiError, setApiError] = useState('');
   
   // Debug component mount and params
   React.useEffect(() => {
@@ -63,6 +64,10 @@ export default function AadhaarScreen() {
     const formatted = formatAadhaarNumber(text);
     if (formatted.replace(/-/g, '').length <= 12) {
       setAadhaarNumber(formatted);
+      // Clear API error when user starts typing
+      if (apiError) {
+        setApiError('');
+      }
     }
   };
 
@@ -76,6 +81,7 @@ export default function AadhaarScreen() {
 
     setIsLoading(true);
     setErrors({});
+    setApiError(''); // Clear any previous API errors
 
     try {
       // Get permanent token for API authentication
@@ -88,8 +94,8 @@ export default function AadhaarScreen() {
       
       if (!params.sessionToken) {
         console.log('AadhaarScreen - No permanent token found, redirecting to login');
-        Alert.alert('Error', 'Authentication token not found. Please login again.');
-        router.push('/auth/LoginScreen');
+        setApiError('Authentication token not found. Please login again.');
+        setIsLoading(false);
         return;
       }
 
@@ -103,12 +109,18 @@ export default function AadhaarScreen() {
       
       console.log('AadhaarScreen - API response received:', {
         status: response?.status,
+        Status: response?.Status,
         message: response?.message,
         ref_id: response?.ref_id,
-        hasData: !!response?.data
+        hasData: !!response?.data,
+        StatusCode: response?.StatusCode
       });
 
-      if (response.status === 'success') {
+      // Check for success (handle both 'status' and 'Status' fields)
+      const isSuccess = response?.status?.toLowerCase() === 'success' || 
+                       response?.Status?.toLowerCase() === 'success';
+
+      if (isSuccess) {
         console.log('AadhaarScreen - OTP sent successfully, ref_id:', response.ref_id);
         
         // Navigate to Aadhaar OTP screen with ref_id
@@ -118,44 +130,47 @@ export default function AadhaarScreen() {
             aadhaarNumber: cleanAadhaarNumber,
             mobileNumber: params.mobileNumber,
             referralCode: params.referralCode || undefined,
-            ref_id: response.ref_id
+            ref_id: response.ref_id,
+            sessionToken: params.sessionToken
           }
         });
       } else {
         // Handle API error with improved error messages
         console.error('AadhaarScreen - Failed to send OTP:', {
-          status: response.status,
-          message: response.message,
-          statusCode: response.statusCode
+          status: response?.status,
+          Status: response?.Status,
+          message: response?.message,
+          StatusCode: response?.StatusCode
         });
         
-        // Show user-friendly error message
-        let userMessage = response.message || 'Failed to send OTP. Please try again.';
+        // Show user-friendly error message inline
+        let userMessage = response?.message || 'Failed to send OTP. Please try again.';
         
         // Special handling for common error cases
         if (userMessage.includes('invalid_aadhaar') || userMessage.includes('Invalid Aadhaar')) {
-          userMessage = 'The Aadhaar number you entered is invalid. Please check and enter a valid 12-digit Aadhaar number.';
           // Clear the input field and show field error for invalid Aadhaar
           setAadhaarNumber('');
-          setErrors({ aadhaar: 'Please enter a valid 12-digit Aadhaar number' });
-          
-          // Don't show alert for invalid Aadhaar, just show field error
+          setErrors({ aadhaar: 'The Aadhaar number you entered is invalid. Please check and enter a valid 12-digit Aadhaar number.' });
+          // Don't set API error for field-level errors
           return;
+        } else if (userMessage.includes('already registered') || 
+                   userMessage.toLowerCase().includes('aadhaar already registered')) {
+          // Handle specific case: Aadhaar already registered with another account
+          setAadhaarNumber(''); // Clear input field
+          // Show only the API error, not both field error and API error
+          setApiError(userMessage); // Show the exact API message
         } else if (userMessage.includes('vendor API') || userMessage.includes('service')) {
-          userMessage = 'Aadhaar verification service is temporarily unavailable. Please try again after some time.';
+          setApiError('Aadhaar verification service is temporarily unavailable. Please try again after some time.');
         } else if (userMessage.includes('Verification Failed')) {
-          userMessage = 'Aadhaar verification failed. Please check your Aadhaar number and try again.';
+          setApiError('Aadhaar verification failed. Please check your Aadhaar number and try again.');
+        } else {
+          // Generic error message
+          setApiError(userMessage);
         }
-        
-        Alert.alert(
-          'Verification Failed', 
-          userMessage,
-          [{ text: 'OK' }]
-        );
       }
     } catch (error) {
       console.error('Error sending Aadhaar OTP:', error);
-      Alert.alert('Error', 'Network error. Please check your connection and try again.');
+      setApiError('Network error. Please check your connection and try again.');
     } finally {
       setIsLoading(false);
     }
@@ -244,6 +259,13 @@ export default function AadhaarScreen() {
                 <ThemedText style={styles.errorText}>{errors.aadhaar}</ThemedText>
               )}
             </ThemedView>
+
+            {/* API Error Display */}
+            {apiError && (
+              <ThemedView style={styles.apiErrorContainer}>
+                <ThemedText style={styles.apiErrorText}>{apiError}</ThemedText>
+              </ThemedView>
+            )}
 
             <ThemedView style={styles.infoContainer}>
               <ThemedText style={styles.infoText}>
@@ -417,6 +439,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 8,
     marginLeft: 4,
+  },
+
+  // API Error Styles
+  apiErrorContainer: {
+    marginBottom: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FEF2F2',
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#EF4444',
+  },
+  apiErrorText: {
+    color: '#DC2626',
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '500',
   },
 
   // Info Section

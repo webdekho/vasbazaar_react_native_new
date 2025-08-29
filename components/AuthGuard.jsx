@@ -57,6 +57,8 @@ export default function AuthGuard({ children }) {
           needsPinValidation: authState.needsPinValidation,
           shouldRedirectToLogin: authState.shouldRedirectToLogin,
           isLoading: authState.isLoading,
+          isVerified: authState.isVerified,
+          verifiedStatus: authState.userData?.verified_status,
           userToken: !!authState.userToken,
           permanentToken: !!authState.permanentToken,
           userTokenLength: authState.userToken?.length || 0,
@@ -73,7 +75,11 @@ export default function AuthGuard({ children }) {
         }
       });
       
-      if (authState.shouldRedirectToLogin && !inAuthGroup) {
+      // Check for unverified users trying to access main routes
+      if (!authState.isVerified && (inTabsGroup || inMainGroup)) {
+        console.log('AuthGuard - Unverified user trying to access main routes, redirecting to login');
+        targetPath = '/auth/LoginScreen';
+      } else if (authState.shouldRedirectToLogin && !inAuthGroup) {
         // Not authenticated, redirect to login
         console.log('AuthGuard - Redirecting to login (shouldRedirectToLogin)');
         targetPath = '/auth/LoginScreen';
@@ -82,11 +88,11 @@ export default function AuthGuard({ children }) {
         console.log('AuthGuard - Redirecting to PIN validation');
         targetPath = '/auth/PinValidateScreen';
       } else if (authState.isAuthenticated && authState.userToken && inAuthGroup) {
-        // ONLY redirect to home if we have BOTH isAuthenticated AND userToken
+        // ONLY redirect to home if we have BOTH isAuthenticated AND userToken AND isVerified
         console.log('AuthGuard - Redirecting authenticated user from auth to home');
         targetPath = '/(tabs)/home';
       } else if (authState.isAuthenticated && authState.userToken && !inTabsGroup && !inAuthGroup && !inMainGroup) {
-        // ONLY redirect to home if we have BOTH isAuthenticated AND userToken
+        // ONLY redirect to home if we have BOTH isAuthenticated AND userToken AND isVerified
         console.log('AuthGuard - Redirecting authenticated user to home (not in main groups)');
         targetPath = '/(tabs)/home';
       } else if (!authState.isAuthenticated && (inTabsGroup || inMainGroup)) {

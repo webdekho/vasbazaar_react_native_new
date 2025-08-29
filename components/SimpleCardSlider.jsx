@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getHomeAdvertisements } from '../services';
+import { getHomeAdvertisements, getUserBalance } from '../services';
 
 const { width: screenWidth } = Dimensions.get("window");
 
@@ -29,19 +29,31 @@ const SimpleCardSlider = ({
   const [selectedSlide, setSelectedSlide] = useState(null);
   const [apiBanners, setApiBanners] = useState([]);
   const [loadingBanners, setLoadingBanners] = useState(true);
+  const [userDataFromStorage, setUserDataFromStorage] = useState(null);
+  const [balanceData, setBalanceData] = useState({
+    balance: "748.31",
+    cashback: "0.00",
+    incentive: "0.00",
+    referralBonus: "0.00"
+  });
   const scrollViewRef = useRef(null);
 
-  const createUserCard = () => ({
-    type: "card",
-    id: "user-card",
-    name: userData?.name || "SHAHID HUSEN MOHD SALEEM",
-    number: `5432  1098  7654  ${userData?.mobile?.slice(-4) || "3210"}`,
-    balance: `₹ ${balance}`,
-    cashback: `₹ ${total_cashback}`,
-    incentives: `₹ ${total_incentive}`,
-    backgroundColor: "#000000",
-    textColor: "white",
-  });
+  const createUserCard = () => {
+    // Use localStorage data first, then props as fallback
+    const displayUserData = userDataFromStorage || userData;
+    
+    return {
+      type: "card",
+      id: "user-card",
+      name: displayUserData?.name || "SHAHID HUSEN MOHD SALEEM",
+      number: `5432  1098  7654  ${displayUserData?.mobile?.slice(-4) || "3210"}`,
+      balance: `₹ ${balanceData.balance}`,
+      cashback: `₹ ${balanceData.cashback}`, // Show real API value
+      incentives: `₹ ${balanceData.incentive}`, // Show real API value
+      backgroundColor: "#000000",
+      textColor: "white",
+    };
+  };
 
   const createDefaultBanners = () => [
     {
@@ -59,6 +71,44 @@ const SimpleCardSlider = ({
       description: "Get instant cashback on mobile recharges, DTH, and bill payments. Limited time offer!",
     }
   ];
+
+  // Load user data from localStorage
+  const loadUserData = async () => {
+    try {
+      const storedUserData = await AsyncStorage.getItem('userData');
+      if (storedUserData) {
+        const parsed = JSON.parse(storedUserData);
+        setUserDataFromStorage(parsed);
+        console.log('Loaded user data from localStorage:', parsed.name, parsed.mobile);
+      }
+    } catch (error) {
+      console.error('Error loading user data from localStorage:', error);
+    }
+  };
+
+  // Fetch user balance from API
+  const fetchUserBalance = async () => {
+    try {
+      console.log('Fetching user balance for card...');
+      
+      const sessionToken = await AsyncStorage.getItem('sessionToken');
+      if (!sessionToken) {
+        console.log('No session token found, using default balance');
+        return;
+      }
+
+      const response = await getUserBalance(sessionToken);
+      
+      if (response?.status === 'success' && response?.data) {
+        console.log('Successfully fetched balance data:', response.data);
+        setBalanceData(response.data);
+      } else {
+        console.log('Failed to fetch balance:', response?.message);
+      }
+    } catch (error) {
+      console.error('Error fetching user balance:', error);
+    }
+  };
 
   // Fetch advertisements from API
   const fetchAdvertisements = async () => {
@@ -113,15 +163,17 @@ const SimpleCardSlider = ({
     setData(combinedData);
   };
 
-  // Fetch advertisements on component mount
+  // Load data on component mount
   useEffect(() => {
+    loadUserData();
+    fetchUserBalance();
     fetchAdvertisements();
   }, []);
 
   // Update slider data when dependencies change
   useEffect(() => {
     initializeSliderData();
-  }, [userData, total_cashback, total_incentive, balance, banners, apiBanners]);
+  }, [userData, userDataFromStorage, balanceData, banners, apiBanners]);
 
   // Auto scroll functionality
   useEffect(() => {
@@ -178,7 +230,7 @@ const SimpleCardSlider = ({
 
       {/* Masked Card Number */}
       <View style={styles.cardNumberSection}>
-        <Text style={[styles.cardNumber, { color: item.textColor }]}>XXX XXX XXX {userData?.mobile?.slice(-3) || "292"}</Text>
+        <Text style={[styles.cardNumber, { color: item.textColor }]}>XXX XXX XXX {(userDataFromStorage || userData)?.mobile?.slice(-3) || "292"}</Text>
       </View>
 
       {/* Bottom Section with Cashback and Incentives */}
@@ -188,8 +240,8 @@ const SimpleCardSlider = ({
           <Text style={[styles.lifetimeLabel, { color: item.textColor }]}>Lifetime Incentives</Text>
         </View>
         <View style={styles.rightColumn}>
-          <Text style={[styles.lifetimeValue, { color: item.textColor }]}>₹ {total_cashback}</Text>
-          <Text style={[styles.lifetimeValue, { color: item.textColor }]}>₹ {total_incentive}</Text>
+          <Text style={[styles.lifetimeValue, { color: item.textColor }]}>{item.cashback}</Text>
+          <Text style={[styles.lifetimeValue, { color: item.textColor }]}>{item.incentives}</Text>
         </View>
       </View>
 
@@ -241,6 +293,8 @@ const SimpleCardSlider = ({
         snapToInterval={(screenWidth - 40) + 10} // Card width + gap
         snapToAlignment="start"
         decelerationRate="fast"
+        autoplayInterval={5000} // 7 seconds
+        loop={true}
       >
         {data.map((item, index) => (
           <View key={item.id} style={[styles.slideContainer, index === data.length - 1 ? styles.lastSlide : null]}>

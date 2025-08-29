@@ -249,49 +249,18 @@ export default function FailedScreen() {
         </ThemedView>
 
         {/* Solutions */}
-        <ThemedView style={styles.solutionsSection}>
-          <ThemedText style={styles.solutionsTitle}>How to resolve this?</ThemedText>
-          {solutions.map(renderSolution)}
-        </ThemedView>
+        
 
-        {/* Money Back Assurance */}
-        <ThemedView style={styles.assuranceCard}>
-          <ThemedView style={styles.assuranceHeader}>
-            <FontAwesome name="shield" size={16} color="#4CAF50" />
-            <ThemedText style={styles.assuranceTitle}>Money Back Assurance</ThemedText>
-          </ThemedView>
-          <ThemedText style={styles.assuranceText}>
-            No money has been deducted from your account. If you see any deduction, it will be automatically reversed within 3-5 working days.
-          </ThemedText>
-        </ThemedView>
-
-        {/* Support Info */}
-        <ThemedView style={styles.supportCard}>
-          <ThemedText style={styles.supportTitle}>Need Help?</ThemedText>
-          <ThemedText style={styles.supportText}>
-            Our customer support team is available 24/7 to assist you with any payment related issues.
-          </ThemedText>
-          <TouchableOpacity style={styles.supportButton} onPress={handleContactSupport}>
-            <FontAwesome name="phone" size={14} color="#000000" />
-            <ThemedText style={styles.supportButtonText}>Contact Support</ThemedText>
-          </TouchableOpacity>
-        </ThemedView>
+       
+        
       </ScrollView>
 
       {/* Bottom Actions */}
-      <ThemedView style={styles.bottomActions}>
-        <TouchableOpacity style={styles.secondaryButton} onPress={handleTryDifferentService}>
-          <ThemedText style={styles.secondaryButtonText}>Try Different Service</ThemedText>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.primaryButton} onPress={handleRetryPayment}>
-          <ThemedText style={styles.primaryButtonText}>Retry Payment</ThemedText>
-        </TouchableOpacity>
-      </ThemedView>
+      
 
       {/* Home Button */}
       <TouchableOpacity style={styles.homeButton} onPress={handleGoHome}>
-        <FontAwesome name="home" size={16} color="#000000" />
+        <FontAwesome name="home" size={16} color="#f7f7f7ff" />
         <ThemedText style={styles.homeButtonText}>Go to Home</ThemedText>
       </TouchableOpacity>
     </ThemedView>
@@ -553,11 +522,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 16,
-    backgroundColor: '#f8f8f8',
+    backgroundColor: '#000000ff',
     gap: 8,
   },
   homeButtonText: {
-    color: '#000000',
+    color: '#ffffffff',
     fontSize: 14,
     fontWeight: '600',
   },

@@ -44,10 +44,13 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Check if user is verified
+  const isVerified = userData?.verified_status !== null && userData?.verified_status !== undefined;
+  
   // Computed auth state properties
-  const isAuthenticated = !!userToken;
+  const isAuthenticated = !!userToken && isVerified; // Only authenticated if verified
   const needsPinValidation = !!permanentToken && !userToken;
-  const shouldRedirectToLogin = !permanentToken;
+  const shouldRedirectToLogin = !permanentToken || !isVerified; // Redirect if not verified
   
   // Debug logging for state changes
   React.useEffect(() => {
@@ -56,9 +59,12 @@ export const AuthProvider = ({ children }) => {
       needsPinValidation, 
       shouldRedirectToLogin,
       hasUserToken: !!userToken,
-      hasPermanentToken: !!permanentToken
+      hasPermanentToken: !!permanentToken,
+      isVerified,
+      verifiedStatus: userData?.verified_status,
+      userData: userData
     });
-  }, [isAuthenticated, needsPinValidation, shouldRedirectToLogin, userToken, permanentToken]);
+  }, [isAuthenticated, needsPinValidation, shouldRedirectToLogin, userToken, permanentToken, isVerified, userData]);
 
   const authContextValue = {
     userToken,
@@ -68,6 +74,7 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated,
     needsPinValidation,
     shouldRedirectToLogin,
+    isVerified,
     setUserToken,
     setUserData,
     checkAuthState,

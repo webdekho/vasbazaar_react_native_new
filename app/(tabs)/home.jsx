@@ -1,4 +1,4 @@
-import { StyleSheet, ScrollView } from 'react-native';
+import { StyleSheet, ScrollView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -7,6 +7,7 @@ import SimpleCardSlider from '@/components/SimpleCardSlider';
 import ServicesSection from '@/components/ServicesSection';
 import UpcomingDues from '@/components/UpcomingDues';
 import { protect, protectedPush } from '../utils/sessionProtection';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -41,9 +42,148 @@ export default function HomeScreen() {
     router.push('/main/AllServicesScreen');
   });
 
-  const handleDuePress = protect((due) => {
-    console.log('Due pressed:', due.provider);
-    // Navigate to bill payment for this due
+  const handleDuePress = protect(async (due) => {
+    console.log('Due pressed:', JSON.stringify(due, null, 2));
+    
+    try {
+      // Safe string conversion with type checking
+      const serviceName = (typeof due.service === 'string' ? due.service.toLowerCase() : 
+                          due.service ? String(due.service).toLowerCase() : '') || '';
+      const providerName = (typeof due.provider === 'string' ? due.provider.toLowerCase() : 
+                           due.provider ? String(due.provider).toLowerCase() : '') || '';
+      const originalData = due.originalData || due;
+      
+      console.log('Processed names - Service:', serviceName, 'Provider:', providerName);
+      
+      // Determine service type based on service name or provider
+      let serviceType = 'other'; // default
+      
+      if (serviceName.includes('prepaid') || serviceName === 'prepaid' || 
+          providerName.includes('prepaid')) {
+        serviceType = 'prepaid';
+      } else if (serviceName.includes('dth') || serviceName === 'dth' || 
+                 providerName.includes('dth')) {
+        serviceType = 'dth';
+      }
+      
+      console.log('Determined service type:', serviceType);
+      
+      if (serviceType === 'prepaid') {
+        // Navigate to RechargePlanScreen directly
+        const operatorData = {
+          opCode: originalData.operatorId?.operatorCode || originalData.operatorCode,
+          operatorName: due.provider,
+          operatorLogo: originalData.operatorId?.logo || originalData.logo,
+          serviceId: originalData.operatorId?.serviceId?.id || originalData.serviceId
+        };
+        
+        // Extract phone number safely
+        const phoneNumber = originalData.mobile || 
+                           (typeof due.number === 'string' ? due.number.replace(/x/g, '') : '') ||
+                           '';
+        
+        router.push({
+          pathname: '/main/prepaid/RechargePlanScreen',
+          params: {
+            contactName: due.provider || 'Unknown',
+            phoneNumber: phoneNumber,
+            operatorData: JSON.stringify(operatorData),
+            serviceId: originalData.operatorId?.serviceId?.id || '1',
+            operatorCode: operatorData.opCode || '',
+            fromDues: 'true'
+          }
+        });
+        
+      } else if (serviceType === 'dth') {
+        // For DTH, first fetch DTH info then navigate to DthPlanScreen
+        const sessionToken = await AsyncStorage.getItem('sessionToken');
+        if (!sessionToken) {
+          Alert.alert('Error', 'Session expired. Please login again.');
+          return;
+        }
+        
+        // Import DTH validation service
+        const { validateDthNumber } = await import('../../services');
+        
+        // Extract DTH number safely
+        const dthNumber = originalData.mobile || originalData.dthNumber || 
+                         (typeof due.number === 'string' ? due.number.replace(/x/g, '') : '') ||
+                         '';
+        
+        if (dthNumber) {
+          console.log('Validating DTH number:', dthNumber);
+          const dthResponse = await validateDthNumber(dthNumber, sessionToken);
+          
+          if (dthResponse?.status === 'success' && dthResponse?.data) {
+            const dthInfo = dthResponse.data;
+            const contact = { number: dthNumber, name: due.provider };
+            
+            router.push({
+              pathname: '/main/dth/DthPlanScreen',
+              params: {
+                contact: JSON.stringify(contact),
+                dth_info: JSON.stringify(dthInfo),
+                serviceId: originalData.operatorId?.serviceId?.id || 'NA',
+                operatorCode: originalData.operatorId?.operatorCode || '',
+                operator_id: originalData.operatorId?.id || null,
+                fromDues: 'true'
+              }
+            });
+          } else {
+            Alert.alert('Error', 'Unable to validate DTH number. Please try again.');
+          }
+        } else {
+          Alert.alert('Error', 'DTH number not available');
+        }
+        
+      } else {
+        // For other services, navigate to BillerRechargeScreen with auto-filled data
+        // Extract account number safely  
+        const accountNumber = originalData.mobile || originalData.accountNumber ||
+                             (typeof due.number === 'string' ? due.number.replace(/x/g, '') : '') ||
+                             '';
+        
+        // Extract amount safely
+        const amount = originalData.amount ? String(originalData.amount) : '';
+        
+        const billerData = {
+          id: originalData.operatorId?.id || originalData.id,
+          operatorName: due.provider || 'Unknown Provider',
+          logo: originalData.operatorId?.logo || originalData.logo,
+          inputFields: {
+            field1: {
+              label: 'Account Number',
+              type: 'text',
+              required: true,
+              placeholder: 'Enter account number',
+              value: accountNumber // Pre-fill with available data
+            },
+            field2: {
+              label: 'Amount',
+              type: 'number', 
+              required: true,
+              placeholder: 'Enter amount',
+              value: amount // Pre-fill amount if available
+            }
+          },
+          amountExactness: originalData.amountExactness || 'false',
+          fetchRequirement: originalData.fetchRequirement || 'false'
+        };
+        
+        router.push({
+          pathname: '/main/biller/BillerRechargeScreen',
+          params: {
+            serviceId: originalData.operatorId?.serviceId?.id || originalData.serviceId || '1',
+            biller: JSON.stringify(billerData),
+            fromDues: 'true'
+          }
+        });
+      }
+      
+    } catch (error) {
+      console.error('Error handling due press:', error);
+      Alert.alert('Error', 'Unable to process payment. Please try again.');
+    }
   });
 
   // User data for the card

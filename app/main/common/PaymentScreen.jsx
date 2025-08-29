@@ -60,6 +60,7 @@ export default function PaymentScreen() {
     wallet: require('../../../assets/icons/wallet.png'),
   };
 
+
   const handlePayment = async (paymentType) => {
     if (isProcessing) return; // Prevent multiple clicks
     
@@ -70,45 +71,80 @@ export default function PaymentScreen() {
     
     try {
       const result = await recharge(paymentType);
+      console.log('Payment result:', JSON.stringify(result, null, 2));
       
-      // Payment handler result processed
-
-      // Check for success/pending status (handle both 'Status' and 'status' fields)
-      const isSuccessOrPending = 
-        result?.Status?.toLowerCase() === 'success' || 
-        result?.status?.toLowerCase() === 'success' ||
-        result?.Status?.toLowerCase() === 'pending' || 
-        result?.status?.toLowerCase() === 'pending';
-
-      if (isSuccessOrPending) {
-        Redirect(paymentType, result);
-      } else {
-        setShowFailurePopup(true);
+      // Check if outer API call was successful
+      const apiSuccess = result?.Status?.toLowerCase() === 'success' || 
+                        result?.status?.toLowerCase() === 'success';
+      
+      if (apiSuccess && result?.data) {
+        // API call successful, now check inner data status
+        const innerStatus = result.data.status?.toLowerCase();
         
-        // Handle different error response formats
+        console.log('🔍 Payment Analysis:');
+        console.log('  - Payment Type:', paymentType);
+        console.log('  - Outer Status:', result?.Status || result?.status);
+        console.log('  - Inner Status (raw):', result.data.status);
+        console.log('  - Inner Status (processed):', innerStatus);
+        console.log('  - Full data object:', result.data);
+        
+        if (paymentType === 'wallet') {
+          // Wallet payment logic
+          console.log('Wallet payment - checking inner status:', innerStatus);
+          console.log('Raw data.status:', result.data.status);
+          
+          if (innerStatus === 'success') {
+            // Wallet payment successful - redirect to SuccessScreen
+            console.log('✅ Wallet payment successful, redirecting to SuccessScreen');
+            Redirect(paymentType, result);
+          } else {
+            // Wallet payment failed - show failure popup
+            console.log('❌ Wallet payment failed. Status:', innerStatus, 'Message:', result.data.message);
+            setShowFailurePopup(true);
+            setIsProcessing(false);
+            setStatus("Failed");
+            setErrorMessage(result.data.message || 'Wallet payment failed');
+            setErrorDetails(result);
+          }
+        } else if (paymentType === 'upi') {
+          // UPI payment logic
+          if (innerStatus === 'pending') {
+            // UPI payment pending - redirect to PendingScreen
+            console.log('UPI payment pending, redirecting to PendingScreen');
+            RedirectToPending(paymentType, result);
+          } else if (innerStatus === 'success') {
+            // UPI payment successful - redirect to SuccessScreen
+            console.log('UPI payment successful, redirecting to SuccessScreen');
+            Redirect(paymentType, result);
+          } else {
+            // UPI payment failed - show failure popup
+            console.log('UPI payment failed:', result.data.message);
+            setShowFailurePopup(true);
+            setIsProcessing(false);
+            setStatus("Failed");
+            setErrorMessage(result.data.message || 'UPI payment failed');
+            setErrorDetails(result);
+          }
+        }
+      } else {
+        // API call failed
+        setShowFailurePopup(true);
+        setIsProcessing(false);
+        
         const errorStatus = result?.Status || result?.status || "Failed";
-        const errorMessage = result?.message || 
-                           result?.data?.error || 
-                           result?.d?.remark || 
-                           'Recharge failed';
+        const errorMessage = result?.message || 'API call failed';
         
         setStatus(errorStatus);
         setErrorMessage(errorMessage);
-        setErrorDetails(result); // Store full error response
-        
-        // Log error details
-        // Payment error details processed
+        setErrorDetails(result);
       }
     } catch (error) {
-      // Payment exception handled
-      
+      console.error('Payment exception:', error);
       setShowFailurePopup(true);
-      setStatus("Failed");
+      setStatus("Error");
       setErrorMessage('Payment processing failed: ' + error.message);
     } finally {
       setShowPopup(false);
-      // Keep buttons permanently disabled after any payment attempt
-      // Do not reset isProcessing or clickedPaymentMethod
     }
   };
 
@@ -155,26 +191,22 @@ export default function PaymentScreen() {
     if (serviceId) {
       try {
         await AsyncStorage.setItem('lastUsedServiceId', serviceId.toString());
-        // Saved lastUsedServiceId to AsyncStorage
+        console.log('Saved lastUsedServiceId to AsyncStorage');
       } catch (error) {
-        // Error saving lastUsedServiceId to AsyncStorage
+        console.error('Error saving lastUsedServiceId to AsyncStorage:', error);
       }
     }
 
-    if (paymentType === 'upi') {
-      // For UPI payments, fetch the payment URL using the token
-      if (data && data.upiToken) {
-        fetchPaymentUrl(data.upiToken);
-      } else {
-        // No UPI token received for payment
-        setShowFailurePopup(true);
-        setStatus("Failed");
-        setErrorMessage('Payment token not received. Please try again.');
-      }
+    if (paymentType === 'upi' && data?.data?.upiToken) {
+      // For UPI payments with token, fetch the payment URL
+      fetchPaymentUrl(data.data.upiToken);
     } else {
-      // For wallet payments, navigate directly to success
-      // Do not reset isProcessing or clickedPaymentMethod
-      // Buttons remain permanently disabled
+      // For wallet payments or UPI without token, navigate directly to success
+      console.log('Navigating to SuccessScreen with data:', {
+        paymentType,
+        responseData: data?.data
+      });
+      
       router.push({
         pathname: '/main/common/SuccessScreen',
         params: {
@@ -192,9 +224,55 @@ export default function PaymentScreen() {
           paymentType,
           selectedCoupon2,
           response: JSON.stringify(data),
+          requestId: data?.data?.requestId || '',
+          referenceId: data?.data?.referenceId || '',
+          vendorRefId: data?.data?.vendorRefId || '',
+          commission: data?.data?.commission || 0,
         }
       });
     }
+  };
+
+  const RedirectToPending = async (paymentType, data) => {
+    // Save last used serviceId to AsyncStorage for prioritization in Home.js
+    if (serviceId) {
+      try {
+        await AsyncStorage.setItem('lastUsedServiceId', serviceId.toString());
+        console.log('Saved lastUsedServiceId to AsyncStorage');
+      } catch (error) {
+        console.error('Error saving lastUsedServiceId to AsyncStorage:', error);
+      }
+    }
+
+    console.log('Navigating to PendingScreen with data:', {
+      paymentType,
+      responseData: data?.data
+    });
+
+    router.push({
+      pathname: '/main/common/PendingScreen',
+      params: {
+        serviceId,
+        operator_id,
+        plan: typeof planData === 'object' ? JSON.stringify(planData) : plan,
+        circleCode,
+        companyLogo,
+        name,
+        mobile,
+        operator,
+        circle,
+        coupon,
+        coupon2,
+        paymentType,
+        selectedCoupon2,
+        response: JSON.stringify(data),
+        requestId: data?.data?.requestId || '',
+        referenceId: data?.data?.referenceId || '',
+        vendorRefId: data?.data?.vendorRefId || '',
+        commission: data?.data?.commission || 0,
+        upiToken: data?.data?.upiToken || '',
+      }
+    });
   };
 
   const openPaymentWindow = async(paymentUrl) => {
@@ -327,10 +405,10 @@ export default function PaymentScreen() {
 
       const payload = {
         amount: amount,
-        operatorId: operator_id,
-        circleId: circleCode,
+        operatorId: parseInt(operator_id),
+        circleId: circleCode ? String(circleCode) : null,
         validity: validity,
-        couponId1: coupon || null,
+        couponId1: parseInt(coupon) || null,
         couponId2: selectedCoupon2 || null,
         payType: paymentType || 'wallet',
         mobile: mobile,
@@ -360,16 +438,9 @@ export default function PaymentScreen() {
         // Response details processed
       }
       
-      // Check for success status (handle both 'Status' and 'status' fields)
-      const isSuccess = response?.Status?.toLowerCase() === 'success' || 
-                       response?.status?.toLowerCase() === 'success';
-      
-      if (isSuccess) {
-        return response.data || response;
-      } else {
-        // Return the full response for error handling
-        return response;
-      }
+      // Always return the complete response structure for proper handling
+      console.log('Recharge API complete response:', JSON.stringify(response, null, 2));
+      return response;
     } catch (error) {
       setShowFailurePopup(true);
       setStatus("Error");
@@ -509,6 +580,7 @@ export default function PaymentScreen() {
         </TouchableOpacity>
 
 
+
         {/* UPI Payment Method */}
         <TouchableOpacity 
           style={[
@@ -549,7 +621,7 @@ export default function PaymentScreen() {
         <TouchableOpacity 
           style={[
             styles.payNowButton,
-            isProcessing && styles.payNowButtonDisabled
+            isProcessing
           ]}
           onPress={() => {
             if (selectedPaymentMethod && !isProcessing) {
@@ -593,9 +665,7 @@ export default function PaymentScreen() {
             />
             <Text style={[styles.popupText, { color: 'red' }]}>Transaction {status}</Text>
             <Text style={styles.errorMessage}>{errorMessage}</Text>
-            <Text style={[styles.errorMessage, { fontSize: 12, marginTop: 10, fontStyle: 'italic' }]}>
-              Payment buttons are now disabled. Please go back to try again with a new transaction.
-            </Text>
+            
             
             <TouchableOpacity
               onPress={() => {
@@ -705,13 +775,20 @@ const styles = StyleSheet.create({
   paymentMethodCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8f8f8',
+    backgroundColor: '#ffffffff',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 2,
     borderColor: 'transparent',
     elevation: 1,
+    shadowColor: '#000000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
   selectedPaymentMethod: {
     borderColor: '#000000',

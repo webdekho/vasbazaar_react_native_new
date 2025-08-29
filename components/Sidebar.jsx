@@ -11,6 +11,7 @@ import QRCode from 'react-native-qrcode-svg';
 import { logout } from '../services/auth/sessionManager';
 import { useAuth } from '../app/hooks/useAuth';
 import { authEvents, AUTH_EVENTS } from '../services/auth/authEvents';
+import ProfilePhotoViewer from './ProfilePhotoViewer';
 
 const { width } = Dimensions.get('window');
 
@@ -28,6 +29,7 @@ export default function Sidebar({ visible, onClose, userInfo }) {
   const [qrString, setQrString] = useState('');
   const [userData, setUserData] = useState(null);
   const [profilePhoto, setProfilePhoto] = useState(null);
+  const [photoViewerVisible, setPhotoViewerVisible] = useState(false);
 
   const serviceItems = [
     {
@@ -243,13 +245,25 @@ export default function Sidebar({ visible, onClose, userInfo }) {
       });
   };
 
+  const handleProfilePhotoPress = () => {
+    if (profilePhoto) {
+      setPhotoViewerVisible(true);
+    }
+  };
+
+  const handlePhotoViewerClose = () => {
+    setPhotoViewerVisible(false);
+  };
+
   const renderUserProfile = () => (
     <ThemedView style={styles.userProfileSection}>
       <ThemedView style={styles.userHeader}>
-        <Image 
-          source={profilePhoto ? { uri: profilePhoto } : (defaultUserInfo.avatar || require('@/assets/images/avatar.jpg'))} 
-          style={styles.userAvatar}
-        />
+        <TouchableOpacity onPress={handleProfilePhotoPress} disabled={!profilePhoto}>
+          <Image 
+            source={profilePhoto ? { uri: profilePhoto } : (defaultUserInfo.avatar || require('@/assets/images/avatar.jpg'))} 
+            style={styles.userAvatar}
+          />
+        </TouchableOpacity>
         <ThemedView style={styles.userTextInfo}>
           <ThemedText style={styles.userName}>
             {defaultUserInfo.name}
@@ -297,39 +311,7 @@ export default function Sidebar({ visible, onClose, userInfo }) {
     </ThemedView>
   );
 
-  const renderQuickActions = () => (
-    <ThemedView style={styles.quickActionsContainer}>
-      <TouchableOpacity 
-        style={styles.quickActionButton}
-        onPress={() => handleMenuItemPress({ route: '/(tabs)/history' })}
-      >
-        <ThemedView style={styles.quickActionIcon}>
-          <MaterialIcons name="history" size={24} color="#000000" />
-        </ThemedView>
-        <ThemedText style={styles.quickActionText}>History</ThemedText>
-      </TouchableOpacity>
-      
-      <TouchableOpacity 
-        style={styles.quickActionButton}
-        onPress={() => handleMenuItemPress({ route: '/main/NotificationScreen' })}
-      >
-        <ThemedView style={styles.quickActionIcon}>
-          <MaterialIcons name="notifications" size={24} color="#000000" />
-        </ThemedView>
-        <ThemedText style={styles.quickActionText}>Notifications</ThemedText>
-      </TouchableOpacity>
-      
-      <TouchableOpacity 
-        style={styles.quickActionButton}
-        onPress={() => handleMenuItemPress({ route: '/main/HelpScreen' })}
-      >
-        <ThemedView style={styles.quickActionIcon}>
-          <MaterialIcons name="help" size={24} color="#000000" />
-        </ThemedView>
-        <ThemedText style={styles.quickActionText}>Help</ThemedText>
-      </TouchableOpacity>
-    </ThemedView>
-  );
+  const renderQuickActions = () => null;
 
   const renderWalletSection = () => (
     <ThemedView style={styles.walletSection}>
@@ -350,7 +332,20 @@ export default function Sidebar({ visible, onClose, userInfo }) {
               <ThemedText style={styles.walletAmount}>₹{balance}</ThemedText>
               <ThemedText style={styles.walletLabel}>Wallet Balance</ThemedText>
             </ThemedView>
+
+            <ThemedView style={styles.walletCard}>
+              <ThemedView style={styles.walletCardIcon}>
+                <MaterialIcons name="group" size={22} color="#ffffff" />
+              </ThemedView>
+              <ThemedText style={styles.walletAmount}>₹{referralBonus}</ThemedText>
+              <ThemedText style={styles.walletLabel}>Referral Bonus</ThemedText>
+            </ThemedView>
             
+            
+          </ThemedView>
+          
+          <ThemedView style={styles.walletCardRow}>
+
             <ThemedView style={styles.walletCard}>
               <ThemedView style={styles.walletCardIcon}>
                 <MaterialIcons name="card-giftcard" size={22} color="#ffffff" />
@@ -358,9 +353,7 @@ export default function Sidebar({ visible, onClose, userInfo }) {
               <ThemedText style={styles.walletAmount}>₹{cashback}</ThemedText>
               <ThemedText style={styles.walletLabel}>Lifetime Cashback</ThemedText>
             </ThemedView>
-          </ThemedView>
-          
-          <ThemedView style={styles.walletCardRow}>
+
             <ThemedView style={styles.walletCard}>
               <ThemedView style={styles.walletCardIcon}>
                 <MaterialIcons name="stars" size={22} color="#ffffff" />
@@ -369,13 +362,11 @@ export default function Sidebar({ visible, onClose, userInfo }) {
               <ThemedText style={styles.walletLabel}>Lifetime Incentive</ThemedText>
             </ThemedView>
             
-            <ThemedView style={styles.walletCard}>
-              <ThemedView style={styles.walletCardIcon}>
-                <MaterialIcons name="group" size={22} color="#ffffff" />
-              </ThemedView>
-              <ThemedText style={styles.walletAmount}>₹{referralBonus}</ThemedText>
-              <ThemedText style={styles.walletLabel}>Referral Bonus</ThemedText>
-            </ThemedView>
+            
+
+
+
+
           </ThemedView>
         </ThemedView>
       )}
@@ -478,6 +469,14 @@ export default function Sidebar({ visible, onClose, userInfo }) {
           onPress={onClose}
         />
       </ThemedView>
+
+      {/* Profile Photo Viewer */}
+      <ProfilePhotoViewer
+        visible={photoViewerVisible}
+        onClose={handlePhotoViewerClose}
+        imageUri={profilePhoto}
+        userName={userData?.name || defaultUserInfo.name}
+      />
     </Modal>
   );
 }

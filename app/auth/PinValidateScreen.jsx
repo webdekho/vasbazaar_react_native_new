@@ -1,16 +1,14 @@
 import { useState, useEffect } from 'react';
-import { StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, View , Linking } from 'react-native';
+import { StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { authenticateWithPin } from '../../services';
 import { saveSessionToken } from '../../services/auth/sessionManager';
-import { useAuth } from '../hooks/useAuth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function PinValidateScreen() {
   const router = useRouter();
-  const { refreshAuth } = useAuth();
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -90,23 +88,25 @@ export default function PinValidateScreen() {
         // Update user data in AsyncStorage
         await AsyncStorage.setItem('userData', JSON.stringify(userData));
         
-        // Set flag to bypass AuthGuard temporarily
-        await AsyncStorage.setItem('pinValidationSuccess', 'true');
+        // Navigate to main home screen
+        console.log("redirect to home");
+        // Add a small delay to ensure tokens are saved before navigation
+        setTimeout(() => {
+          // Try multiple navigation approaches
+          try {
+            router.replace('/(tabs)/home');
+          } catch (error1) {
+            console.log("First navigation attempt failed:", error1);
+            try {
+              router.push('/(tabs)/home');
+            } catch (error2) {
+              console.log("Second navigation attempt failed:", error2);
+              // Fallback navigation
+              router.replace('/(tabs)');
+            }
+          }
+        }, 100);
         
-        // Use setTimeout to ensure all async operations complete
-        setTimeout(async () => {
-          // Refresh auth state first
-          await refreshAuth();
-          
-          // Clear the bypass flag after a delay
-          setTimeout(() => {
-            AsyncStorage.removeItem('pinValidationSuccess');
-          }, 1000);
-          
-          // Navigate to home
-          router.replace('/(tabs)/home');
-          
-        }, 200);
       } else {
         setError('Incorrect PIN. Please try again.');
         setPin('');
@@ -119,67 +119,34 @@ export default function PinValidateScreen() {
     }
   };
 
-  const handleForgotPin = async () => {
-    if (!permanentToken) {
-      setError('Invalid session. Please try again.');
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-
-    try {
-      const response = await fetch('https://apis.vasbazaar.com/login/sendOTPToken', {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json, text/plain, */*',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          token: permanentToken,
-          requestType: "customer_approval"
-        })
-      });
-
-      const result = await response.json();
-      console.log('Forgot PIN API Response:', result);
-      console.log('Response status:', response.status);
-      console.log('Result Status:', result?.Status);
-      console.log('Result data:', result?.data);
-
-      if (result?.Status === 'SUCCESS' || result?.status === 'success' || (response.ok && result?.StatusCode === 200)) {
-        console.log('Redirecting to PinOtpScreen with tempToken:', result.data);
-        // Navigate to PinOtpScreen with necessary parameters
-        router.push({
-          pathname: '/auth/PinOtpScreen',
-          params: {
-            permanentToken: permanentToken,
-            tempToken: result.data, // The token is directly in the data field
-          }
-        });
-      } else {
-        console.log('Not redirecting, condition not met');
-        setError(result?.message || 'Failed to send OTP. Please try again.');
-      }
-    } catch (error) {
-      console.error('Forgot PIN OTP Error:', error);
-      setError('Network error. Please check your connection and try again.');
-    } finally {
-      setLoading(false);
-    }
+  const handleForgotPin = () => {
+    // Navigate back to login or show forgot PIN options
+    router.push('/auth/LoginScreen');
   };
 
-  const handleLoginRedirect = async () => {
+  const handleSwitchAccount = async () => {
     try {
-      // Delete permanentToken from AsyncStorage
+      // Clear all authentication data
       await AsyncStorage.removeItem('permanentToken');
-      console.log('Permanent token deleted');
+      await AsyncStorage.removeItem('userData');
+      await AsyncStorage.removeItem('aadhaarData');
+      await AsyncStorage.removeItem('profile_photo');
+      await AsyncStorage.removeItem('sessionToken');
+      await AsyncStorage.removeItem('sessionTokenExpiry');
       
-      // Navigate to LoginScreen
+      // Clear any bypass flags
+      await AsyncStorage.removeItem('pinValidationSuccess');
+      await AsyncStorage.removeItem('otpValidationSuccess');
+      await AsyncStorage.removeItem('pinSetSuccess');
+      await AsyncStorage.removeItem('aadhaarVerificationSuccess');
+      
+      console.log('Switched account - cleared all data');
+      
+      // Navigate to login screen
       router.replace('/auth/LoginScreen');
     } catch (error) {
-      console.error('Error deleting permanent token:', error);
-      // Navigate anyway
+      console.error('Error switching account:', error);
+      // Still navigate to login even if cleanup fails
       router.replace('/auth/LoginScreen');
     }
   };
@@ -271,12 +238,12 @@ export default function PinValidateScreen() {
 
           {renderNumberPad()}
 
-          <TouchableOpacity style={styles.forgotPinButton} onPress={handleForgotPin} disabled={loading}>
-            <ThemedText style={styles.forgotPinText}>Forgot PIN?</ThemedText>
+          <TouchableOpacity style={styles.forgotPinButton} onPress={handleForgotPin}>
+            <ThemedText style={styles.forgotPinText}>Forgot / Change PIN?</ThemedText>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.loginRedirectButton} onPress={handleLoginRedirect}>
-            <ThemedText style={styles.loginRedirectText}>Switch Account</ThemedText>
+          <TouchableOpacity style={styles.switchAccountButton} onPress={handleSwitchAccount}>
+            <ThemedText style={styles.switchAccountText}>Switch Account</ThemedText>
           </TouchableOpacity>
 
           <ThemedView style={styles.infoContainer}>
@@ -301,14 +268,13 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 20,
     justifyContent: 'center',
-    paddingTop: 60,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
-    marginTop: 40,
+    marginBottom: 20,
   },
   title: {
+    fontSize: 25,
     marginBottom: 10,
     textAlign: 'center',
   },
@@ -386,12 +352,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  loginRedirectButton: {
+  switchAccountButton: {
     alignItems: 'center',
     padding: 15,
     marginBottom: 20,
   },
-  loginRedirectText: {
+  switchAccountText: {
     color: '#666666',
     fontSize: 14,
     fontWeight: '500',

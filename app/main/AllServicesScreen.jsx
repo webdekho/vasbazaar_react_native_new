@@ -17,6 +17,7 @@ import MainHeader from '@/components/MainHeader';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAllServicesForScreen } from '../../services';
 import CachedSvgImage from '../../components/CachedSvgImage';
+import { loadServiceUsage, trackServiceUsage, sortServicesByUsage } from '../../utils/serviceUsageTracker';
 
 // Helper function to detect SVG URL
 const isSvg = (url) => url?.toLowerCase().endsWith('.svg');
@@ -29,8 +30,9 @@ export default function AllServicesScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [svgContents, setSvgContents] = useState({});
   const [redirectedFrom, setRedirectedFrom] = useState('');
+  const [serviceUsage, setServiceUsage] = useState({});
 
-  // Handle URL redirects and deep links
+  // Handle URL redirects and refresh usage data on focus
   useFocusEffect(
     useCallback(() => {
       const handleUrlRedirect = () => {
@@ -50,7 +52,14 @@ export default function AllServicesScreen() {
         }
       };
 
+      // Refresh usage data when screen comes into focus
+      const refreshData = async () => {
+        await loadUsageData();
+        console.log('🔄 AllServices - Refreshed usage data on focus');
+      };
+
       handleUrlRedirect();
+      refreshData();
     }, [])
   );
 
@@ -139,6 +148,13 @@ export default function AllServicesScreen() {
     }
   ];
 
+  // Load service usage data
+  const loadUsageData = async () => {
+    const usage = await loadServiceUsage();
+    setServiceUsage(usage);
+    console.log('🔄 AllServices - Loaded service usage:', Object.keys(usage).length, 'services');
+  };
+
   const getServices = async () => {
     setIsLoading(true);
     try {
@@ -162,7 +178,8 @@ export default function AllServicesScreen() {
       
       if (response?.status === 'success' && response?.data && Array.isArray(response.data) && response.data.length > 0) {
         console.log('AllServices setting services:', response.data.length);
-        setServices(response.data);
+        const sortedApiServices = sortServicesByUsage(response.data, serviceUsage);
+        setServices(sortedApiServices);
 
         // Preload icons using the cache system
         const iconUrls = response.data
@@ -185,19 +202,33 @@ export default function AllServicesScreen() {
           dataLength: response?.data?.length || 0,
           message: response?.message
         });
-        setServices(defaultServices);
+        const sortedDefaultServices = sortServicesByUsage(defaultServices, serviceUsage);
+        setServices(sortedDefaultServices);
       }
     } catch (error) {
       console.error('Services fetch error, using default services:', error);
-      setServices(defaultServices);
+      const sortedDefaultServices = sortServicesByUsage(defaultServices, serviceUsage);
+      setServices(sortedDefaultServices);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
+    loadUsageData();
     getServices();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Re-sort services when usage data changes
+  useEffect(() => {
+    if (services.length > 0 && Object.keys(serviceUsage).length > 0) {
+      const resorted = sortServicesByUsage(services, serviceUsage);
+      setServices(resorted);
+      console.log('🔄 AllServices - Re-sorted services based on updated usage');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serviceUsage]);
 
   // Enhanced search function
   const searchItems = (item, query) => {
@@ -241,14 +272,25 @@ export default function AllServicesScreen() {
     ? allItems.filter(item => searchItems(item, searchText))
     : services.map(service => ({ ...service, type: 'service' }));
 
-  const handlePress = (item) => {
+  const handlePress = async (item) => {
     if (item.type === 'navigation') {
+      // Track navigation usage as well
+      const updatedUsage = await trackServiceUsage(`nav-${item.route}`, `Navigate to ${item.name}`);
+      if (updatedUsage) {
+        setServiceUsage(updatedUsage);
+      }
       // Use the same navigation logic as handleDirectNavigation
       handleDirectNavigation(item.route);
     } else {
       // Handle service items
       const serviceName = item.title; // API से title में serviceName आती है
       const serviceId = item.id;
+
+      // Track service usage before navigation
+      const updatedUsage = await trackServiceUsage(serviceId, serviceName);
+      if (updatedUsage) {
+        setServiceUsage(updatedUsage);
+      }
 
       if (serviceName === 'Prepaid' || serviceName === 'Recharge') {
         router.push(`/main/prepaid/ContactListScreen?service=prepaid&serviceId=${serviceId}&serviceName=${serviceName}`);

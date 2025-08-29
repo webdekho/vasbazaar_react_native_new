@@ -6,6 +6,7 @@ import { ThemedText } from '@/components/ThemedText';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getHomeServices } from '../services';
 import CachedSvgImage from './CachedSvgImage';
+import { loadServiceUsage, trackServiceUsage, sortServicesByUsage } from '../utils/serviceUsageTracker';
 
 const { width } = Dimensions.get('window');
 
@@ -16,6 +17,8 @@ const ServicesSection = ({
 }) => {
   const [apiServices, setApiServices] = useState([]);
   const [loadingServices, setLoadingServices] = useState(true);
+  const [serviceUsage, setServiceUsage] = useState({});
+  const [sortedServices, setSortedServices] = useState([]);
 
   // Fetch services from API
   const fetchServices = async () => {
@@ -71,26 +74,41 @@ const ServicesSection = ({
     return colors[index % colors.length];
   };
 
-  // Fetch services on component mount
+  // Load service usage data
+  const loadUsageData = async () => {
+    const usage = await loadServiceUsage();
+    setServiceUsage(usage);
+  };
+
+  // Load data on component mount
   useEffect(() => {
+    loadUsageData();
     fetchServices();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Update sorted services when usage or services change
+  useEffect(() => {
+    let baseServices = [];
+    if (apiServices.length > 0) {
+      baseServices = apiServices;
+    } else if (propServices && propServices.length > 0) {
+      baseServices = propServices;
+    } else {
+      baseServices = defaultServices;
+    }
+
+    const sorted = sortServicesByUsage(baseServices, serviceUsage);
+    setSortedServices(sorted);
+    console.log('Services re-sorted based on usage:', sorted.map(s => s.title));
+  // eslint-disable-next-line react-hooks/exhaustive-deps  
+  }, [apiServices, propServices, serviceUsage]);
 
   // Default demo services using the same SVG icon for all
   const defaultServices = [];
 
-  // Priority: API services > props services > default services
-  let services = [];
-  if (apiServices.length > 0) {
-    services = apiServices;
-    console.log('Using API services:', apiServices.length);
-  } else if (propServices && propServices.length > 0) {
-    services = propServices;
-    console.log('Using props services:', propServices.length);
-  } else {
-    services = defaultServices;
-    console.log('Using default services');
-  }
+  // Use sorted services from state
+  const services = sortedServices;
 
   const renderServiceItem = (service) => {
     const isUrl = service.icon.startsWith('http');
@@ -99,7 +117,15 @@ const ServicesSection = ({
       <TouchableOpacity
         key={service.id}
         style={styles.serviceItem}
-        onPress={() => onServicePress(service)}
+        onPress={async () => {
+          // Track usage before calling the parent handler
+          const updatedUsage = await trackServiceUsage(service.id, service.title);
+          if (updatedUsage) {
+            setServiceUsage(updatedUsage);
+          }
+          // Call the original handler
+          onServicePress(service);
+        }}
         activeOpacity={0.7}
       >
         <View style={styles.serviceIconContainer}>

@@ -304,7 +304,7 @@ export default function OtpScreen() {
 
             <ThemedView style={styles.signupContainer}>
               <ThemedText style={styles.signupText}>
-                Didn't receive OTP? Check your SMS or try again
+                Didn't receive OTP? Check your SMS / Whatsapp or try again
               </ThemedText>
             </ThemedView>
           </ThemedView>
@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   welcomeTitle: {
-    fontSize: 32,
+    fontSize: 25,
     fontWeight: '700',
     color: '#374151',
     marginBottom: 8,

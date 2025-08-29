@@ -185,7 +185,7 @@ export default function PinOtpScreen() {
           </ThemedView>
           
           <ThemedView style={styles.welcomeSection}>
-            <ThemedText style={styles.welcomeTitle}>Enter PIN OTP</ThemedText>
+            <ThemedText style={styles.welcomeTitle}>Enter OTP</ThemedText>
             <ThemedText style={styles.welcomeSubtitle}>
               We&apos;ve sent a 6-digit OTP for PIN validation
             </ThemedText>
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   welcomeTitle: {
-    fontSize: 32,
+    fontSize: 25,
     fontWeight: '700',
     color: '#374151',
     marginBottom: 8,

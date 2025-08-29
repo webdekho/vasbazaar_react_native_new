@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { StyleSheet, ScrollView, TouchableOpacity, Animated, Alert } from 'react-native';
+import { StyleSheet, ScrollView, TouchableOpacity, Animated, Alert, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import { getSessionToken } from '../../../services/auth/sessionManager';
+import { postRequest } from '../../../services/api/baseApi';
 
 export default function PendingScreen() {
   const router = useRouter();
@@ -11,6 +13,7 @@ export default function PendingScreen() {
   const [rotateAnim] = useState(new Animated.Value(0));
   const [countdown, setCountdown] = useState(30);
   const [isChecking, setIsChecking] = useState(false);
+  const [hasCalledPayment, setHasCalledPayment] = useState(false);
 
   const transactionData = {
     type: params.type || 'recharge',
@@ -24,10 +27,17 @@ export default function PendingScreen() {
     contactName: params.contactName || '',
     paymentMethod: params.paymentMethod || '',
     transactionId: params.transactionId || 'TXN' + Date.now(),
-    timestamp: new Date().toLocaleString()
+    timestamp: new Date().toLocaleString(),
+    upiToken: params.upiToken || ''
   };
 
   useEffect(() => {
+    // Call payment URL on screen load if upiToken exists
+    if (transactionData.upiToken && !hasCalledPayment) {
+      setHasCalledPayment(true);
+      fetchPaymentUrl(transactionData.upiToken);
+    }
+
     // Animate pending icon (continuous rotation)
     const rotateAnimation = () => {
       rotateAnim.setValue(0);
@@ -55,7 +65,7 @@ export default function PendingScreen() {
     return () => {
       clearInterval(timer);
     };
-  }, []);
+  }, [transactionData.upiToken, hasCalledPayment]);
 
   const checkTransactionStatus = () => {
     setIsChecking(true);
@@ -116,6 +126,112 @@ export default function PendingScreen() {
 
   const handleContactSupport = () => {
     router.push('/main/HelpScreen');
+  };
+
+  const fetchPaymentUrl = async (upiToken) => {
+    if (!upiToken) {
+      return;
+    }
+
+    const sessionToken = await getSessionToken();
+    if (!sessionToken) {
+      return;
+    }
+
+    try {
+      // Make API call to get payment URL
+      const response = await postRequest(`pay?upiToken=${upiToken}`, {}, sessionToken);
+
+      if (response.status === 'success' && response.data) {
+        // Store payment URL for potential manual access
+        if (Platform.OS === 'web') {
+          window.sessionStorage.setItem('lastPaymentUrl', response.data);
+        }
+        
+        openPaymentWindow(response.data);
+      } else {
+        throw new Error(response.message || 'Failed to generate payment link');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to generate payment link. Please try again.');
+    }
+  };
+
+  const openPaymentWindow = async(paymentUrl) => {
+    if (Platform.OS === 'web') {
+      try {
+        // Show warning about potential security message
+        const userConfirmed = window.confirm(
+          'You will be redirected to the payment gateway.\n\n' +
+          'Note: If you see a security warning from your browser, it\'s because the payment gateway uses test/staging URLs. ' +
+          'You can safely proceed by clicking "Advanced" and then "Proceed to site" if you trust this payment.\n\n' +
+          'Click OK to continue to payment.'
+        );
+        
+        if (!userConfirmed) {
+          return;
+        }
+        
+        const paymentWindow = window.open(
+          paymentUrl, 
+          'payment',
+          'width=800,height=600,scrollbars=yes,resizable=yes,status=yes,location=yes,toolbar=no,menubar=no'
+        );
+
+        if (paymentWindow) {
+          // Monitor the payment window
+          const checkClosed = setInterval(() => {
+            if (paymentWindow.closed) {
+              clearInterval(checkClosed);
+              
+              // Show completion message with enhanced instructions
+              setTimeout(() => {
+                const result = window.confirm(
+                  'Payment window has been closed.\n\n' +
+                  'If you saw a "Dangerous site" warning:\n' +
+                  '1. This is normal for test payment gateways\n' +
+                  '2. If you completed the payment by proceeding anyway, click OK\n' +
+                  '3. If you cancelled due to the warning, click Cancel\n\n' +
+                  'Did you complete your payment successfully?'
+                );
+                
+                if (result) {
+                  // User confirms payment was successful
+                  router.replace({
+                    pathname: '/main/common/SuccessScreen',
+                    params: {
+                      ...params,
+                      response: JSON.stringify({ status: 'success', message: 'Payment completed successfully' }),
+                    }
+                  });
+                } else {
+                  // User indicated payment was not completed
+                  Alert.alert(
+                    'Payment Not Completed',
+                    'If you encountered a browser security warning:\n• This is common with test/staging payment gateways\n• The payment gateway is safe to use\n• You can try again and click "Advanced" → "Proceed to site" when you see the warning'
+                  );
+                }
+              }, 1000);
+            }
+          }, 1000);
+
+          // Focus the payment window
+          paymentWindow.focus();
+          
+        } else {
+          // Popup was blocked
+          Alert.alert(
+            'Payment Window Blocked',
+            'Payment window was blocked by your browser.\n\nPlease allow popups for this site and try again.\nAlternatively, you can copy this URL and open it manually:\n\n' + paymentUrl
+          );
+        }
+      } catch (error) {
+        Alert.alert('Error', 'Failed to open payment window: ' + error.message);
+      }
+    } else {
+      // For mobile platforms, open in browser
+      Alert.alert('Info', 'Payment functionality is only available on web platform.');
+    }
   };
 
   const getServiceTitle = () => {

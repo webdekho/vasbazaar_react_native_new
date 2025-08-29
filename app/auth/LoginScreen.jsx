@@ -174,7 +174,7 @@ export default function LoginScreen() {
           )}
 
           {/* Show/Hide Referral Code Toggle - Only show if referral is not from URL */}
-          {!showReferralField && !isReferralFromUrl && (
+          {showReferralField && !isReferralFromUrl && (
             <TouchableOpacity 
               style={styles.referralToggle}
               onPress={() => setShowReferralField(true)}

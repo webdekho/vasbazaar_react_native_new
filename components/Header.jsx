@@ -7,6 +7,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import Logo from '@/components/Logo';
 import Sidebar from '@/components/Sidebar';
+import ProfilePhotoViewer from '@/components/ProfilePhotoViewer';
 
 export default function Header({ 
   title, 
@@ -28,6 +29,8 @@ export default function Header({
   const router = useRouter();
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [profilePhoto, setProfilePhoto] = useState(null);
+  const [photoViewerVisible, setPhotoViewerVisible] = useState(false);
+  const [userData, setUserData] = useState(null);
   
   const handleBackPress = () => {
     if (router.canGoBack()) {
@@ -45,11 +48,27 @@ export default function Header({
     }
   };
 
+  const handleAvatarPress = () => {
+    // Always open sidebar immediately - this is the primary function
+    setSidebarVisible(true);
+  };
+
+  const handleAvatarLongPress = () => {
+    // Long press opens photo viewer if photo exists
+    if (profilePhoto) {
+      setPhotoViewerVisible(true);
+    }
+  };
+
+  const handlePhotoViewerClose = () => {
+    setPhotoViewerVisible(false);
+  };
+
   const handleCloseSidebar = () => {
     setSidebarVisible(false);
   };
 
-  // Load profile photo from AsyncStorage
+  // Load profile photo and user data from AsyncStorage
   const loadProfilePhoto = async () => {
     try {
       const storedPhoto = await AsyncStorage.getItem('profile_photo');
@@ -61,8 +80,20 @@ export default function Header({
     }
   };
 
+  const loadUserData = async () => {
+    try {
+      const storedData = await AsyncStorage.getItem('userData');
+      if (storedData) {
+        setUserData(JSON.parse(storedData));
+      }
+    } catch (error) {
+      console.error('Error loading user data:', error);
+    }
+  };
+
   useEffect(() => {
     loadProfilePhoto();
+    loadUserData();
   }, []);
 
   const handleSearchPress = () => {
@@ -108,7 +139,9 @@ export default function Header({
           ) : showMenu && (
             <TouchableOpacity 
               style={styles.userIconButton} 
-              onPress={handleMenuPress}
+              onPress={handleAvatarPress}
+              onLongPress={handleAvatarLongPress}
+              delayLongPress={800}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               {profilePhoto ? (
@@ -178,6 +211,14 @@ export default function Header({
       <Sidebar 
         visible={sidebarVisible}
         onClose={handleCloseSidebar}
+      />
+
+      {/* Profile Photo Viewer */}
+      <ProfilePhotoViewer
+        visible={photoViewerVisible}
+        onClose={handlePhotoViewerClose}
+        imageUri={profilePhoto}
+        userName={userData?.name}
       />
     </>
   );

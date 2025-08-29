@@ -15,6 +15,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import Header, { HeaderPresets } from '@/components/Header';
 import SimpleImageCropper from '@/components/SimpleImageCropper';
+import ProfilePhotoViewer from '@/components/ProfilePhotoViewer';
 import { updateProfilePhoto } from '@/services/user/userService';
 import { extendSession } from '@/services/auth/sessionManager';
 
@@ -27,6 +28,7 @@ export default function ProfileScreen() {
   const [userData, setUserData] = useState(null);
   const [showCropper, setShowCropper] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [photoViewerVisible, setPhotoViewerVisible] = useState(false);
 
   // Load user data and profile photo
   useEffect(() => {
@@ -168,12 +170,14 @@ export default function ProfileScreen() {
         return;
       }
 
-      // Configure image picker options for native
+      // Configure image picker options for native with better cropping
       const imagePickerOptions = {
-        quality: 0.8,
+        quality: 0.9,
         allowsEditing: true,
         aspect: [1, 1], // Square aspect ratio
         mediaTypes: ImagePicker.MediaTypeOptions?.Images || 'Images',
+        allowsMultipleSelection: false,
+        presentationStyle: 'fullScreen',
       };
 
       // Launch image picker for native
@@ -194,8 +198,44 @@ export default function ProfileScreen() {
         return;
       }
 
-      // Update local state immediately for UI feedback on mobile
-      setProfilePhoto(image.uri);
+      // For native platforms, try to use expo-image-manipulator for better cropping
+      let processedImage = image;
+      
+      try {
+        // Dynamically import expo-image-manipulator for additional processing
+        const ImageManipulator = await import('expo-image-manipulator');
+        
+        // Get image dimensions to calculate crop area for square crop
+        const { width, height } = image;
+        const size = Math.min(width, height);
+        const x = (width - size) / 2;
+        const y = (height - size) / 2;
+        
+        // Apply additional cropping/resizing if needed
+        const manipulatedImage = await ImageManipulator.manipulateAsync(
+          image.uri,
+          [
+            { crop: { originX: x, originY: y, width: size, height: size } },
+            { resize: { width: 300, height: 300 } }
+          ],
+          { 
+            compress: 0.9, 
+            format: ImageManipulator.SaveFormat.JPEG,
+            base64: true
+          }
+        );
+        
+        console.log('Image manipulated successfully');
+        processedImage = manipulatedImage;
+        
+        // Update local state with processed image
+        setProfilePhoto(manipulatedImage.uri);
+        
+      } catch (manipulatorError) {
+        console.log('Image manipulator not available or failed, using original:', manipulatorError);
+        // Update local state immediately for UI feedback on mobile
+        setProfilePhoto(image.uri);
+      }
 
       // Get session token for API call
       const sessionToken = await AsyncStorage.getItem('sessionToken');
@@ -207,13 +247,14 @@ export default function ProfileScreen() {
       }
 
       // Upload to server for native platforms
-      console.log('Calling updateProfilePhoto with:', image.uri);
-      const uploadResponse = await updateProfilePhoto(image.uri, sessionToken);
+      const imageToUpload = processedImage.base64 ? `data:image/jpeg;base64,${processedImage.base64}` : processedImage.uri;
+      console.log('Calling updateProfilePhoto with:', processedImage.base64 ? 'base64 data' : processedImage.uri);
+      const uploadResponse = await updateProfilePhoto(imageToUpload, sessionToken);
       console.log('Upload response received:', uploadResponse);
       
       if (uploadResponse.status === 'success') {
         // If server returns a photo URL, save that instead of local URI
-        const photoToSave = uploadResponse.photoUrl || image.uri;
+        const photoToSave = uploadResponse.photoUrl || processedImage.uri;
         
         // Save to AsyncStorage on success
         await AsyncStorage.setItem('profile_photo', photoToSave);
@@ -336,6 +377,18 @@ export default function ProfileScreen() {
     router.push('/main/ReferralListScreen');
   };
 
+  const handleProfilePhotoPress = () => {
+    if (profilePhoto) {
+      setPhotoViewerVisible(true);
+    } else {
+      handleProfilePhotoUpdate();
+    }
+  };
+
+  const handlePhotoViewerClose = () => {
+    setPhotoViewerVisible(false);
+  };
+
   return (
     <ThemedView style={styles.container}>
       <Header 
@@ -349,7 +402,7 @@ export default function ProfileScreen() {
         <ThemedView style={styles.photoSection}>
           <TouchableOpacity 
             style={styles.photoContainer}
-            onPress={profilePhoto ? undefined : handleProfilePhotoUpdate}
+            onPress={handleProfilePhotoPress}
             disabled={uploading}
           >
             {profilePhoto ? (
@@ -466,6 +519,14 @@ export default function ProfileScreen() {
         visible={showCropper}
         onCropComplete={handleCropComplete}
         onCancel={handleCropCancel}
+      />
+
+      {/* Profile Photo Viewer */}
+      <ProfilePhotoViewer
+        visible={photoViewerVisible}
+        onClose={handlePhotoViewerClose}
+        imageUri={profilePhoto}
+        userName={userData?.name}
       />
     </ThemedView>
   );

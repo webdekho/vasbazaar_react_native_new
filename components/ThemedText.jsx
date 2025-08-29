@@ -31,29 +31,29 @@ const styles = StyleSheet.create({
   default: {
     fontSize: 16,
     lineHeight: 24,
-    fontFamily: 'Calibri',
+    // fontFamily: 'Calibri',
   },
   defaultSemiBold: {
     fontSize: 16,
     lineHeight: 24,
     fontWeight: '600',
-    fontFamily: 'Calibri',
+    // fontFamily: 'Calibri',
   },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
     lineHeight: 32,
-    fontFamily: 'Calibri',
+    // fontFamily: 'Calibri',
   },
   subtitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    fontFamily: 'Calibri',
+    // fontFamily: 'Calibri',
   },
   link: {
     lineHeight: 30,
     fontSize: 16,
     color: '#000000',
-    fontFamily: 'Calibri',
+    // fontFamily: 'Calibri',
   },
 });

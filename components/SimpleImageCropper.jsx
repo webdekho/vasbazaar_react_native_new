@@ -12,6 +12,7 @@ const SimpleImageCropper = ({ src, onCropComplete, onCancel, visible }) => {
   const [isResizing, setIsResizing] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [resizeStart, setResizeStart] = useState({ size: 0, mouseX: 0, mouseY: 0 });
+  const [imageDisplayInfo, setImageDisplayInfo] = useState(null);
 
   const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -36,16 +37,28 @@ const SimpleImageCropper = ({ src, onCropComplete, onCancel, visible }) => {
     let drawWidth, drawHeight, drawX, drawY;
     
     if (imageAspect > canvasAspect) {
-      drawHeight = canvas.height;
-      drawWidth = drawHeight * imageAspect;
-      drawX = (canvas.width - drawWidth) / 2;
-      drawY = 0;
-    } else {
+      // Image is wider than canvas
       drawWidth = canvas.width;
-      drawHeight = drawWidth / imageAspect;
+      drawHeight = canvas.width / imageAspect;
       drawX = 0;
       drawY = (canvas.height - drawHeight) / 2;
+    } else {
+      // Image is taller than canvas
+      drawHeight = canvas.height;
+      drawWidth = canvas.height * imageAspect;
+      drawX = (canvas.width - drawWidth) / 2;
+      drawY = 0;
     }
+    
+    // Store image display information for crop calculation
+    setImageDisplayInfo({
+      drawX,
+      drawY,
+      drawWidth,
+      drawHeight,
+      naturalWidth: image.naturalWidth,
+      naturalHeight: image.naturalHeight
+    });
     
     ctx.drawImage(image, drawX, drawY, drawWidth, drawHeight);
     
@@ -165,7 +178,15 @@ const SimpleImageCropper = ({ src, onCropComplete, onCancel, visible }) => {
     if (isDragging) {
       const newX = Math.max(0, Math.min(rect.width - cropArea.size, x - dragStart.x));
       const newY = Math.max(0, Math.min(rect.height - cropArea.size, y - dragStart.y));
-      setCropArea(prev => ({ ...prev, x: newX, y: newY }));
+      
+      // If we have image display info, constrain to image bounds
+      if (imageDisplayInfo) {
+        const constrainedX = Math.max(imageDisplayInfo.drawX, Math.min(imageDisplayInfo.drawX + imageDisplayInfo.drawWidth - cropArea.size, newX));
+        const constrainedY = Math.max(imageDisplayInfo.drawY, Math.min(imageDisplayInfo.drawY + imageDisplayInfo.drawHeight - cropArea.size, newY));
+        setCropArea(prev => ({ ...prev, x: constrainedX, y: constrainedY }));
+      } else {
+        setCropArea(prev => ({ ...prev, x: newX, y: newY }));
+      }
     } else if (isResizing) {
       const deltaX = x - resizeStart.mouseX;
       const deltaY = y - resizeStart.mouseY;
@@ -182,13 +203,19 @@ const SimpleImageCropper = ({ src, onCropComplete, onCancel, visible }) => {
       let newX = cropArea.x - sizeDiff / 2;
       let newY = cropArea.y - sizeDiff / 2;
       
-      // Keep within canvas bounds
-      newX = Math.max(0, Math.min(rect.width - newSize, newX));
-      newY = Math.max(0, Math.min(rect.height - newSize, newY));
+      // Keep within image bounds if we have display info
+      if (imageDisplayInfo) {
+        newX = Math.max(imageDisplayInfo.drawX, Math.min(imageDisplayInfo.drawX + imageDisplayInfo.drawWidth - newSize, newX));
+        newY = Math.max(imageDisplayInfo.drawY, Math.min(imageDisplayInfo.drawY + imageDisplayInfo.drawHeight - newSize, newY));
+      } else {
+        // Fallback to canvas bounds
+        newX = Math.max(0, Math.min(rect.width - newSize, newX));
+        newY = Math.max(0, Math.min(rect.height - newSize, newY));
+      }
       
       setCropArea({ x: newX, y: newY, size: newSize });
     }
-  }, [isDragging, isResizing, cropArea, dragStart, resizeStart]);
+  }, [isDragging, isResizing, cropArea, dragStart, resizeStart, imageDisplayInfo]);
 
   const handlePointerDown = useCallback((e) => {
     e.preventDefault();
@@ -256,12 +283,34 @@ const SimpleImageCropper = ({ src, onCropComplete, onCancel, visible }) => {
   const handleImageLoad = () => {
     setImageLoaded(true);
     const canvas = canvasRef.current;
-    if (canvas) {
+    const image = imageRef.current;
+    
+    if (canvas && image) {
       const rect = canvas.getBoundingClientRect();
-      const size = Math.min(rect.width, rect.height) * 0.6;
+      
+      // Calculate image display dimensions
+      const imageAspect = image.naturalWidth / image.naturalHeight;
+      const canvasAspect = rect.width / rect.height;
+      
+      let drawWidth, drawHeight, drawX, drawY;
+      
+      if (imageAspect > canvasAspect) {
+        drawWidth = rect.width;
+        drawHeight = rect.width / imageAspect;
+        drawX = 0;
+        drawY = (rect.height - drawHeight) / 2;
+      } else {
+        drawHeight = rect.height;
+        drawWidth = rect.height * imageAspect;
+        drawX = (rect.width - drawWidth) / 2;
+        drawY = 0;
+      }
+      
+      // Set initial crop area centered on the image
+      const size = Math.min(drawWidth, drawHeight) * 0.6;
       setCropArea({
-        x: (rect.width - size) / 2,
-        y: (rect.height - size) / 2,
+        x: drawX + (drawWidth - size) / 2,
+        y: drawY + (drawHeight - size) / 2,
         size: size
       });
     }
@@ -277,30 +326,29 @@ const SimpleImageCropper = ({ src, onCropComplete, onCancel, visible }) => {
     const canvas = canvasRef.current;
     const image = imageRef.current;
     
-    if (!canvas || !image || !imageLoaded) return;
+    if (!canvas || !image || !imageLoaded || !imageDisplayInfo) return;
     
-    const rect = canvas.getBoundingClientRect();
     let x, y, size;
     
-    // Set crop area based on position
-    size = Math.min(rect.width, rect.height) * 0.7;
+    // Set crop area based on position, constrained to image bounds
+    size = Math.min(imageDisplayInfo.drawWidth, imageDisplayInfo.drawHeight) * 0.7;
     
     switch (position) {
       case 'center':
-        x = (rect.width - size) / 2;
-        y = (rect.height - size) / 2;
+        x = imageDisplayInfo.drawX + (imageDisplayInfo.drawWidth - size) / 2;
+        y = imageDisplayInfo.drawY + (imageDisplayInfo.drawHeight - size) / 2;
         break;
       case 'top':
-        x = (rect.width - size) / 2;
-        y = rect.height * 0.1;
+        x = imageDisplayInfo.drawX + (imageDisplayInfo.drawWidth - size) / 2;
+        y = imageDisplayInfo.drawY + imageDisplayInfo.drawHeight * 0.1;
         break;
       case 'bottom':
-        x = (rect.width - size) / 2;
-        y = rect.height - size - rect.height * 0.1;
+        x = imageDisplayInfo.drawX + (imageDisplayInfo.drawWidth - size) / 2;
+        y = imageDisplayInfo.drawY + imageDisplayInfo.drawHeight - size - imageDisplayInfo.drawHeight * 0.1;
         break;
       default:
-        x = (rect.width - size) / 2;
-        y = (rect.height - size) / 2;
+        x = imageDisplayInfo.drawX + (imageDisplayInfo.drawWidth - size) / 2;
+        y = imageDisplayInfo.drawY + (imageDisplayInfo.drawHeight - size) / 2;
     }
     
     setCropArea({ x, y, size });
@@ -316,7 +364,7 @@ const SimpleImageCropper = ({ src, onCropComplete, onCancel, visible }) => {
     const canvas = canvasRef.current;
     const image = imageRef.current;
     
-    if (!canvas || !image || !imageLoaded) return;
+    if (!canvas || !image || !imageLoaded || !imageDisplayInfo) return;
     
     // Create a new canvas for the cropped image
     const cropCanvas = document.createElement('canvas');
@@ -326,19 +374,49 @@ const SimpleImageCropper = ({ src, onCropComplete, onCancel, visible }) => {
     cropCanvas.width = size;
     cropCanvas.height = size;
     
-    // Calculate source coordinates on the original image
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = image.naturalWidth / rect.width;
-    const scaleY = image.naturalHeight / rect.height;
+    // Calculate the crop area relative to the displayed image
+    const cropRelativeX = cropArea.x - imageDisplayInfo.drawX;
+    const cropRelativeY = cropArea.y - imageDisplayInfo.drawY;
     
-    const sourceX = cropArea.x * scaleX;
-    const sourceY = cropArea.y * scaleY;
-    const sourceSize = cropArea.size * Math.min(scaleX, scaleY);
+    // Calculate scale between natural image and displayed image
+    const scaleX = imageDisplayInfo.naturalWidth / imageDisplayInfo.drawWidth;
+    const scaleY = imageDisplayInfo.naturalHeight / imageDisplayInfo.drawHeight;
+    
+    // Convert crop coordinates to natural image coordinates
+    const sourceX = Math.max(0, cropRelativeX * scaleX);
+    const sourceY = Math.max(0, cropRelativeY * scaleY);
+    const sourceSize = cropArea.size * scaleX;
+    
+    // Ensure we don't crop outside the image bounds
+    const maxSourceX = Math.max(0, imageDisplayInfo.naturalWidth - sourceSize);
+    const maxSourceY = Math.max(0, imageDisplayInfo.naturalHeight - sourceSize);
+    const finalSourceX = Math.max(0, Math.min(sourceX, maxSourceX));
+    const finalSourceY = Math.max(0, Math.min(sourceY, maxSourceY));
+    const finalSourceSize = Math.min(
+      sourceSize, 
+      imageDisplayInfo.naturalWidth - finalSourceX, 
+      imageDisplayInfo.naturalHeight - finalSourceY
+    );
+    
+    console.log('Crop calculations:', {
+      cropArea,
+      imageDisplayInfo,
+      cropRelativeX,
+      cropRelativeY,
+      scaleX,
+      scaleY,
+      sourceX,
+      sourceY,
+      sourceSize,
+      finalSourceX,
+      finalSourceY,
+      finalSourceSize
+    });
     
     // Draw cropped image
     cropCtx.drawImage(
       image,
-      sourceX, sourceY, sourceSize, sourceSize,
+      finalSourceX, finalSourceY, finalSourceSize, finalSourceSize,
       0, 0, size, size
     );
     
