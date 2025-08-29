@@ -529,7 +529,9 @@ export default function WalletScreen() {
   // Render empty state
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
-      <Text style={styles.emptyIcon}>💰</Text>
+      <View style={styles.emptyIconContainer}>
+        <Text style={styles.emptyIcon}>₹</Text>
+      </View>
       <Text style={styles.emptyTitle}>No Wallet Transactions</Text>
       <Text style={styles.emptySubtitle}>
         Your wallet transaction history will appear here once you make transactions.
@@ -927,9 +929,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 40,
   },
-  emptyIcon: {
-    fontSize: 60,
+  emptyIconContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#F5F5F5',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 16,
+  },
+  emptyIcon: {
+    fontSize: 40,
+    color: '#000000',
+    fontWeight: 'bold',
   },
   emptyTitle: {
     fontSize: 20,
