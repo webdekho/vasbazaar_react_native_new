@@ -4,8 +4,10 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getSessionToken } from '../../../services/auth/sessionManager';
 import { postRequest } from '../../../services/api/baseApi';
+import { checkTransactionStatus as checkTransactionStatusAPI } from '../../../services/transaction/transactionService';
 
 export default function PendingScreen() {
   const router = useRouter();
@@ -14,6 +16,11 @@ export default function PendingScreen() {
   const [countdown, setCountdown] = useState(30);
   const [isChecking, setIsChecking] = useState(false);
   const [hasCalledPayment, setHasCalledPayment] = useState(false);
+  const [isInitialCheck, setIsInitialCheck] = useState(false);
+  const [savedPayload, setSavedPayload] = useState(null);
+
+  // Extract transaction ID from params - supports both txn_id and transactionId
+  const txnId = params.txn_id || params.transactionId || 'TXN' + Date.now();
 
   const transactionData = {
     type: params.type || 'recharge',
@@ -26,16 +33,45 @@ export default function PendingScreen() {
     customerName: params.customerName || '',
     contactName: params.contactName || '',
     paymentMethod: params.paymentMethod || '',
-    transactionId: params.transactionId || 'TXN' + Date.now(),
+    transactionId: txnId,
     timestamp: new Date().toLocaleString(),
     upiToken: params.upiToken || ''
   };
 
+  // Load saved payload from AsyncStorage
+  const loadSavedPayload = async () => {
+    try {
+      const savedPayloadStr = await AsyncStorage.getItem('pendingRechargePayload');
+      if (savedPayloadStr) {
+        const payload = JSON.parse(savedPayloadStr);
+        console.log('Loaded saved recharge payload for status check:', payload);
+        setSavedPayload(payload);
+        return payload;
+      }
+    } catch (error) {
+      console.error('Error loading saved payload:', error);
+    }
+    return null;
+  };
+
   useEffect(() => {
+    // Load saved payload first
+    loadSavedPayload();
+
     // Call payment URL on screen load if upiToken exists
     if (transactionData.upiToken && !hasCalledPayment) {
       setHasCalledPayment(true);
       fetchPaymentUrl(transactionData.upiToken);
+    }
+
+    // If we have a transaction ID from params (direct URL access), check status immediately
+    if (params.txn_id && !transactionData.upiToken && !isInitialCheck) {
+      console.log('Direct access with transaction ID:', params.txn_id);
+      setIsInitialCheck(true);
+      // Check status after a short delay to ensure screen is mounted
+      setTimeout(() => {
+        checkTransactionStatus();
+      }, 1000);
     }
 
     // Animate pending icon (continuous rotation)
@@ -65,43 +101,106 @@ export default function PendingScreen() {
     return () => {
       clearInterval(timer);
     };
-  }, [transactionData.upiToken, hasCalledPayment]);
+  }, [transactionData.upiToken, hasCalledPayment, params.txn_id, isInitialCheck]);
 
-  const checkTransactionStatus = () => {
+  const checkTransactionStatus = async () => {
     setIsChecking(true);
-    // Simulate API call to check transaction status
-    setTimeout(() => {
-      setIsChecking(false);
-      // Randomly determine final status for demo
-      const outcomes = ['success', 'failed', 'pending'];
-      const randomOutcome = outcomes[Math.floor(Math.random() * outcomes.length)];
+    
+    try {
+      const sessionToken = await getSessionToken();
+      if (!sessionToken) {
+        Alert.alert('Error', 'Session expired. Please login again.');
+        router.replace('/auth/LoginScreen');
+        return;
+      }
+
+      console.log('Checking status for transaction:', transactionData.transactionId);
+
+      // Get the latest saved payload or use current savedPayload state
+      const currentPayload = savedPayload || await loadSavedPayload();
       
-      if (randomOutcome === 'success') {
-        router.replace({
-          pathname: '/main/common/SuccessScreen',
-          params: {
-            ...params,
-            transactionId: transactionData.transactionId
-          }
-        });
-      } else if (randomOutcome === 'failed') {
-        router.replace({
-          pathname: '/main/common/FailedScreen',
-          params: {
-            ...params,
-            reason: 'Transaction timeout after verification'
-          }
-        });
+      // Prepare additional payload for status check if we have saved data
+      let additionalPayload = {};
+      if (currentPayload) {
+        additionalPayload = {
+          field1: currentPayload.field1,
+          viewBillResponse: currentPayload.viewBillResponse,
+          validity: currentPayload.validity
+        };
+        console.log('Using saved payload for status check:', additionalPayload);
       } else {
-        // Still pending, reset countdown
-        setCountdown(60);
+        console.log('No saved payload found, using basic status check');
+      }
+      
+      const response = await checkTransactionStatusAPI(transactionData.transactionId, sessionToken, additionalPayload);
+      
+      if (response?.status === 'success' && response?.data) {
+        const { transactionStatus, message, requestId, referenceId, commission } = response.data;
+        
+        console.log('Status check result:', { transactionStatus, message, requestId, referenceId, commission });
+        
+        if (transactionStatus === 'SUCCESS') {
+          // Transaction successful - redirect to success screen
+          router.replace({
+            pathname: '/main/common/SuccessScreen',
+            params: {
+              ...params,
+              transactionId: requestId || transactionData.transactionId,
+              referenceId: referenceId,
+              commission: commission,
+              status: 'SUCCESS',
+              finalAmount: transactionData.amount
+            }
+          });
+        } else if (transactionStatus === 'FAILED') {
+          // Transaction failed - redirect to failed screen
+          router.replace({
+            pathname: '/main/common/FailedScreen',
+            params: {
+              ...params,
+              transactionId: requestId || transactionData.transactionId,
+              referenceId: referenceId,
+              reason: message || 'Transaction failed during processing',
+              status: 'FAILED'
+            }
+          });
+        } else if (transactionStatus === 'PENDING') {
+          // Still pending
+          setCountdown(60);
+          Alert.alert(
+            'Still Processing',
+            message || 'Your transaction is still being processed. We\'ll continue checking for you.',
+            [{ text: 'OK' }]
+          );
+        } else {
+          // Unknown status - treat as pending but with shorter interval
+          setCountdown(30);
+          Alert.alert(
+            'Status Unknown',
+            `Transaction status: ${transactionStatus}. ${message || 'We\'ll continue monitoring your transaction.'}`,
+            [{ text: 'OK' }]
+          );
+        }
+      } else {
+        // API error or invalid response
+        setCountdown(30);
         Alert.alert(
-          'Still Processing',
-          'Your transaction is still being processed. We\'ll continue checking for you.',
+          'Status Check Failed',
+          response?.message || 'Unable to check transaction status. We\'ll try again shortly.',
           [{ text: 'OK' }]
         );
       }
-    }, 3000);
+    } catch (error) {
+      console.error('Status check error:', error);
+      setCountdown(30);
+      Alert.alert(
+        'Network Error',
+        'Unable to check transaction status due to network issues. We\'ll try again shortly.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsChecking(false);
+    }
   };
 
   const handleCheckNow = () => {
@@ -111,17 +210,35 @@ export default function PendingScreen() {
   };
 
   const handleGoHome = () => {
-    Alert.alert(
-      'Transaction Pending',
-      'Your transaction is still being processed. You will receive SMS/Email notification once completed.',
-      [
-        { text: 'Stay Here', style: 'cancel' },
-        { 
-          text: 'Go Home', 
-          onPress: () => router.replace('/(tabs)/home')
-        }
-      ]
-    );
+    console.log('Go to Home button pressed');
+    
+    // Direct navigation for testing
+    if (Platform.OS === 'web') {
+      // On web, navigate directly without alert
+      router.replace('/(tabs)/home');
+      return;
+    }
+    
+    try {
+      Alert.alert(
+        'Transaction Pending',
+        'Your transaction is still being processed. You will receive SMS/Email notification once completed.',
+        [
+          { text: 'Stay Here', style: 'cancel' },
+          { 
+            text: 'Go Home', 
+            onPress: () => {
+              console.log('Navigating to home...');
+              router.replace('/(tabs)/home');
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Error showing alert:', error);
+      // If Alert fails, navigate directly
+      router.replace('/(tabs)/home');
+    }
   };
 
 
@@ -141,7 +258,7 @@ export default function PendingScreen() {
 
       if (response.status === 'success' && response.data) {
         // Store payment URL for potential manual access
-        if (Platform.OS === 'web') {
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
           window.sessionStorage.setItem('lastPaymentUrl', response.data);
         }
         
@@ -155,7 +272,7 @@ export default function PendingScreen() {
   };
 
   const openPaymentWindow = async(paymentUrl) => {
-    if (Platform.OS === 'web') {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
       try {
         const paymentWindow = window.open(
           paymentUrl, 
@@ -223,7 +340,10 @@ export default function PendingScreen() {
           </Animated.View>
           <ThemedText style={styles.pendingTitle}>Transaction Pending</ThemedText>
           <ThemedText style={styles.pendingSubtitle}>
-            Your {getServiceTitle().toLowerCase()} is being processed. Please wait for confirmation.
+            {params.txn_id && !params.type 
+              ? `Transaction ${params.txn_id} is being processed. Please wait for confirmation.`
+              : `Your ${getServiceTitle().toLowerCase()} is being processed. Please wait for confirmation.`
+            }
           </ThemedText>
         </ThemedView>
 
@@ -244,10 +364,12 @@ export default function PendingScreen() {
               <ThemedText style={styles.detailValue}>{transactionData.transactionId}</ThemedText>
             </ThemedView>
             
-            <ThemedView style={styles.detailRow}>
-              <ThemedText style={styles.detailLabel}>Service:</ThemedText>
-              <ThemedText style={styles.detailValue}>{getServiceTitle()}</ThemedText>
-            </ThemedView>
+            {transactionData.type && (
+              <ThemedView style={styles.detailRow}>
+                <ThemedText style={styles.detailLabel}>Service:</ThemedText>
+                <ThemedText style={styles.detailValue}>{getServiceTitle()}</ThemedText>
+              </ThemedView>
+            )}
 
             {transactionData.type === 'prepaid' && (
               <>
@@ -294,15 +416,19 @@ export default function PendingScreen() {
               </>
             )}
 
-            <ThemedView style={styles.detailRow}>
-              <ThemedText style={styles.detailLabel}>Payment Method:</ThemedText>
-              <ThemedText style={styles.detailValue}>{getPaymentMethodName(transactionData.paymentMethod)}</ThemedText>
-            </ThemedView>
+            {transactionData.paymentMethod && (
+              <ThemedView style={styles.detailRow}>
+                <ThemedText style={styles.detailLabel}>Payment Method:</ThemedText>
+                <ThemedText style={styles.detailValue}>{getPaymentMethodName(transactionData.paymentMethod)}</ThemedText>
+              </ThemedView>
+            )}
 
-            <ThemedView style={[styles.detailRow, styles.amountRow]}>
-              <ThemedText style={styles.amountLabel}>Amount:</ThemedText>
-              <ThemedText style={styles.amountValue}>₹{transactionData.amount.toFixed(2)}</ThemedText>
-            </ThemedView>
+            {transactionData.amount > 0 && (
+              <ThemedView style={[styles.detailRow, styles.amountRow]}>
+                <ThemedText style={styles.amountLabel}>Amount:</ThemedText>
+                <ThemedText style={styles.amountValue}>₹{transactionData.amount.toFixed(2)}</ThemedText>
+              </ThemedView>
+            )}
 
             <ThemedView style={styles.detailRow}>
               <ThemedText style={styles.detailLabel}>Date & Time:</ThemedText>
@@ -330,7 +456,11 @@ export default function PendingScreen() {
           )}
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.homeButton} onPress={handleGoHome}>
+        <TouchableOpacity 
+          style={styles.homeButton} 
+          onPress={handleGoHome}
+          activeOpacity={0.7}
+        >
           <FontAwesome name="home" size={16} color="white" />
           <ThemedText style={styles.homeButtonText}>Go to Home</ThemedText>
         </TouchableOpacity>
@@ -569,6 +699,8 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#eee',
     gap: 12,
+    zIndex: 10,
+    elevation: 10,
   },
   checkButton: {
     flex: 1,
@@ -589,6 +721,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    backgroundColor:'black'
   },
   homeButton: {
     flex: 1,

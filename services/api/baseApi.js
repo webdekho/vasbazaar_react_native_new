@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// export const BASE_URL = 'https://apis.vasbazaar.com';
-export const BASE_URL = 'http://localhost:8080';
+export const BASE_URL = 'https://apis.vasbazaar.com';
+// export const BASE_URL = 'http://localhost:8080';
 // Create headers for API requests
 const createHeaders = (sessionToken = null) => ({
   'Content-Type': 'application/json',

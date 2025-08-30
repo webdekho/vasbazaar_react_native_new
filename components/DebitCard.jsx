@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     letterSpacing: 2,
-    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+    fontFamily: 'monospace',
   },
   cardFooter: {
     flexDirection: 'row',

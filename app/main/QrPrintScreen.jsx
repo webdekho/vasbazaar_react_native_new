@@ -10,7 +10,8 @@ import {
   ScrollView,
   Platform,
   Share,
-  PermissionsAndroid
+  PermissionsAndroid,
+  Dimensions
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -18,6 +19,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import MainHeader from '@/components/MainHeader';
 import { getUserBalance } from '../../services';
+import { shareReferralLink } from '../../services/sharing/shareService';
 
 // Note: For better QR section capture on web, install dom-to-image:
 // npm install dom-to-image
@@ -80,6 +82,7 @@ export default function QrPrintScreen() {
   const [qrCodeImage, setQrCodeImage] = useState('');
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
+  const [screenWidth, setScreenWidth] = useState(Dimensions.get('window').width);
   
   // Ref for mobile screenshot
   const qrSectionRef = useRef(null);
@@ -121,12 +124,12 @@ export default function QrPrintScreen() {
     try {
       setLoading(true);
       
-      // Get user data from AsyncStorage
-      const [sessionToken, permanentToken, username, mobileNumber] = await Promise.all([
+      // Get user data from AsyncStorage - using the same pattern as Sidebar
+      const [sessionToken, permanentToken, username, storedUserData] = await Promise.all([
         AsyncStorage.getItem('sessionToken'),
         AsyncStorage.getItem('permanentToken'),
         AsyncStorage.getItem('username'),
-        AsyncStorage.getItem('mobileNumber')
+        AsyncStorage.getItem('userData')
       ]);
 
       if (!sessionToken) {
@@ -135,13 +138,24 @@ export default function QrPrintScreen() {
         return;
       }
 
+      // Parse user data to get mobile number
+      let mobileNumber = 'N/A';
+      if (storedUserData) {
+        try {
+          const parsed = JSON.parse(storedUserData);
+          mobileNumber = parsed?.mobile || 'N/A';
+        } catch (error) {
+          console.error('Error parsing user data:', error);
+        }
+      }
+
       // Fetch wallet balance
       const balanceResponse = await getUserBalance(sessionToken);
       const walletBalance = balanceResponse?.status === 'success' ? balanceResponse.data : { balance: '0.00' };
 
       const user = {
         username: username || 'User',
-        mobileNumber: mobileNumber || 'N/A',
+        mobileNumber: mobileNumber,
         balance: walletBalance.balance || '0.00',
         sessionToken,
         permanentToken
@@ -149,16 +163,11 @@ export default function QrPrintScreen() {
 
       setUserData(user);
 
-      // Generate QR data
-      const qrInfo = {
-        name: user.username,
-        mobile: user.mobileNumber,
-        balance: user.balance,
-        app: 'vasbzaar',
-        timestamp: new Date().toISOString()
-      };
-
-      const qrString = JSON.stringify(qrInfo);
+      // Generate QR data - use URL format with code=mobile number
+      const qrString = user.mobileNumber 
+        ? `https://vasbazaar.webdekho.in?code=${user.mobileNumber}`
+        : `https://vasbazaar.webdekho.in?code=${Date.now()}`;
+      
       setQrData(qrString);
 
       // Generate QR code image
@@ -900,36 +909,51 @@ export default function QrPrintScreen() {
   // Share QR Code
   const shareQRCode = async () => {
     try {
-      if (Platform.OS !== 'web') {
-        const shareContent = {
-          title: 'My vasbzaar QR Code',
-          message: `Check out my vasbzaar profile!\nName: ${userData?.username}\nMobile: ${userData?.mobileNumber}\nWallet Balance: ₹${userData?.balance}`,
-        };
+      let qrString = '';
+      let userName = 'User';
 
-        if (qrCodeImage && Platform.OS !== 'web') {
-          shareContent.url = qrCodeImage;
-        }
-
-        await Share.share(shareContent);
+      // First try to use existing qrData if it's already in the correct format
+      if (qrData && qrData.includes('vasbazaar.webdekho.in?code=')) {
+        qrString = qrData;
+        // Get user name from userData
+        userName = userData?.username || 'User';
       } else {
-        // Web share using navigator.share or fallback
-        if (navigator.share) {
-          await navigator.share({
-            title: 'My vasbzaar QR Code',
-            text: `Check out my vasbzaar profile!\nName: ${userData?.username}\nMobile: ${userData?.mobileNumber}`,
-          });
-        } else {
-          Alert.alert('Info', 'Share feature is not supported on this browser.');
+        // Load user data to get the mobile number and generate QR string
+        const storedUserData = await AsyncStorage.getItem('userData');
+        
+        if (storedUserData) {
+          const parsed = JSON.parse(storedUserData);
+          userName = parsed?.name || 'User';
+          
+          // Generate QR string using mobile number with code parameter
+          if (parsed?.mobile) {
+            qrString = `https://vasbazaar.webdekho.in?code=${parsed.mobile}`;
+          }
         }
       }
+
+      // Final fallback
+      if (!qrString) {
+        qrString = `https://vasbazaar.webdekho.in?code=${Date.now()}`;
+      }
+
+      await shareReferralLink(qrString, userName);
     } catch (error) {
       console.error('Error sharing QR code:', error);
+      Alert.alert('Error', 'Unable to share QR code. Please try again.');
     }
   };
 
 
   useEffect(() => {
     fetchUserData();
+    
+    // Listen for orientation changes
+    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      setScreenWidth(window.width);
+    });
+
+    return () => subscription?.remove();
   }, []);
 
   if (loading) {
@@ -1070,6 +1094,8 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+    alignSelf: 'center',
+    width: '100%',
   },
   // Logo inside QR Card
   logoImageInCard: {
@@ -1101,6 +1127,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+    alignSelf: 'center',
+    maxWidth: 400, // Prevent container from being too wide
+    width: '100%',
   },
   qrTitle: {
     fontSize: 20,
@@ -1210,17 +1239,20 @@ const styles = StyleSheet.create({
   benefitsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 12,
+    justifyContent: 'space-around',
+    alignItems: 'flex-start',
+    width: '100%',
   },
   benefitCard: {
-    width: '48%',
     backgroundColor: '#f8f9fa',
-    padding: 16,
+    padding: 12,
     borderRadius: 12,
     alignItems: 'center',
-    minHeight: 140,
+    minHeight: 120,
     justifyContent: 'flex-start',
+    marginBottom: 12,
+    width: '45%', // Fixed width to ensure 2 columns
+    marginHorizontal: '2.5%', // Center the cards with equal spacing
   },
   benefitIcon: {
     width: 48,

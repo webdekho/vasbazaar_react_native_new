@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PayU Development Testing</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h1 { color: #333; }
+        .form-group {
+            margin: 15px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+            margin-top: 20px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .info {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>PayU Development Testing</h1>
+        <div class="info">
+            <strong>For Development Testing Only</strong><br>
+            This tool simulates PayU callback responses for testing the payment flow in development.
+        </div>
+        
+        <form id="testForm">
+            <div class="form-group">
+                <label for="appUrl">Development App URL:</label>
+                <input type="text" id="appUrl" value="http://localhost:8081" placeholder="http://localhost:8081">
+            </div>
+            
+            <div class="form-group">
+                <label for="status">Payment Status:</label>
+                <select id="status">
+                    <option value="success">Success</option>
+                    <option value="failure">Failure</option>
+                    <option value="cancelled">Cancelled</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="txnid">Transaction ID:</label>
+                <input type="text" id="txnid" value="TXN123456789" placeholder="Transaction ID">
+            </div>
+            
+            <div class="form-group">
+                <label for="amount">Amount:</label>
+                <input type="text" id="amount" value="100.00" placeholder="Amount">
+            </div>
+            
+            <div class="form-group">
+                <label for="mihpayid">PayU Payment ID:</label>
+                <input type="text" id="mihpayid" value="403993715527804316" placeholder="PayU Payment ID">
+            </div>
+            
+            <div class="form-group">
+                <label for="productinfo">Product Info:</label>
+                <input type="text" id="productinfo" value="Mobile Recharge - Test" placeholder="Product Info">
+            </div>
+            
+            <div class="form-group">
+                <label for="firstname">Customer Name:</label>
+                <input type="text" id="firstname" value="Test User" placeholder="Customer Name">
+            </div>
+            
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="text" id="email" value="test@example.com" placeholder="Email">
+            </div>
+            
+            <button type="submit">Test PayU Callback</button>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('testForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const appUrl = document.getElementById('appUrl').value;
+            const status = document.getElementById('status').value;
+            const txnid = document.getElementById('txnid').value;
+            const amount = document.getElementById('amount').value;
+            const mihpayid = document.getElementById('mihpayid').value;
+            const productinfo = document.getElementById('productinfo').value;
+            const firstname = document.getElementById('firstname').value;
+            const email = document.getElementById('email').value;
+            
+            // Build callback parameters
+            const params = new URLSearchParams({
+                status: status,
+                txnid: txnid,
+                amount: amount,
+                productinfo: productinfo,
+                firstname: firstname,
+                email: email,
+                mihpayid: mihpayid,
+                // Add some additional test parameters
+                hash: 'test_hash_' + Date.now(),
+                udf1: 'test_udf1',
+                udf2: 'test_udf2',
+                pg_type: 'CC',
+                bank_ref_num: 'REF' + Date.now()
+            });
+            
+            // Redirect to the app's callback screen
+            const callbackUrl = `${appUrl}/main/common/PayUCallbackScreen?${params.toString()}`;
+            
+            console.log('Redirecting to:', callbackUrl);
+            window.location.href = callbackUrl;
+        });
+    </script>
+</body>
+</html>

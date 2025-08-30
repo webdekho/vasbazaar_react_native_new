@@ -166,3 +166,76 @@ export const getTransactionDetails = async (txnId, sessionToken) => {
     };
   }
 };
+
+/**
+ * Check transaction status for pending transactions
+ * @param {string} txnId - Transaction ID to check status for
+ * @param {string} sessionToken - User's session token
+ * @param {Object} additionalPayload - Additional payload containing field1, viewBillResponse, validity
+ * @returns {Promise} API response with transaction status
+ */
+export const checkTransactionStatus = async (txnId, sessionToken, additionalPayload = {}) => {
+  try {
+    const endpoint = 'api/customer/plan_recharge/check-status';
+    const payload = { 
+      txnId,
+      ...additionalPayload // Include field1, viewBillResponse, validity if provided
+    };
+    
+    console.log('Checking transaction status:', { endpoint, txnId, additionalPayload });
+    
+    const response = await postRequest(endpoint, payload, sessionToken);
+    
+    console.log('Transaction status check response:', response);
+    
+    if (response?.status === 'success' && response?.data) {
+      // Transform the response to match expected format
+      const { status, message, requestId, referenceId, vendorRefId, commission, categoryId } = response.data;
+      
+      return {
+        status: 'success',
+        data: {
+          transactionStatus: status, // SUCCESS, FAILED, PENDING
+          message: message || 'Status check completed',
+          requestId: requestId || txnId,
+          referenceId,
+          vendorRefId,
+          commission: commission || 0,
+          categoryId
+        },
+        message: response.message || 'Status check completed'
+      };
+    }
+    
+    // Handle specific failure responses
+    if (response?.status === 'failure' || response?.Status === 'FAILURE') {
+      return {
+        status: 'success', // API call succeeded, but transaction has a status
+        data: {
+          transactionStatus: 'FAILED',
+          message: response.message || 'Transaction failed',
+          requestId: txnId,
+          referenceId: null,
+          vendorRefId: null,
+          commission: 0,
+          categoryId: null
+        },
+        message: response.message || 'Transaction status retrieved'
+      };
+    }
+    
+    return {
+      status: 'error',
+      data: null,
+      message: response?.message || 'Failed to check transaction status'
+    };
+    
+  } catch (error) {
+    console.error('Transaction status check error:', error);
+    return {
+      status: 'error',
+      data: null,
+      message: 'Network error while checking transaction status'
+    };
+  }
+};

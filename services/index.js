@@ -16,3 +16,4 @@ export * from './scheduler/schedulerService';
 export * from './notification/notificationService';
 export * from './transaction/transactionService';
 export * from './complaint/complaintService';
+export * from './payment/payuService';

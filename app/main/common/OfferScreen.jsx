@@ -50,6 +50,7 @@ export default function OfferScreen() {
   const [jsonData2, setJsonData2] = useState([]);
   const [selectedCoupon, setSelectedCoupon] = useState(null);
   const [selectedCoupon2, setSelectedCoupon2] = useState(null);
+  const [couponName, setCouponName] = useState('Other');
   const [couponModalVisible, setCouponModalVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [couponDesc, setCouponDesc] = useState('');
@@ -75,21 +76,22 @@ export default function OfferScreen() {
     }
   };
 
-  const handleApplyCoupon = (couponCode, coupon_id, description) => {
+  const handleApplyCoupon = (couponCode, coupon_id, description, couponName) => {
     setCoupon(coupon_id);
     setSelectedCoupon(couponCode);
     setCouponDesc(description);
-    
+    setCouponName(couponName);
+
     // Trigger lightweight confetti effect on coupon apply
     triggerConfetti();
   };
 
-  const handleApplyCoupon2 = (couponCode, coupon_id, description) => {
+  const handleApplyCoupon2 = (couponCode, coupon_id, description, couponName) => {
     if (coupon2 != null && coupon2 !== '') {
       setCoupon(coupon2);
       setCouponDesc(description);
     }
-    
+    setCouponName(couponName);
     setSelectedCoupon2(couponCode);
     
     // Trigger lightweight confetti effect on coupon apply in modal
@@ -277,7 +279,7 @@ export default function OfferScreen() {
                           fetchCoupon(false);
                           setCoupon2(offer.id);
                         } else {
-                          handleApplyCoupon(offer.couponCode, offer.id, offer.description);
+                          handleApplyCoupon(offer.couponCode, offer.id, offer.description,offer.couponName);
                         }
                       }}
                     >
@@ -325,7 +327,8 @@ export default function OfferScreen() {
                   coupon2,
                   selectedCoupon2,
                   bill_details,
-                  couponDesc
+                  couponDesc,
+                  couponName,
                 }
               })
             }
@@ -373,7 +376,7 @@ export default function OfferScreen() {
                           fontWeight: '600',
                           fontSize: 12
                         }}
-                        onPress={() => handleApplyCoupon2(offer.couponCode, offer.id, offer.description)}
+                        onPress={() => handleApplyCoupon2(offer.couponCode, offer.id, offer.description, offer.couponName)}
                       >
                         {selectedCoupon2 === offer.couponCode ? 'Applied' : 'Apply'}
                       </Button>

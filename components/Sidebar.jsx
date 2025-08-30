@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, ScrollView, TouchableOpacity, Modal, Animated, Dimensions, Image, View, ActivityIndicator, Alert, Linking, Platform } from 'react-native';
+import { StyleSheet, ScrollView, TouchableOpacity, Modal, Animated, Dimensions, Image, View, ActivityIndicator, Alert, Linking, Platform, Share } from 'react-native';
 import { useRouter } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -12,6 +12,7 @@ import { logout } from '../services/auth/sessionManager';
 import { useAuth } from '../app/hooks/useAuth';
 import { authEvents, AUTH_EVENTS } from '../services/auth/authEvents';
 import ProfilePhotoViewer from './ProfilePhotoViewer';
+import { shareReferralLink } from '../services/sharing/shareService';
 
 const { width } = Dimensions.get('window');
 
@@ -93,7 +94,7 @@ export default function Sidebar({ visible, onClose, userInfo }) {
         
         // Generate QR string
         if (parsed?.mobile) {
-          const qrValue = `https://vasbazaar.web.webdekho.in?code=${parsed.mobile}`;
+          const qrValue = `https://vasbazaar.webdekho.in?code=${parsed.mobile}`;
           setQrString(qrValue);
         }
       }
@@ -225,24 +226,19 @@ export default function Sidebar({ visible, onClose, userInfo }) {
     }, 250);
   };
 
-  const handleShareLink = () => {
-    if (!qrString) return;
+  const handleShareLink = async () => {
+    if (!qrString) {
+      Alert.alert('Error', 'Referral link not available.');
+      return;
+    }
 
-    const message = `Turn your transacting into earnings! Join vasbazaar today & get cashback on every spend. Sign up here: ${qrString}`;
-    const encodedMessage = encodeURIComponent(message);
-    const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
-
-    Linking.canOpenURL(whatsappUrl)
-      .then((supported) => {
-        if (supported) {
-          return Linking.openURL(whatsappUrl);
-        } else {
-          Alert.alert('Error', 'WhatsApp is not installed');
-        }
-      })
-      .catch((err) => {
-        console.error('Error sharing link:', err);
-      });
+    try {
+      const userName = userData?.name || defaultUserInfo.name;
+      await shareReferralLink(qrString, userName);
+    } catch (error) {
+      console.error('Error sharing referral:', error);
+      Alert.alert('Error', 'Unable to share referral link. Please try again.');
+    }
   };
 
   const handleProfilePhotoPress = () => {

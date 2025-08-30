@@ -267,14 +267,7 @@ export default function AadhaarScreen() {
               </ThemedView>
             )}
 
-            <ThemedView style={styles.infoContainer}>
-              <ThemedText style={styles.infoText}>
-                🔒 Your Aadhaar information is encrypted and secure
-              </ThemedText>
-              <ThemedText style={styles.infoText}>
-                ✓ We use it only for KYC verification as per RBI guidelines
-              </ThemedText>
-            </ThemedView>
+            
 
             <TouchableOpacity 
               style={[
@@ -293,6 +286,15 @@ export default function AadhaarScreen() {
                 <ThemedText style={styles.buttonText}>Send OTP</ThemedText>
               )}
             </TouchableOpacity>
+
+            <ThemedView style={styles.infoContainer}>
+              <ThemedText style={styles.infoText}>
+                🔒 Your Aadhaar information is encrypted and secure
+              </ThemedText>
+              <ThemedText style={styles.infoText}>
+                ✓ We use it only for KYC verification as per RBI guidelines
+              </ThemedText>
+            </ThemedView>
 
             {/* <TouchableOpacity 
               style={styles.skipButton} 

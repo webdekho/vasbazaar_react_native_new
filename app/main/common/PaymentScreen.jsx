@@ -17,6 +17,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { getSessionToken } from '../../../services/auth/sessionManager';
 import { getRequest, postRequest } from '../../../services/api/baseApi';
 import MainHeader from '../../../components/MainHeader';
+import { initiatePayUPayment } from '../../../services/payment/payuService';
 
 export default function PaymentScreen() {
   const router = useRouter();
@@ -42,6 +43,7 @@ export default function PaymentScreen() {
     selectedCoupon2 = null,
     bill_details = null,
     couponDesc = null,
+    couponName = null
   } = params || {};
 
   const [expanded, setExpanded] = useState(false);
@@ -58,6 +60,7 @@ export default function PaymentScreen() {
   const paymentIcons = {
     upi: require('../../../assets/icons/upi.png'),
     wallet: require('../../../assets/icons/wallet.png'),
+    payu: require('../../../assets/icons/upi.png'), // Using UPI icon as placeholder for PayU
   };
 
 
@@ -125,6 +128,50 @@ export default function PaymentScreen() {
             setErrorMessage(result.data.message || 'UPI payment failed');
             setErrorDetails(result);
           }
+        } else if (paymentType === 'payu') {
+          // PayU payment logic
+          console.log('PayU payment initiated, handling PayU flow...');
+          
+          // For PayU, we need to redirect to PayU gateway
+          const paymentData = {
+            amount: amount,
+            productInfo: `${serviceId === '1' ? 'Mobile Recharge' : serviceId === '2' ? 'DTH Recharge' : 'Bill Payment'} - ${operator || name}`,
+            firstName: name || 'Customer',
+            email: 'customer@vasbazaar.com', // You might want to get this from user data
+            phone: mobile || '',
+            transactionId: result.data.requestId || result.data.txnId || `TXN${Date.now()}`,
+            udf1: serviceId || '',
+            udf2: operator_id || '',
+            udf3: mobile || '',
+            udf4: circleCode || '',
+            udf5: '',
+          };
+          
+          // Save transaction data for later use
+          const savedData = {
+            ...paymentData,
+            apiResponse: result.data,
+            planData: planData,
+            params: params,
+            couponName: couponName,
+          };
+          console.log('Saving PayU transaction data to AsyncStorage:', savedData);
+          await AsyncStorage.setItem('pendingPayUTransaction', JSON.stringify(savedData));
+          
+          // Initiate PayU payment
+          const payuResult = await initiatePayUPayment(paymentData);
+          
+          if (payuResult.status === 'success') {
+            console.log('PayU payment initiated successfully');
+            // PayU will redirect back to callback URL
+            setIsProcessing(false);
+          } else {
+            console.log('PayU payment initiation failed:', payuResult.message);
+            setShowFailurePopup(true);
+            setIsProcessing(false);
+            setStatus("Failed");
+            setErrorMessage(payuResult.message || 'Failed to initiate PayU payment');
+          }
         }
       } else {
         // API call failed
@@ -170,7 +217,7 @@ export default function PaymentScreen() {
             // Payment URL set
             
             // Store payment URL for potential manual access
-            if (Platform.OS === 'web') {
+            if (Platform.OS === 'web' && typeof window !== 'undefined') {
               window.sessionStorage.setItem('lastPaymentUrl', response.data);
             }
             
@@ -228,6 +275,7 @@ export default function PaymentScreen() {
           referenceId: data?.data?.referenceId || '',
           vendorRefId: data?.data?.vendorRefId || '',
           commission: data?.data?.commission || 0,
+          couponName
         }
       });
     }
@@ -276,7 +324,7 @@ export default function PaymentScreen() {
   };
 
   const openPaymentWindow = async(paymentUrl) => {
-    if (Platform.OS === 'web') {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
       try {
         // Show warning about potential security message
         const userConfirmed = window.confirm(
@@ -410,11 +458,32 @@ export default function PaymentScreen() {
         validity: validity,
         couponId1: parseInt(coupon) || null,
         couponId2: selectedCoupon2 || null,
-        payType: paymentType || 'wallet',
+        payType: paymentType === 'payu' ? 'upi' : (paymentType || 'wallet'),
         mobile: mobile,
         couponDisc: couponDesc,
         viewBillResponse: {"data": [bill_details], "success": "true"}
       };
+
+      // Save recharge payload to AsyncStorage for PendingScreen status checks
+      const rechargePayloadForStatusCheck = {
+        field1: mobile, // Using mobile number as field1
+        viewBillResponse: payload.viewBillResponse,
+        validity: validity,
+        operatorId: payload.operatorId,
+        circleId: payload.circleId,
+        amount: payload.amount,
+        paymentType: paymentType,
+        timestamp: new Date().toISOString(),
+        originalParams: params // Save original params for context
+      };
+      
+      try {
+        await AsyncStorage.setItem('pendingRechargePayload', JSON.stringify(rechargePayloadForStatusCheck));
+        console.log('Saved recharge payload for status check:', rechargePayloadForStatusCheck);
+      } catch (storageError) {
+        console.error('Error saving recharge payload to AsyncStorage:', storageError);
+        // Continue with API call even if storage fails
+      }
       
       // Log the request payload
       // Recharge API request prepared
@@ -613,6 +682,41 @@ export default function PaymentScreen() {
             </View>
           )}
         </TouchableOpacity>
+
+        {/* PayU Payment Method - Hidden as requested */}
+        {false && (
+          <TouchableOpacity 
+            style={[
+              styles.paymentMethodCard,
+              selectedPaymentMethod === 'payu' && styles.selectedPaymentMethod,
+              isProcessing && styles.disabledPaymentMethod
+            ]}
+            onPress={() => {
+              if (!isProcessing) {
+                setSelectedPaymentMethod('payu');
+              }
+            }}
+            disabled={isProcessing}
+          >
+            <View style={styles.paymentMethodIcon}>
+              <Image source={paymentIcons.payu} style={styles.paymentIcon} />
+            </View>
+            <View style={styles.paymentMethodInfo}>
+              <View style={styles.paymentMethodHeader}>
+                <Text style={styles.paymentMethodName}>PayU Gateway</Text>
+                <View style={styles.secureBadge}>
+                  <Text style={styles.secureText}>Secure</Text>
+                </View>
+              </View>
+              <Text style={styles.paymentMethodDescription}>Pay using Credit/Debit Card, Net Banking, UPI</Text>
+            </View>
+            {selectedPaymentMethod === 'payu' && (
+              <View style={styles.checkIcon}>
+                <Text style={styles.checkMark}>✓</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        )}
 
       </ScrollView>
 
@@ -833,6 +937,17 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   recommendedText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  secureBadge: {
+    backgroundColor: '#2196F3',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  secureText: {
     color: '#ffffff',
     fontSize: 10,
     fontWeight: '600',

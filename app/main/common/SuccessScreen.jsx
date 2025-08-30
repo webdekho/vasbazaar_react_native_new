@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react';
-import { StyleSheet, ScrollView, TouchableOpacity, Alert, Clipboard } from 'react-native';
+import { StyleSheet, ScrollView, TouchableOpacity, Alert, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { shareReferralLink } from '../../../services/sharing/shareService';
+import * as Clipboard from 'expo-clipboard';
 
 export default function SuccessScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const [referenceLink, setReferenceLink] = useState("https://vasbazaar.web.webdekho.in");
+  const [referenceLink, setReferenceLink] = useState("https://vasbazaar.webdekho.in");
 
   // Extract transaction data from params
   const transactionData = {
@@ -27,7 +29,8 @@ export default function SuccessScreen() {
     referenceId: params.referenceId || 'REF' + Date.now().toString().slice(-8),
     timestamp: new Date().toLocaleString(),
     commission: parseFloat(params.commission) || 0.02,
-    status: params.status || 'SUCCESS'
+    status: params.status || 'SUCCESS',
+    couponName: params.couponName || '',
   };
 
   useEffect(() => {
@@ -58,17 +61,11 @@ export default function SuccessScreen() {
     }
 
     try {
-      const message = `🎉 Turn your transactions into earnings! Join vasbazaar today & get cashback on every spend. Sign up here: ${referenceLink}`;
-      
-      // For web, copy to clipboard and show alert
-      await Clipboard.setString(message);
-      Alert.alert(
-        'Referral Link Copied!',
-        'Share this link with your friends to earn rewards.',
-        [{ text: 'OK' }]
-      );
+      const userName = transactionData.customerName || transactionData.contactName || 'User';
+      await shareReferralLink(referenceLink, userName);
     } catch (error) {
-      Alert.alert("Error", "Unable to copy referral link.");
+      console.error('Error sharing referral:', error);
+      Alert.alert("Error", "Unable to share referral link. Please try again.");
     }
   };
 
@@ -77,11 +74,10 @@ export default function SuccessScreen() {
   };
 
   const getServiceTitle = () => {
-    switch (transactionData.type) {
-      case 'prepaid': return 'Mobile Recharge';
-      case 'dth': return 'DTH Recharge';
-      case 'bill': return 'Bill Payment';
-      default: return 'Service';
+    switch (transactionData.categoryId) {
+      case 1: return 'Cash Back';
+      case 2: return 'Discount';
+      default: return 'Not Applicable';
     }
   };
 
@@ -90,7 +86,7 @@ export default function SuccessScreen() {
       case 'upi': return 'UPI';
       case 'card': return 'Credit/Debit Card';
       case 'netbanking': return 'Net Banking';
-      case 'wallet': return 'Digital Wallet';
+      case 'wallet': return 'Wallet';
       case 'payu': return 'PayU Gateway';
       case 'cod': return 'Cash on Delivery';
       default: return method;
@@ -104,20 +100,22 @@ export default function SuccessScreen() {
         <ThemedView style={styles.successContainer}>
           <ThemedView style={styles.successIconContainer}>
             <FontAwesome name="check-circle" size={80} color="#4CAF50" />
+            
+
           </ThemedView>
           <ThemedText style={styles.successTitle}>Transaction Successful!</ThemedText>
           <ThemedText style={styles.successSubtitle}>
-            Your {getServiceTitle().toLowerCase()} has been completed successfully.
+            Your transaction has been completed successfully.
           </ThemedText>
         </ThemedView>
 
         {/* Cashback Card */}
-        {transactionData.commission > 0 && (
+        {transactionData.commission > 0 && transactionData.couponName !=="Other" && (
           <ThemedView style={styles.cashbackCard}>
             <ThemedText style={styles.cashbackTitle}>Congratulations! 🎉</ThemedText>
             
             <ThemedText style={styles.cashbackAmount}>
-              ₹{transactionData.commission.toFixed(2)} Cashback Earned
+              ₹{transactionData.commission.toFixed(2)} {transactionData.couponName} Earned
             </ThemedText>
             <ThemedText style={styles.cashbackText}>
               Your cashback has been credited to your wallet instantly
@@ -140,8 +138,8 @@ export default function SuccessScreen() {
             <ThemedView style={styles.detailRow}>
               <ThemedText style={styles.detailLabel}>Transaction ID:</ThemedText>
               <TouchableOpacity 
-                onPress={() => {
-                  Clipboard.setString(transactionData.transactionId);
+                onPress={async () => {
+                  await Clipboard.setStringAsync(transactionData.transactionId);
                   Alert.alert('Copied!', 'Transaction ID copied to clipboard');
                 }}
               >
@@ -155,8 +153,8 @@ export default function SuccessScreen() {
               <ThemedView style={styles.detailRow}>
                 <ThemedText style={styles.detailLabel}>Reference ID:</ThemedText>
                 <TouchableOpacity 
-                  onPress={() => {
-                    Clipboard.setString(transactionData.referenceId);
+                  onPress={async () => {
+                    await Clipboard.setStringAsync(transactionData.referenceId);
                     Alert.alert('Copied!', 'Reference ID copied to clipboard');
                   }}
                 >
@@ -167,10 +165,10 @@ export default function SuccessScreen() {
               </ThemedView>
             )}
             
-            <ThemedView style={styles.detailRow}>
+            {/* <ThemedView style={styles.detailRow}>
               <ThemedText style={styles.detailLabel}>Service:</ThemedText>
               <ThemedText style={styles.detailValue}>{getServiceTitle()}</ThemedText>
-            </ThemedView>
+            </ThemedView> */}
 
             {transactionData.type === 'prepaid' && (
               <>

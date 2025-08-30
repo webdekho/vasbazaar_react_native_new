@@ -578,7 +578,7 @@ const styles = StyleSheet.create({
   },
   heading: {
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#1a1a1a',
   },
   countText: {

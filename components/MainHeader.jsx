@@ -254,11 +254,7 @@ const styles = StyleSheet.create({
       android: 16,
       default: 17,
     }),
-    fontWeight: Platform.select({
-      ios: '700',
-      android: '600',
-      default: '700',
-    }),
+    fontWeight: '600',
     color: '#FFFFFF',
   },
 });

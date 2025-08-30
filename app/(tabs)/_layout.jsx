@@ -72,7 +72,6 @@ export default function TabLayout() {
           fontSize: Platform.OS === 'web' ? 11 : 12, // Slightly smaller on web
           fontWeight: '600',
           marginTop: 4,
-          fontFamily: Platform.OS === 'ios' ? 'System' : Platform.OS === 'android' ? 'Roboto' : 'inherit',
         },
         tabBarIconStyle: {
           marginBottom: -4,
