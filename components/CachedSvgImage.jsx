@@ -237,8 +237,8 @@ export const preloadServiceIcons = async (services) => {
   
   console.log(`CachedSvgImage - Preloading ${iconUrls.length} service icons`);
   
-  // Import the preload function here to avoid circular dependencies
-  const { preloadIcons } = await import('../services/cache/iconCache');
+  // Use require instead of dynamic import to avoid module resolution issues
+  const { preloadIcons } = require('../services/cache/iconCache');
   const results = await preloadIcons(iconUrls);
   
   const successful = results.filter(r => r.value?.success).length;

@@ -5,7 +5,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { setUserPin } from '../../services';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../../hooks/useAuth';
 
 export default function PinSetScreen() {
   const router = useRouter();

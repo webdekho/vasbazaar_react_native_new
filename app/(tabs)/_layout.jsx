@@ -1,7 +1,8 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Tabs } from 'expo-router';
-import { View, StyleSheet, Platform } from 'react-native';
+import { View, StyleSheet, Platform, Dimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Custom dark tab bar background - works on all platforms
 function CustomTabBarBackground() {
@@ -23,14 +24,45 @@ function CustomTabBarBackground() {
 }
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
+  const { height: screenHeight } = Dimensions.get('window');
+  
   // Platform-specific configurations
   const getTabBarStyle = () => {
+    if (Platform.OS === 'android') {
+      // Android: Completely locked positioning to prevent ANY movement
+      return {
+        backgroundColor: '#000000',
+        borderTopWidth: 0,
+        height: 70,
+        paddingBottom: 10,
+        paddingTop: 10,
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        zIndex: 9999, // Maximum z-index
+        elevation: 0, // Remove shadow to prevent layer issues
+        // Lock dimensions completely
+        minHeight: 70,
+        maxHeight: 70,
+        // Prevent any flex changes
+        flexShrink: 0,
+        flexGrow: 0,
+      };
+    }
+    
     const baseStyle = {
       backgroundColor: '#000000',
       borderTopWidth: 0,
-      height: Platform.OS === 'ios' ? 85 : 70, // Account for iOS safe area
-      paddingBottom: Platform.OS === 'ios' ? 20 : 10, // iOS safe area padding
+      height: Platform.OS === 'ios' ? 85 : 70,
+      paddingBottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 20 : 10),
       paddingTop: 10,
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      zIndex: 999,
     };
 
     // Platform-specific shadow/elevation
@@ -76,22 +108,20 @@ export default function TabLayout() {
         tabBarIconStyle: {
           marginBottom: -4,
         },
-        // Ensure consistent behavior across platforms
-        tabBarHideOnKeyboard: Platform.OS !== 'ios', // Hide on Android/Web when keyboard is open
-        tabBarVisibilityAnimationConfig: {
-          show: {
-            animation: 'timing',
-            config: {
-              duration: 200,
-            },
+        // Android-specific stability settings
+        ...(Platform.OS === 'android' && {
+          tabBarHideOnKeyboard: false, // Never hide on Android
+          tabBarVisibilityAnimationConfig: undefined, // Disable all animations
+          freezeOnBlur: true, // Freeze inactive screens
+        }),
+        // iOS/Web behavior
+        ...(Platform.OS !== 'android' && {
+          tabBarHideOnKeyboard: true,
+          tabBarVisibilityAnimationConfig: {
+            show: { animation: 'timing', config: { duration: 200 } },
+            hide: { animation: 'timing', config: { duration: 200 } },
           },
-          hide: {
-            animation: 'timing',
-            config: {
-              duration: 200,
-            },
-          },
-        },
+        }),
       }}
     >
       <Tabs.Screen

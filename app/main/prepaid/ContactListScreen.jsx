@@ -46,6 +46,7 @@ export default function ContactListScreen({ route }) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const serviceId = route?.params?.serviceId || 1;
+  const autoScrollInterval = useRef(null);
 
   // Fallback static images
   const fallbackImages = [
@@ -72,6 +73,27 @@ export default function ContactListScreen({ route }) {
     initializeData();
   }, []);
 
+  // Auto scroll functionality
+  useEffect(() => {
+    if (advertisementImages.length > 1) {
+      autoScrollInterval.current = setInterval(() => {
+        const nextIndex = (currentSlide + 1) % advertisementImages.length;
+        setCurrentSlide(nextIndex);
+        const slideWidth = (screenWidth - 40) + 10;
+        scrollViewRef.current?.scrollTo({
+          x: nextIndex * slideWidth,
+          animated: true
+        });
+      }, 4000);
+
+      return () => {
+        if (autoScrollInterval.current) {
+          clearInterval(autoScrollInterval.current);
+        }
+      };
+    }
+  }, [currentSlide, advertisementImages.length]);
+
   const initializeData = async () => {
     try {
       const token = await getSessionToken();
@@ -80,7 +102,10 @@ export default function ContactListScreen({ route }) {
       
       if (storedUserData) {
         const parsed = JSON.parse(storedUserData);
+        console.log('Loaded userData from storage:', parsed);
         setUserData(parsed);
+      } else {
+        console.log('No userData found in storage');
       }
       
       // Initialize with fallback images first
@@ -542,11 +567,21 @@ export default function ContactListScreen({ route }) {
   };
 
   const renderMyNumber = () => {
-    if (!userData?.mobile) return null;
+    if (!userData?.mobile) {
+      console.log('userData or mobile not available:', userData);
+      return null;
+    }
 
     const cleanMobile = userData.mobile.replace(/^(\+91)/, '');
     const initial = 'M'; // M for My Number
     const isLoading = loadingNumber === cleanMobile;
+    
+    // Format the mobile number for display
+    const formattedMobile = cleanMobile.length >= 10 
+      ? `+91 ${cleanMobile.slice(-10)}` 
+      : cleanMobile;
+    
+    console.log('Rendering My Number with:', formattedMobile);
 
     return (
       <TouchableOpacity style={styles.myNumberCard} onPress={() => handleRecharge({
@@ -560,7 +595,7 @@ export default function ContactListScreen({ route }) {
           </View>
           <View style={styles.contactDetails}>
             <Text style={styles.myNumberTitle}>My Number</Text>
-            <Text style={styles.myNumberSubtitle}>{cleanMobile}</Text>
+            <Text style={styles.myNumberSubtitle}>{formattedMobile}</Text>
           </View>
           {isLoading ? (
             <ActivityIndicator color="#000" size="small" />
@@ -579,6 +614,11 @@ export default function ContactListScreen({ route }) {
     const initial = displayName?.charAt(0)?.toUpperCase() || '?';
     const isLoading = loadingNumber === cleanedNumber;
     const contactKey = item.id || `contact-${index}`;
+    
+    // Format the display number properly
+    const displayNumber = cleanedNumber.length >= 10 
+      ? `+91 ${cleanedNumber.slice(-10)}` 
+      : number;
 
     return (
       <TouchableOpacity
@@ -593,7 +633,7 @@ export default function ContactListScreen({ route }) {
           </View>
           <View style={styles.contactDetails}>
             <Text style={styles.contactName}>{displayName}</Text>
-            <Text style={styles.contactNumber}>{number}</Text>
+            <Text style={styles.contactNumber}>{displayNumber}</Text>
           </View>
           {isLoading ? (
             <ActivityIndicator color="#000" size="small" />
@@ -644,7 +684,7 @@ export default function ContactListScreen({ route }) {
   };
 
   return (
-    <>
+    <View style={styles.mainContainer}>
       <MainHeader 
         title="Contact List"
         showBack={true}
@@ -664,19 +704,25 @@ export default function ContactListScreen({ route }) {
               <ScrollView
                 ref={scrollViewRef}
                 horizontal
-                pagingEnabled
+                pagingEnabled={false}
                 showsHorizontalScrollIndicator={false}
                 onMomentumScrollEnd={(event) => {
-                  const slideWidth = screenWidth * 0.93;
+                  const slideWidth = (screenWidth - 40) + 10;
                   const index = Math.round(event.nativeEvent.contentOffset.x / slideWidth);
                   setCurrentSlide(index);
                 }}
                 scrollEventThrottle={16}
                 contentContainerStyle={styles.scrollContent}
                 style={styles.scrollView}
+                snapToInterval={(screenWidth - 40) + 10}
+                snapToAlignment="start"
+                decelerationRate="fast"
               >
                 {advertisementImages.map((item, index) => (
-                  <View key={item.id || index} style={styles.slideContainer}>
+                  <View key={item.id || index} style={[
+                    styles.slideContainer,
+                    index === advertisementImages.length - 1 ? { marginRight: 0 } : null
+                  ]}>
                     {renderAdvertisementItem({ item, index })}
                   </View>
                 ))}
@@ -788,6 +834,11 @@ export default function ContactListScreen({ route }) {
                   // Render My Number with special styling in modal
                   const cleanedNumber = item.number.replace(/^(\+91)/, '').replace(/\D/g, '');
                   const isLoading = loadingNumber === cleanedNumber;
+                  
+                  // Format the mobile number for display
+                  const formattedNumber = cleanedNumber.length >= 10 
+                    ? `+91 ${cleanedNumber.slice(-10)}` 
+                    : cleanedNumber;
 
                   return (
                     <TouchableOpacity
@@ -802,7 +853,7 @@ export default function ContactListScreen({ route }) {
                         </View>
                         <View style={styles.contactDetails}>
                           <Text style={styles.myNumberTitle}>My Number</Text>
-                          <Text style={styles.myNumberSubtitle}>{item.number}</Text>
+                          <Text style={styles.myNumberSubtitle}>{formattedNumber}</Text>
                         </View>
                         {isLoading ? (
                           <ActivityIndicator color="#000" size="small" />
@@ -934,11 +985,15 @@ export default function ContactListScreen({ route }) {
           </View>
         </Modal>
       </View>
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  mainContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
@@ -963,7 +1018,6 @@ const styles = StyleSheet.create({
   advertisementContainer: {
     alignItems: 'center',
     marginVertical: 16,
-    paddingHorizontal: 16,
     backgroundColor: 'transparent',
     minHeight: 180,
     justifyContent: 'center',
@@ -973,7 +1027,7 @@ const styles = StyleSheet.create({
     width: screenWidth - 32,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'transparent',
+    backgroundColor: '#F8F8F8',
     borderRadius: 16,
   },
   adLoadingText: {
@@ -988,15 +1042,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   scrollView: {
-    width: '100%',
+    width: screenWidth,
   },
   scrollContent: {
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingLeft: 15,
+    paddingRight: 15,
   },
   slideContainer: {
-    width: screenWidth - 32,
-    marginHorizontal: 4,
+    width: screenWidth - 40,
+    marginRight: 10,
   },
   paginationContainer: {
     flexDirection: 'row',
@@ -1020,20 +1075,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#CCCCCC',
   },
   advertisementWrapper: {
-    borderRadius: 16,
+    width: '100%',
+    height: 180,
+    borderRadius: 15,
     overflow: 'hidden',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
+    elevation: 5,
     position: 'relative',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#f0f0f0',
   },
   advertisementImage: {
     width: '100%',
-    height: 180,
-    borderRadius: 16,
+    height: '100%',
+    borderRadius: 15,
+    resizeMode: 'cover',
   },
   searchBar: {
     flexDirection: 'row',
@@ -1148,16 +1202,17 @@ const styles = StyleSheet.create({
   myNumberCard: {
     marginHorizontal: 16,
     marginVertical: 6,
-    backgroundColor: '#F8F9FA',
-    elevation: 2,
+    backgroundColor: '#FFFFFF',
+    elevation: 3,
     borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: '#000000',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     padding: 16,
+    minHeight: 80,
   },
   contactInfo: {
     flexDirection: 'row',
@@ -1328,27 +1383,22 @@ const styles = StyleSheet.create({
   // Tap indicator styles
   tapIndicatorOverlay: {
     position: 'absolute',
-    bottom: 12,
-    right: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    borderRadius: 24,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
+    bottom: 10,
+    right: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
   tapIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   tapText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    marginLeft: 6,
-    fontWeight: '600',
+    color: '#fff',
+    fontSize: 11,
+    marginLeft: 4,
+    fontWeight: '500',
   },
   // Advertisement Modal Styles
   adModalOverlay: {

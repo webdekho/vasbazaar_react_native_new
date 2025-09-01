@@ -1,6 +1,6 @@
 import { useEffect, useCallback } from 'react';
 import { useRouter } from 'expo-router';
-import { getSessionToken } from '../../services/auth/sessionManager';
+import { getSessionToken } from '../services/auth/sessionManager';
 
 /**
  * Hook that provides session checking functionality

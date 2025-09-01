@@ -1,9 +1,10 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Platform, StyleSheet } from 'react-native';
+import { Platform, StyleSheet, Alert } from 'react-native';
 import { ThemedText } from './ThemedText';
 import { ThemedView } from './ThemedView';
 
-const SimpleImageCropper = ({ src, onCropComplete, onCancel, visible }) => {
+// Web-specific cropper component
+const WebImageCropper = ({ src, onCropComplete, onCancel, visible }) => {
   const canvasRef = useRef(null);
   const imageRef = useRef(null);
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -619,6 +620,27 @@ const styles = {
     fontWeight: '500',
     transition: 'all 0.2s',
   },
+};
+
+// Platform-aware wrapper component
+const SimpleImageCropper = ({ src, onCropComplete, onCancel, visible }) => {
+  // Only render on web platform since this component uses web-specific APIs
+  if (Platform.OS !== 'web') {
+    // For mobile platforms, just return null
+    // The parent component should handle image cropping differently for mobile
+    console.log('SimpleImageCropper: Not supported on mobile platforms');
+    return null;
+  }
+
+  // Render web-specific cropper
+  return (
+    <WebImageCropper 
+      src={src}
+      onCropComplete={onCropComplete}
+      onCancel={onCancel}
+      visible={visible}
+    />
+  );
 };
 
 export default SimpleImageCropper;

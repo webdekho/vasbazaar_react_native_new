@@ -1,4 +1,4 @@
-import { getSessionToken } from '../../services/auth/sessionManager';
+import { getSessionToken } from '../services/auth/sessionManager';
 import { router } from 'expo-router';
 
 /**

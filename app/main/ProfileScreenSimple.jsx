@@ -56,8 +56,8 @@ export default function ProfileScreen() {
       let ImagePicker;
       
       try {
-        // Dynamically import expo-image-picker
-        ImagePicker = await import('expo-image-picker');
+        // Use require instead of dynamic import to avoid module resolution issues
+        ImagePicker = require('expo-image-picker');
       } catch (importError) {
         Alert.alert(
           'Feature Unavailable', 

@@ -205,24 +205,41 @@ export const updateProfilePhoto = async (imageUri, sessionToken) => {
       
     } else {
       // Handle file URIs (mobile platforms)
+      console.log('Processing file URI for mobile platform:', Platform.OS);
+      
       let fileUri = correctedImageUri;
-      if (Platform.OS === 'android' && !correctedImageUri.startsWith('file://')) {
-        fileUri = `file://${correctedImageUri}`;
-      } else if (Platform.OS === 'ios' && correctedImageUri.startsWith('/')) {
-        fileUri = `file://${correctedImageUri}`;
+      
+      // Ensure proper file URI format
+      if (Platform.OS === 'android') {
+        // Android sometimes needs file:// prefix
+        if (!correctedImageUri.startsWith('file://') && !correctedImageUri.startsWith('content://')) {
+          fileUri = `file://${correctedImageUri}`;
+        }
+      } else if (Platform.OS === 'ios') {
+        // iOS might need file:// prefix for local files
+        if (correctedImageUri.startsWith('/')) {
+          fileUri = `file://${correctedImageUri}`;
+        }
       }
       
-      // Append photo to FormData with 'photo' as field name
-      formData.append('photo', {
+      // For React Native, create a proper file object
+      const fileObject = {
         uri: fileUri,
         name: cleanFilename,
         type: mimeType,
-      });
+        // Add filename for better compatibility
+        filename: cleanFilename
+      };
       
-      console.log('FormData created with photo:', {
+      // Append photo to FormData
+      // React Native requires the object format, not File/Blob
+      formData.append('photo', fileObject);
+      
+      console.log('FormData created with photo for mobile:', {
         uri: fileUri,
         name: cleanFilename,
-        type: mimeType
+        type: mimeType,
+        platform: Platform.OS
       });
     }
     

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
-import { useAuth, getAuthRedirect } from './hooks/useAuth';
+import { useAuth, getAuthRedirect } from '../hooks/useAuth';
 
 export default function Index() {
   const router = useRouter();

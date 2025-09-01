@@ -1,4 +1,4 @@
-import { getSessionToken } from '../../services/auth/sessionManager';
+import { getSessionToken } from '../services/auth/sessionManager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 

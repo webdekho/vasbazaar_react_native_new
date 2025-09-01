@@ -2,6 +2,8 @@ import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { KeyboardAvoidingView, Platform, View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 import AuthGuard from '../components/AuthGuard';
 import { GlobalSessionInterceptor } from '../components/GlobalSessionInterceptor';
@@ -18,11 +20,37 @@ export default function RootLayout() {
   }
 
   return (
-    <AuthProvider>
-      <ThemeProvider value={DefaultTheme}>
-        <AuthGuard>
-          <GlobalSessionInterceptor>
-            <Stack>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <ThemeProvider value={DefaultTheme}>
+          <AuthGuard>
+            <GlobalSessionInterceptor>
+              {/* StatusBar configuration for stable layout */}
+              <StatusBar 
+                style="dark" 
+                backgroundColor="#ffffff"
+                translucent={false}
+                hideTransitionAnimation="fade"
+              />
+              
+              {/* Root container with viewport stabilization */}
+              <View style={{
+                flex: 1,
+                ...(Platform.OS === 'android' && {
+                  position: 'relative',
+                  overflow: 'hidden',
+                })
+              }}>
+                <KeyboardAvoidingView 
+                  style={{ 
+                    flex: 1, 
+                    position: 'relative',
+                  }} 
+                  behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                  keyboardVerticalOffset={0}
+                  enabled={Platform.OS === 'ios'} // Only enable on iOS
+                >
+                  <Stack>
         {/* Root redirect */}
         <Stack.Screen name="index" options={{ headerShown: false }} />
         
@@ -65,11 +93,13 @@ export default function RootLayout() {
         <Stack.Screen name="main/common/PendingScreen" options={{ headerShown: false }} />
         
         <Stack.Screen name="+not-found" />
-            </Stack>
-          </GlobalSessionInterceptor>
-        </AuthGuard>
-        <StatusBar style="auto" />
-      </ThemeProvider>
-    </AuthProvider>
+                  </Stack>
+                </KeyboardAvoidingView>
+              </View>
+            </GlobalSessionInterceptor>
+          </AuthGuard>
+        </ThemeProvider>
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }

@@ -1,6 +1,6 @@
-import { useAuth as useAuthContext } from '../../context/AuthContext';
+import { useAuth as useAuthContext } from '../context/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getSessionToken } from '../../services/auth/sessionManager';
+import { getSessionToken } from '../services/auth/sessionManager';
 
 /**
  * Enhanced useAuth hook that provides authentication state and utilities

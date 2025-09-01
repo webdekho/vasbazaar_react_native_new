@@ -13,6 +13,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Avatar, Button, Card, List } from 'react-native-paper';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { WebView } from 'react-native-webview';
 
 import { getSessionToken } from '../../../services/auth/sessionManager';
 import { getRequest, postRequest } from '../../../services/api/baseApi';
@@ -52,6 +53,8 @@ export default function PaymentScreen() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [clickedPaymentMethod, setClickedPaymentMethod] = useState(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('upi'); // UPI selected by default
+  const [showWebView, setShowWebView] = useState(false);
+  const [paymentUrl, setPaymentUrl] = useState('');
   
   // Parse plan data
   const planData = typeof plan === 'string' ? JSON.parse(plan || '{}') : (plan || {});
@@ -324,7 +327,15 @@ export default function PaymentScreen() {
   };
 
   const openPaymentWindow = async(paymentUrl) => {
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    console.log('openPaymentWindow called with Platform.OS:', Platform.OS);
+    console.log('Payment URL:', paymentUrl);
+    
+    if (Platform.OS === 'android' || Platform.OS === 'ios') {
+      // For Android and iOS, use WebView
+      console.log('Using WebView for mobile platform');
+      setPaymentUrl(paymentUrl);
+      setShowWebView(true);
+    } else if (Platform.OS === 'web' && typeof window !== 'undefined') {
       try {
         // Show warning about potential security message
         const userConfirmed = window.confirm(
@@ -423,8 +434,9 @@ export default function PaymentScreen() {
         alert('Failed to open payment window: ' + error.message);
       }
     } else {
-      // For mobile platforms, open in browser
-      alert('Payment functionality is only available on web platform.');
+      // For unknown platforms, show message
+      console.log('Unknown platform, showing alert');
+      alert('Payment functionality is available on Android, iOS and Web platforms.');
     }
   }
 
@@ -785,6 +797,73 @@ export default function PaymentScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* WebView Modal for Android UPI Payment */}
+      <Modal visible={showWebView} animationType="slide" presentationStyle="fullScreen">
+        <View style={styles.webviewContainer}>
+          <View style={styles.webviewHeader}>
+            <TouchableOpacity onPress={() => setShowWebView(false)} style={styles.webviewCloseButton}>
+              <Text style={styles.webviewCloseButtonText}>✕ Close</Text>
+            </TouchableOpacity>
+            <Text style={styles.webviewTitle}>UPI Payment</Text>
+            <View style={styles.webviewSpacer} />
+          </View>
+          <WebView
+            source={{ uri: paymentUrl }}
+            style={styles.webview}
+            javaScriptEnabled={true}
+            domStorageEnabled={true}
+            startInLoadingState={true}
+            scalesPageToFit={true}
+            onNavigationStateChange={(navState) => {
+              console.log('WebView navigation:', navState.url);
+              
+              // Check if payment is completed based on URL patterns
+              if (navState.url.includes('success') || navState.url.includes('completed')) {
+                setShowWebView(false);
+                router.push({
+                  pathname: '/main/common/SuccessScreen',
+                  params: {
+                    serviceId,
+                    operator_id,
+                    plan: typeof planData === 'object' ? JSON.stringify(planData) : plan,
+                    circleCode,
+                    companyLogo,
+                    name,
+                    mobile,
+                    operator,
+                    circle,
+                    coupon,
+                    coupon2,
+                    paymentType: 'upi',
+                    selectedCoupon2,
+                    response: JSON.stringify({ status: 'success', message: 'Payment completed successfully' }),
+                  }
+                });
+              } else if (navState.url.includes('failed') || navState.url.includes('cancel')) {
+                setShowWebView(false);
+                setShowFailurePopup(true);
+                setStatus("Failed");
+                setErrorMessage('Payment was cancelled or failed');
+              }
+            }}
+            onError={(syntheticEvent) => {
+              const { nativeEvent } = syntheticEvent;
+              console.warn('WebView error: ', nativeEvent);
+              setShowWebView(false);
+              setShowFailurePopup(true);
+              setStatus("Error");
+              setErrorMessage('Failed to load payment gateway');
+            }}
+            renderLoading={() => (
+              <View style={styles.webviewLoading}>
+                <ActivityIndicator size="large" color="#000" />
+                <Text style={styles.webviewLoadingText}>Loading payment gateway...</Text>
+              </View>
+            )}
+          />
+        </View>
+      </Modal>
     </>
   );
 }
@@ -1079,5 +1158,55 @@ const styles = StyleSheet.create({
     color: '#000000ff',
     fontWeight: '600',
     textAlign: 'center',
+  },
+  webviewContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  webviewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingTop: Platform.OS === 'android' ? 40 : 12,
+    backgroundColor: '#000',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  webviewCloseButton: {
+    padding: 8,
+  },
+  webviewCloseButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  webviewTitle: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  webviewSpacer: {
+    width: 50,
+  },
+  webview: {
+    flex: 1,
+  },
+  webviewLoading: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  webviewLoadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
   },
 });

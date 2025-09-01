@@ -6,9 +6,13 @@ import {
   Image, 
   Alert, 
   Platform,
-  ScrollView 
+  ScrollView,
+  Keyboard,
+  StatusBar,
+  Dimensions 
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -17,6 +21,7 @@ import { ThemedView } from '@/components/ThemedView';
 import Header, { HeaderPresets } from '@/components/Header';
 import SimpleImageCropper from '@/components/SimpleImageCropper';
 import ProfilePhotoViewer from '@/components/ProfilePhotoViewer';
+import AndroidLayoutLock from '@/components/AndroidLayoutLock';
 import { updateProfilePhoto } from '@/services/user/userService';
 import { extendSession } from '@/services/auth/sessionManager';
 
@@ -24,12 +29,88 @@ import { extendSession } from '@/services/auth/sessionManager';
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [profilePhoto, setProfilePhoto] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [userData, setUserData] = useState(null);
   const [showCropper, setShowCropper] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [photoViewerVisible, setPhotoViewerVisible] = useState(false);
+  const [successMessage, setSuccessMessage] = useState(null);
+  const [errorMessage, setErrorMessage] = useState(null);
+  const [screenData, setScreenData] = useState(Dimensions.get('window'));
+  const [isImagePickerActive, setIsImagePickerActive] = useState(false);
+
+  // Monitor screen dimension changes on Android
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      const subscription = Dimensions.addEventListener('change', ({ window }) => {
+        setScreenData(window);
+      });
+
+      return () => subscription?.remove();
+    }
+  }, []);
+
+  // Web-specific viewport stabilization
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const viewport = document?.querySelector('meta[name="viewport"]');
+      if (viewport) {
+        const originalContent = viewport.content;
+        
+        return () => {
+          viewport.content = originalContent;
+        };
+      }
+    }
+  }, []);
+
+  // Clear messages after 4 seconds with stable timing
+  useEffect(() => {
+    let timer;
+    if (successMessage || errorMessage) {
+      timer = setTimeout(() => {
+        // Use a more stable state update to prevent layout shifts
+        if (successMessage) setSuccessMessage(null);
+        if (errorMessage) setErrorMessage(null);
+      }, 4000);
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [successMessage, errorMessage]);
+
+  // Helper functions for showing messages
+  const showSuccess = (message) => {
+    // Ensure no keyboard is active and dismiss any focus to prevent layout shifts
+    if (Platform.OS !== 'web') {
+      Keyboard.dismiss();
+      // Add a small delay to ensure keyboard is fully dismissed before showing message
+      setTimeout(() => {
+        setErrorMessage(null);
+        setSuccessMessage(message);
+      }, 100);
+    } else {
+      setErrorMessage(null);
+      setSuccessMessage(message);
+    }
+  };
+
+  const showError = (message) => {
+    // Ensure no keyboard is active and dismiss any focus to prevent layout shifts
+    if (Platform.OS !== 'web') {
+      Keyboard.dismiss();
+      // Add a small delay to ensure keyboard is fully dismissed before showing message
+      setTimeout(() => {
+        setSuccessMessage(null);
+        setErrorMessage(message);
+      }, 100);
+    } else {
+      setSuccessMessage(null);
+      setErrorMessage(message);
+    }
+  };
 
   // Load user data and profile photo
   useEffect(() => {
@@ -76,8 +157,27 @@ export default function ProfileScreen() {
   };
 
   const handleProfilePhotoUpdate = async () => {
+    console.log('handleProfilePhotoUpdate called, Platform:', Platform.OS);
     try {
       setUploading(true);
+      // Clear any existing messages
+      setSuccessMessage(null);
+      setErrorMessage(null);
+
+      // On Android, dismiss keyboard and stabilize UI completely
+      if (Platform.OS === 'android') {
+        Keyboard.dismiss();
+        
+        // Lock the current layout dimensions
+        const currentDims = Dimensions.get('window');
+        setScreenData(currentDims);
+        
+        // Create a system UI lock by temporarily disabling layout changes
+        StatusBar.setHidden(false, 'none');
+        
+        // Short delay to ensure all system changes complete
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
       
       // For web browsers, especially iOS Chrome, use native file input
       if (Platform.OS === 'web') {
@@ -99,14 +199,14 @@ export default function ProfileScreen() {
               try {
                 // Validate file type
                 if (!file.type.startsWith('image/')) {
-                  Alert.alert('Error', 'Please select a valid image file');
+                  showError('Please select a valid image file');
                   return;
                 }
                 
                 // Validate file size (5MB max)
                 const maxSize = 5 * 1024 * 1024; // 5MB
                 if (file.size > maxSize) {
-                  Alert.alert('Error', 'Image size should be less than 5MB');
+                  showError('Image size should be less than 5MB');
                   return;
                 }
                 
@@ -123,7 +223,7 @@ export default function ProfileScreen() {
                 };
                 
                 reader.onerror = () => {
-                  Alert.alert('Error', 'Failed to read the selected file');
+                  showError('Failed to read the selected file');
                   resolve();
                 };
                 
@@ -131,7 +231,7 @@ export default function ProfileScreen() {
                 
               } catch (error) {
                 console.error('Error processing file:', error);
-                Alert.alert('Error', 'Failed to process the selected image');
+                showError('Failed to process the selected image');
                 resolve();
               }
             }
@@ -151,23 +251,25 @@ export default function ProfileScreen() {
       }
       
       // For native platforms, use expo-image-picker
+      console.log('Using expo-image-picker for native platform');
       let ImagePicker;
       
       try {
-        // Dynamically import expo-image-picker
-        ImagePicker = await import('expo-image-picker');
+        // Use require instead of dynamic import to avoid module resolution issues
+        ImagePicker = require('expo-image-picker');
+        console.log('expo-image-picker imported successfully');
       } catch (importError) {
-        Alert.alert(
-          'Feature Unavailable', 
-          'Image picker is not available. Please ensure expo-image-picker is installed.'
-        );
+        console.error('Failed to import expo-image-picker:', importError);
+        showError('Image picker is not available. Please ensure expo-image-picker is installed.');
+        setUploading(false); // Reset uploading state
         return;
       }
 
       // Request permissions for native platforms
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permissionResult.granted) {
-        Alert.alert('Permission Required', 'Please allow access to photos to upload your profile picture.');
+        showError('Please allow access to photos to upload your profile picture.');
+        setUploading(false); // Reset uploading state
         return;
       }
 
@@ -176,26 +278,78 @@ export default function ProfileScreen() {
         quality: 0.9,
         allowsEditing: true,
         aspect: [1, 1], // Square aspect ratio
-        mediaTypes: ImagePicker.MediaTypeOptions?.Images || 'Images',
+        mediaTypes: ImagePicker.MediaTypeOptions?.Images || ImagePicker.default?.MediaTypeOptions?.Images || 'Images',
         allowsMultipleSelection: false,
-        presentationStyle: 'fullScreen',
+        ...(Platform.OS === 'android' && {
+          // Android: Critical settings to prevent UI displacement
+          presentationStyle: 'overCurrentContext', // Don't go fullscreen
+          allowsMultipleSelection: false,
+          showsSelectedPlaybackRate: false,
+          videoQuality: undefined,
+          videoMaxDuration: undefined,
+          // Force overlay mode to prevent system UI changes
+          selectionLimit: 1,
+        }),
+        ...(Platform.OS !== 'android' && {
+          presentationStyle: 'fullScreen',
+        }),
       };
+      console.log('ImagePicker MediaTypeOptions:', ImagePicker.MediaTypeOptions);
 
-      // Launch image picker for native
-      const result = await ImagePicker.launchImageLibraryAsync(imagePickerOptions);
+      // Android: Custom image picker launch with complete UI lock
+      let result;
+      if (Platform.OS === 'android') {
+        console.log('Android: Activating layout lock and launching image picker');
+        
+        // Activate layout lock BEFORE opening picker
+        setIsImagePickerActive(true);
+        
+        // Wait for layout lock to take effect
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        try {
+          // Launch with absolute minimal UI disruption
+          result = await ImagePicker.launchImageLibraryAsync({
+            ...imagePickerOptions,
+            presentationStyle: 'overCurrentContext',
+            allowsEditing: false, // Completely disable editing
+            quality: 0.7, // Lower quality for faster processing
+          });
+          
+        } catch (error) {
+          console.error('Android image picker error:', error);
+          throw error;
+        } finally {
+          // Always deactivate layout lock after picker closes
+          setIsImagePickerActive(false);
+          
+          // Force UI restoration
+          await new Promise(resolve => setTimeout(resolve, 100));
+          StatusBar.setHidden(false, 'none');
+        }
+      } else {
+        // iOS/other platforms: Use normal image picker
+        console.log('Launching image picker with options:', imagePickerOptions);
+        result = await ImagePicker.launchImageLibraryAsync(imagePickerOptions);
+      }
+      console.log('Image picker result:', result);
 
       if (result.canceled) {
+        console.log('Image picker was canceled');
+        setUploading(false); // Reset uploading state
         return;
       }
 
       if (!result.assets || result.assets.length === 0) {
-        Alert.alert('Error', 'No image selected');
+        showError('No image selected');
+        setUploading(false); // Reset uploading state
         return;
       }
 
       const image = result.assets[0];
       if (!image?.uri) {
-        Alert.alert('Error', 'Invalid image selected');
+        showError('Invalid image selected');
+        setUploading(false); // Reset uploading state
         return;
       }
 
@@ -203,8 +357,8 @@ export default function ProfileScreen() {
       let processedImage = image;
       
       try {
-        // Dynamically import expo-image-manipulator for additional processing
-        const ImageManipulator = await import('expo-image-manipulator');
+        // Use require instead of dynamic import to avoid module resolution issues
+        const ImageManipulator = require('expo-image-manipulator');
         
         // Get image dimensions to calculate crop area for square crop
         const { width, height } = image;
@@ -222,7 +376,7 @@ export default function ProfileScreen() {
           { 
             compress: 0.9, 
             format: ImageManipulator.SaveFormat.JPEG,
-            base64: true
+            base64: false // Don't convert to base64 for mobile
           }
         );
         
@@ -243,13 +397,14 @@ export default function ProfileScreen() {
       console.log('Session token exists:', !!sessionToken);
       
       if (!sessionToken) {
-        Alert.alert('Error', 'Please login again to update your profile photo');
+        showError('Please login again to update your profile photo');
         return;
       }
 
       // Upload to server for native platforms
-      const imageToUpload = processedImage.base64 ? `data:image/jpeg;base64,${processedImage.base64}` : processedImage.uri;
-      console.log('Calling updateProfilePhoto with:', processedImage.base64 ? 'base64 data' : processedImage.uri);
+      // Always use the URI for mobile platforms to avoid blob creation issues
+      const imageToUpload = processedImage.uri;
+      console.log('Calling updateProfilePhoto with URI:', imageToUpload);
       const uploadResponse = await updateProfilePhoto(imageToUpload, sessionToken);
       console.log('Upload response received:', uploadResponse);
       
@@ -260,21 +415,23 @@ export default function ProfileScreen() {
         // Save to AsyncStorage on success
         await AsyncStorage.setItem('profile_photo', photoToSave);
         
-        // Update state with server URL if available
+        // Update state with server URL if available, using requestAnimationFrame to prevent layout thrashing
         if (uploadResponse.photoUrl) {
-          setProfilePhoto(uploadResponse.photoUrl);
+          requestAnimationFrame(() => {
+            setProfilePhoto(uploadResponse.photoUrl);
+          });
         }
         
-        Alert.alert('Success', uploadResponse.message || 'Profile photo updated successfully!');
+        showSuccess(uploadResponse.message || 'Profile photo updated successfully!');
       } else {
         // Revert on failure
         await loadProfilePhoto();
-        Alert.alert('Upload Failed', uploadResponse.message || 'Failed to update profile photo');
+        showError(uploadResponse.message || 'Failed to update profile photo');
       }
 
     } catch (error) {
       console.error('Photo upload error:', error);
-      Alert.alert('Upload Failed', 'Failed to update profile photo. Please try again.');
+      showError('Failed to update profile photo. Please try again.');
       // Reset to previous photo on error
       await loadProfilePhoto();
     } finally {
@@ -297,7 +454,7 @@ export default function ProfileScreen() {
       console.log('Session token exists:', !!sessionToken);
       
       if (!sessionToken) {
-        Alert.alert('Error', 'Please login again to update your profile photo');
+        showError('Please login again to update your profile photo');
         return;
       }
 
@@ -325,20 +482,23 @@ export default function ProfileScreen() {
         
         // Save the final photo (either server URL or base64) to AsyncStorage
         await AsyncStorage.setItem('profile_photo', finalPhotoUrl);
-        setProfilePhoto(finalPhotoUrl);
+        // Use requestAnimationFrame to prevent layout thrashing
+        requestAnimationFrame(() => {
+          setProfilePhoto(finalPhotoUrl);
+        });
         console.log('Saved photo to localStorage:', 
           finalPhotoUrl.startsWith('data:') ? 'base64 image data' : finalPhotoUrl);
         
-        Alert.alert('Success', uploadResponse.message || 'Profile photo updated successfully!');
+        showSuccess(uploadResponse.message || 'Profile photo updated successfully!');
       } else {
         // Revert on failure
         await loadProfilePhoto();
-        Alert.alert('Upload Failed', uploadResponse.message || 'Failed to update profile photo');
+        showError(uploadResponse.message || 'Failed to update profile photo');
       }
 
     } catch (error) {
       console.error('Photo upload error:', error);
-      Alert.alert('Upload Failed', 'Failed to update profile photo. Please try again.');
+      showError('Failed to update profile photo. Please try again.');
       // Reset to previous photo on error
       await loadProfilePhoto();
     } finally {
@@ -352,6 +512,10 @@ export default function ProfileScreen() {
   };
 
   const removeProfilePhoto = () => {
+    // Clear any existing messages before showing dialog
+    setSuccessMessage(null);
+    setErrorMessage(null);
+    
     Alert.alert(
       'Remove Profile Photo',
       'Are you sure you want to remove your profile photo?',
@@ -364,7 +528,7 @@ export default function ProfileScreen() {
             try {
               await AsyncStorage.removeItem('profile_photo');
               setProfilePhoto(null);
-              Alert.alert('Success', 'Profile photo removed');
+              showSuccess('Profile photo removed');
             } catch (error) {
               console.error('Error removing photo:', error);
             }
@@ -390,15 +554,37 @@ export default function ProfileScreen() {
     setPhotoViewerVisible(false);
   };
 
-  return (
-    <ThemedView style={styles.container}>
-      <Header 
-        {...HeaderPresets.tabs}
-        onNotificationPress={handleNotificationPress}
-        onSearchPress={handleSearchPress}
-      />
+  // Use dynamic styles on Android, static styles elsewhere
+  const currentStyles = Platform.OS === 'android' ? createStyles(screenData) : styles;
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+  return (
+    <AndroidLayoutLock isActive={isImagePickerActive}>
+      <View style={currentStyles.container}>
+        {/* Android: Fixed header to prevent movement */}
+        {Platform.OS === 'android' ? (
+          <View style={currentStyles.androidHeader}>
+            <Header 
+              {...HeaderPresets.tabs}
+              onNotificationPress={handleNotificationPress}
+              onSearchPress={handleSearchPress}
+            />
+          </View>
+        ) : (
+          <View style={currentStyles.headerContainer}>
+            <Header 
+              {...HeaderPresets.tabs}
+              onNotificationPress={handleNotificationPress}
+              onSearchPress={handleSearchPress}
+            />
+          </View>
+        )}
+
+      <ScrollView 
+        style={currentStyles.content} 
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={currentStyles.scrollContent}
+      >
         {/* Profile Photo Section */}
         <ThemedView style={styles.photoSection}>
           <TouchableOpacity 
@@ -529,17 +715,138 @@ export default function ProfileScreen() {
         imageUri={profilePhoto}
         userName={userData?.name}
       />
-    </ThemedView>
+
+      {/* Success/Error Message Banner - Positioned absolutely to avoid layout shifts */}
+      {successMessage && (
+        <View style={[
+          styles.successBanner, 
+          { 
+            top: Platform.OS === 'android' 
+              ? 80  // Fixed position on Android
+              : insets.top + (Platform.OS === 'ios' ? 90 : 70) + 10 
+          }
+        ]}>
+          <FontAwesome name="check-circle" size={16} color="#FFFFFF" />
+          <ThemedText style={styles.successText}>{successMessage}</ThemedText>
+        </View>
+      )}
+      
+      {errorMessage && (
+        <View style={[
+          styles.errorBanner, 
+          { 
+            top: Platform.OS === 'android' 
+              ? 80  // Fixed position on Android
+              : insets.top + (Platform.OS === 'ios' ? 90 : 70) + 10 
+          }
+        ]}>
+          <FontAwesome name="exclamation-circle" size={16} color="#FFFFFF" />
+          <ThemedText style={styles.errorText}>{errorMessage}</ThemedText>
+        </View>
+      )}
+      </View>
+    </AndroidLayoutLock>
   );
 }
 
-const styles = StyleSheet.create({
+// Create styles as a function to use dynamic screen dimensions
+const createStyles = (screenData) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8F9FA',
+    ...(Platform.OS === 'android' && {
+      // Android: Fixed dimensions to prevent viewport changes
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      height: screenData.height,
+      width: screenData.width,
+      overflow: 'hidden',
+    }),
+  },
+  androidHeader: {
+    // Android: Stable header that doesn't move
+    height: 70,
+    backgroundColor: '#ffffff',
+    position: 'relative',
+    zIndex: 1000,
+    // Remove border - let the header component handle its own border
+  },
+  headerContainer: {
+    // iOS/Web: Absolute positioned header
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    backgroundColor: '#ffffff',
   },
   content: {
     flex: 1,
+    ...(Platform.OS === 'android' ? {
+      // Android: No margin, container handles spacing
+      marginTop: 0,
+    } : {
+      // iOS/Web: Margin for absolute header
+      marginTop: Platform.OS === 'ios' ? 90 : 70,
+    }),
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: Platform.OS === 'ios' ? 100 : 80, // Account for tab bar
+  },
+  // Message Banners - Absolutely positioned to prevent layout shifts
+  successBanner: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    backgroundColor: '#4CAF50',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    elevation: 1000, // Very high z-index to appear above everything
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    zIndex: 1000, // Ensure it's above all other content
+  },
+  successText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 8,
+    textAlign: 'center',
+  },
+  errorBanner: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    backgroundColor: '#F44336',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    elevation: 1000, // Very high z-index to appear above everything
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    zIndex: 1000, // Ensure it's above all other content
+  },
+  errorText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 8,
+    textAlign: 'center',
   },
   photoSection: {
     alignItems: 'center',
@@ -710,3 +1017,6 @@ const styles = StyleSheet.create({
     color: '#666',
   },
 });
+
+// Default styles for non-Android platforms
+const styles = createStyles(Dimensions.get('window'));

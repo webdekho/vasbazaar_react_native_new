@@ -189,7 +189,7 @@ export default function AllServicesScreen() {
         
         if (iconUrls.length > 0) {
           console.log(`AllServices - Preloading ${iconUrls.length} service icons`);
-          const { preloadIcons } = await import('../../services/cache/iconCache');
+          const { preloadIcons } = require('../../services/cache/iconCache');
           const results = await preloadIcons(iconUrls);
           const successful = results.filter(r => r.status === 'fulfilled' && r.value?.success).length;
           console.log(`AllServices - Successfully preloaded ${successful}/${iconUrls.length} icons`);

@@ -1,5 +1,5 @@
 import { getWalletTransactions as getWalletRecords, getWalletBalance } from '../../services/wallet/walletService';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../../hooks/useAuth';
 import { getSessionToken } from '../../services/auth/sessionManager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';

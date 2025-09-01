@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useRouter, useSegments } from 'expo-router';
-import { useAuth, getAuthRedirect } from '../app/hooks/useAuth';
+import { useAuth, getAuthRedirect } from '../hooks/useAuth';
 import { ThemedView } from './ThemedView';
 import { ThemedText } from './ThemedText';
 import AsyncStorage from '@react-native-async-storage/async-storage';

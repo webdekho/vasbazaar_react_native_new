@@ -18,10 +18,15 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
+      "softwareKeyboardLayoutMode": "resize",
+      "windowSoftInputMode": "adjustResize",
+      "navigationBarColor": "#000000",
+      "statusBarColor": "#ffffff",
+      "statusBarStyle": "dark",
       "permissions": [
         "android.permission.READ_CONTACTS",
-        "android.permission.WRITE_CONTACTS"
+        "android.permission.WRITE_CONTACTS",
+        "android.permission.READ_EXTERNAL_STORAGE"
       ]
     },
     "web": {

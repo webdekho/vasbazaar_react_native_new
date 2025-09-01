@@ -26,6 +26,9 @@ export default function HistoryScreen() {
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [complaintText, setComplaintText] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [checkingStatus, setCheckingStatus] = useState(false);
+  const [complaintStatus, setComplaintStatus] = useState(null);
+  const [showComplaintForm, setShowComplaintForm] = useState(false);
   
   const handleNotificationPress = () => {
     console.log('Notification pressed');
@@ -100,7 +103,60 @@ export default function HistoryScreen() {
     }
   };
 
-  // Submit complaint
+  // Step 1: Check complaint status
+  const checkComplaintStatus = async (txnId) => {
+    try {
+      setCheckingStatus(true);
+      const sessionToken = await AsyncStorage.getItem('sessionToken');
+      
+      const response = await submitComplaint(
+        txnId, 
+        '', // Empty complaint text for status check
+        sessionToken,
+        'check' // Action parameter for checking status
+      );
+      
+      if (response?.status === 'success' && response?.data) {
+        const { hasComplaint, complaintDetails, message } = response.data;
+        
+        setComplaintStatus({
+          hasComplaint,
+          details: complaintDetails,
+          message: message || 'Complaint status checked successfully'
+        });
+        
+        if (hasComplaint || response?.data?.message) {
+          // Show existing complaint details or API message
+          const displayMessage = response.data.message || 
+            `A complaint already exists for this transaction.\n\nStatus: ${complaintDetails?.status || 'Under Review'}\nDate: ${complaintDetails?.date || 'N/A'}\nDescription: ${complaintDetails?.description || 'No description available'}`;
+          
+          setComplaintStatus({
+            hasComplaint: true,
+            details: complaintDetails,
+            message: displayMessage,
+            complaintStatus: response.data.complaintStatus
+          });
+        } else {
+          // Show complaint form
+          setShowComplaintForm(true);
+        }
+      } else {
+        // No existing complaint found or API error, show form
+        setComplaintStatus({ hasComplaint: false });
+        setShowComplaintForm(true);
+      }
+    } catch (error) {
+      console.error('Error checking complaint status:', error);
+      // On error, show complaint form anyway
+      setComplaintStatus({ hasComplaint: false });
+      setShowComplaintForm(true);
+      Alert.alert('Info', 'Unable to check complaint status. You can still submit a new complaint.');
+    } finally {
+      setCheckingStatus(false);
+    }
+  };
+
+  // Step 2: Submit complaint
   const handleComplaintSubmit = async () => {
     try {
       setSubmitting(true);
@@ -109,25 +165,48 @@ export default function HistoryScreen() {
       const response = await submitComplaint(
         selectedTransaction.txnId, 
         complaintText.trim(), 
-        sessionToken
+        sessionToken,
+        'add' // Action parameter for adding new complaint
       );
       
       if (response?.status === 'success') {
-        setModalVisible(false);
-        setComplaintText('');
-        Alert.alert(
-          'Success', 
-          `Your complaint has been registered with Transaction ID: ${selectedTransaction.txnId}. Our support team will review it shortly.`
-        );
-        
-        // Update local state
-        setTransactions(prev => 
-          prev.map(txn => 
-            txn.txnId === selectedTransaction.txnId 
-              ? { ...txn, hasComplaint: true }
-              : txn
-          )
-        );
+        if (response.data?.hasExistingComplaint || response.data?.message) {
+          // Show existing complaint message in modal
+          setShowComplaintForm(false);
+          setComplaintStatus({
+            hasComplaint: true,
+            details: null,
+            message: response.data.message,
+            complaintStatus: response.data.complaintStatus || 'processing'
+          });
+        } else {
+          // Step 3: Close modal and refresh history for new complaint
+          setModalVisible(false);
+          setComplaintText('');
+          setShowComplaintForm(false);
+          setComplaintStatus(null);
+          
+          Alert.alert(
+            'Success', 
+            `Your complaint has been registered with Transaction ID: ${selectedTransaction.txnId}. Our support team will review it shortly.`,
+            [{ 
+              text: 'OK', 
+              onPress: () => {
+                // Refresh transaction history after user acknowledges
+                fetchTransactions(true);
+              }
+            }]
+          );
+          
+          // Update local state immediately
+          setTransactions(prev => 
+            prev.map(txn => 
+              txn.txnId === selectedTransaction.txnId 
+                ? { ...txn, hasComplaint: true }
+                : txn
+            )
+          );
+        }
       } else {
         Alert.alert('Error', response?.message || 'Unable to submit your complaint. Please try again later.');
       }
@@ -214,13 +293,21 @@ export default function HistoryScreen() {
   const openComplaintModal = (transaction) => {
     setSelectedTransaction(transaction);
     setComplaintText('');
+    setComplaintStatus(null);
+    setShowComplaintForm(false);
     setModalVisible(true);
+    
+    // Step 1: Check complaint status first
+    checkComplaintStatus(transaction.txnId);
   };
 
   const closeComplaintModal = () => {
     setModalVisible(false);
     setComplaintText('');
     setSelectedTransaction(null);
+    setComplaintStatus(null);
+    setShowComplaintForm(false);
+    setCheckingStatus(false);
   };
 
   // Component for operator icon with fallback
@@ -311,42 +398,94 @@ export default function HistoryScreen() {
               </Text>
             </View>
             
-            <Text style={styles.inputLabel}>Describe your issue (Optional)</Text>
-            <TextInput
-              style={styles.complaintInput}
-              multiline
-              numberOfLines={4}
-              placeholder="Please provide detailed information about your complaint..."
-              placeholderTextColor="#999"
-              value={complaintText}
-              onChangeText={setComplaintText}
-              editable={!submitting}
-              maxLength={500}
-            />
-            
-            <View style={styles.modalButtonContainer}>
-              <Pressable
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={closeComplaintModal}
-                disabled={submitting}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.modalButton, styles.submitButton]}
-                onPress={handleComplaintSubmit}
-                disabled={submitting}
-              >
-                {submitting ? (
-                  <View style={styles.submittingContainer}>
-                    <ActivityIndicator color="#fff" size="small" />
-                    <Text style={styles.submittingText}>Submitting...</Text>
-                  </View>
-                ) : (
-                  <Text style={styles.submitButtonText}>Submit</Text>
-                )}
-              </Pressable>
-            </View>
+            {checkingStatus ? (
+              <View style={styles.statusCheckContainer}>
+                <ActivityIndicator color="#FF9800" size="large" />
+                <Text style={styles.statusCheckText}>Checking complaint status...</Text>
+              </View>
+            ) : showComplaintForm ? (
+              <>
+                <Text style={styles.inputLabel}>Describe your issue (Optional)</Text>
+                <TextInput
+                  style={styles.complaintInput}
+                  multiline
+                  numberOfLines={4}
+                  placeholder="Please provide detailed information about your complaint..."
+                  placeholderTextColor="#999"
+                  value={complaintText}
+                  onChangeText={setComplaintText}
+                  editable={!submitting}
+                  maxLength={500}
+                />
+                
+                <View style={styles.modalButtonContainer}>
+                  <Pressable
+                    style={[styles.modalButton, styles.cancelButton]}
+                    onPress={closeComplaintModal}
+                    disabled={submitting}
+                  >
+                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.modalButton, styles.submitButton]}
+                    onPress={handleComplaintSubmit}
+                    disabled={submitting}
+                  >
+                    {submitting ? (
+                      <View style={styles.submittingContainer}>
+                        <ActivityIndicator color="#fff" size="small" />
+                        <Text style={styles.submittingText}>Submitting...</Text>
+                      </View>
+                    ) : (
+                      <Text style={styles.submitButtonText}>Submit</Text>
+                    )}
+                  </Pressable>
+                </View>
+              </>
+            ) : complaintStatus?.hasComplaint ? (
+              <View style={styles.existingComplaintContainer}>
+                <View style={styles.complaintStatusHeader}>
+                  <FontAwesome name="info-circle" size={28} color="#FF9800" />
+                  <Text style={styles.complaintStatusTitle}>Complaint Status</Text>
+                </View>
+                
+                <View style={styles.complaintMessageContainer}>
+                  <Text style={styles.complaintMessageText}>
+                    {complaintStatus.message}
+                  </Text>
+                  
+                  {complaintStatus.complaintStatus && (
+                    <View style={styles.statusBadgeContainer}>
+                      <View style={[styles.complaintStatusBadge, {
+                        backgroundColor: complaintStatus.complaintStatus === 'processing' ? '#FFF3E0' : '#E8F5E8'
+                      }]}>
+                        <FontAwesome 
+                          name={complaintStatus.complaintStatus === 'processing' ? 'clock-o' : 'check-circle'} 
+                          size={14} 
+                          color={complaintStatus.complaintStatus === 'processing' ? '#FF9800' : '#4CAF50'} 
+                        />
+                        <Text style={[styles.complaintStatusText, {
+                          color: complaintStatus.complaintStatus === 'processing' ? '#FF9800' : '#4CAF50'
+                        }]}>
+                          {complaintStatus.complaintStatus.toUpperCase()}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+                </View>
+                
+                <Pressable
+                  style={[styles.modalButton, styles.cancelButton, { marginTop: 20 }]}
+                  onPress={closeComplaintModal}
+                >
+                  <Text style={styles.cancelButtonText}>Close</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <View style={styles.waitingContainer}>
+                <Text style={styles.waitingText}>Please wait while we check your complaint status...</Text>
+              </View>
+            )}
           </View>
         </View>
       </Modal>
@@ -839,5 +978,83 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
     marginLeft: 8,
+  },
+  // New complaint status styles
+  statusCheckContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  statusCheckText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+  },
+  existingComplaintContainer: {
+    paddingVertical: 20,
+    paddingHorizontal: 10,
+  },
+  complaintStatusHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  complaintStatusTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    marginLeft: 12,
+  },
+  complaintMessageContainer: {
+    backgroundColor: '#F8F9FA',
+    padding: 20,
+    borderRadius: 12,
+    marginBottom: 10,
+    borderLeftWidth: 4,
+    borderLeftColor: '#FF9800',
+  },
+  complaintMessageText: {
+    fontSize: 16,
+    color: '#333',
+    lineHeight: 24,
+    textAlign: 'left',
+  },
+  statusBadgeContainer: {
+    alignItems: 'flex-start',
+    marginTop: 15,
+  },
+  complaintStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  complaintStatusText: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 8,
+    letterSpacing: 0.5,
+  },
+  existingComplaintText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 12,
+    lineHeight: 22,
+  },
+  waitingContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  waitingText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });

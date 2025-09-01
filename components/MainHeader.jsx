@@ -58,79 +58,77 @@ export default function MainHeader({
     }
   };
 
-  const getHeaderPaddingTop = () => {
-    if (Platform.OS === 'ios') {
-      return Math.max(insets.top + 5, 35); // iOS: safe area + padding, minimum 35 (reduced from 45)
-    } else if (Platform.OS === 'android') {
-      return Math.max(insets.top + 5, 15); // Android: safe area + padding, minimum 15 (reduced from 20)
-    } else {
-      return Math.max(insets.top, 10); // Web/other: minimum 10 (reduced from 15)
-    }
-  };
-
   return (
-    <ThemedView style={styles.container}>
+    <>
       {/* Platform-specific StatusBar */}
       <StatusBar 
         barStyle="light-content" 
         backgroundColor={backgroundColor} 
-        translucent={Platform.OS === 'android'}
+        translucent={false}
         hidden={false}
       />
       
-      {/* Header */}
-      <View style={[
-        styles.header, 
-        { 
-          backgroundColor,
-          paddingTop: getHeaderPaddingTop(),
-          minHeight: Platform.select({
-            ios: 70, // iOS standard navigation bar height (reduced from 88)
-            android: 45, // Android app bar height + status bar (reduced from 56)
-            default: 50, // Web standard (reduced from 60)
-          }) + (Platform.OS === 'ios' ? insets.top : 0),
-        }
-      ]}>
-        <View style={styles.leftSection}>
-          {showBack && (
-            <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
-              <FontAwesome 
-                name="chevron-left" 
-                size={Platform.select({ ios: 20, android: 18, default: 18 })} 
-                color={textColor} 
-              />
-            </TouchableOpacity>
-          )}
-        </View>
+      <ThemedView style={[styles.container, { backgroundColor }]}>
+        {/* Status bar spacer for iOS */}
+        {Platform.OS === 'ios' && (
+          <View style={{ height: insets.top, backgroundColor }} />
+        )}
         
-        <View style={styles.centerSection} pointerEvents="none">
-          <ThemedText 
-            style={[styles.headerTitle, { color: textColor }]} 
-            numberOfLines={1} 
-            ellipsizeMode="tail" 
-            selectable={false}
-          >
-            {title}
-          </ThemedText>
-        </View>
-        
-        <View style={styles.rightSection}>
-          {showSearch && (
-            <TouchableOpacity onPress={handleSearchPress} style={styles.iconButton}>
-              <FontAwesome name="search" size={16} color={textColor} />
-            </TouchableOpacity>
-          )}
+        {/* Header */}
+        <View style={[
+          styles.header, 
+          { 
+            backgroundColor,
+            height: Platform.select({
+              ios: 44, // iOS standard nav bar height
+              android: 56, // Android standard app bar height
+              default: 60, // Web standard
+            }),
+          }
+        ]}>
+          <View style={styles.headerContent}>
+          <View style={styles.leftSection}>
+            {showBack && (
+              <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
+                <FontAwesome 
+                  name="chevron-left" 
+                  size={Platform.select({ ios: 22, android: 20, default: 20 })} 
+                  color={textColor} 
+                />
+              </TouchableOpacity>
+            )}
+          </View>
           
-          {showNotification && (
-            <TouchableOpacity onPress={handleNotificationPress} style={[styles.iconButton, styles.notificationButton]}>
-              <FontAwesome name="bell" size={16} color={textColor} />
-            </TouchableOpacity>
-          )}
+          <View style={styles.centerSection} pointerEvents="none">
+            <ThemedText 
+              style={[styles.headerTitle, { color: textColor }]} 
+              numberOfLines={1} 
+              ellipsizeMode="tail" 
+              selectable={false}
+            >
+              {title}
+            </ThemedText>
+          </View>
           
-          {rightComponent && rightComponent}
+          <View style={styles.rightSection}>
+            {showSearch && (
+              <TouchableOpacity onPress={handleSearchPress} style={styles.iconButton}>
+                <FontAwesome name="search" size={18} color={textColor} />
+              </TouchableOpacity>
+            )}
+            
+            {showNotification && (
+              <TouchableOpacity onPress={handleNotificationPress} style={[styles.iconButton, styles.notificationButton]}>
+                <FontAwesome name="bell" size={18} color={textColor} />
+              </TouchableOpacity>
+            )}
+            
+            {rightComponent && rightComponent}
+          </View>
         </View>
       </View>
-    </ThemedView>
+      </ThemedView>
+    </>
   );
 }
 
@@ -139,22 +137,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Platform.select({
-      ios: 20,
-      android: 16,
-      default: 20,
-    }),
-    paddingBottom: Platform.select({
-      ios: 8, // Reduced from 12
-      android: 6, // Reduced from 10
-      default: 8, // Reduced from 12
-    }),
     backgroundColor: '#000000',
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#333333',
+    justifyContent: 'center',
     ...Platform.select({
       ios: {
         shadowColor: '#000000',
@@ -171,6 +157,21 @@ const styles = StyleSheet.create({
       default: {},
     }),
   },
+  headerContent: {
+    height: Platform.select({
+      ios: 44, // iOS standard nav content height
+      android: 56, // Android standard toolbar height
+      default: 60,
+    }),
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Platform.select({
+      ios: 16,
+      android: 16,
+      default: 20,
+    }),
+  },
   leftSection: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -180,11 +181,7 @@ const styles = StyleSheet.create({
       android: 56,
       default: 60,
     }),
-    height: Platform.select({
-      ios: 36, // Reduced from 44
-      android: 32, // Reduced from 40
-      default: 36, // Reduced from 44
-    }),
+    height: '100%',
   },
   centerSection: {
     flex: 1,
@@ -205,11 +202,7 @@ const styles = StyleSheet.create({
       android: 56,
       default: 60,
     }),
-    height: Platform.select({
-      ios: 36, // Reduced from 44
-      android: 32, // Reduced from 40
-      default: 36, // Reduced from 44
-    }),
+    height: '100%',
   },
   backButton: {
     paddingVertical: Platform.select({
@@ -250,11 +243,18 @@ const styles = StyleSheet.create({
       default: 10,
     }),
     fontSize: Platform.select({
-      ios: 17,
-      android: 16,
-      default: 17,
+      ios: 18,
+      android: 18,
+      default: 18,
+    }),
+    lineHeight: Platform.select({
+      ios: 22,
+      android: 24,
+      default: 22,
     }),
     fontWeight: '600',
     color: '#FFFFFF',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
 });

@@ -9,7 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getUserBalance } from '../services';
 import QRCode from 'react-native-qrcode-svg';
 import { logout } from '../services/auth/sessionManager';
-import { useAuth } from '../app/hooks/useAuth';
+import { useAuth } from '../hooks/useAuth';
 import { authEvents, AUTH_EVENTS } from '../services/auth/authEvents';
 import ProfilePhotoViewer from './ProfilePhotoViewer';
 import { shareReferralLink } from '../services/sharing/shareService';
@@ -440,20 +440,27 @@ export default function Sidebar({ visible, onClose, userInfo }) {
             <ThemedView style={styles.servicesSection}>
               <ThemedText style={styles.servicesTitle}>Services</ThemedText>
               {serviceItems.map(renderServiceMenuItem)}
+              
+              {/* Clear Cache - moved to scrollable content */}
+              <TouchableOpacity 
+                style={[styles.serviceMenuItem, { marginTop: 10 }]} 
+                onPress={handleClearCache}
+                activeOpacity={0.7}
+              >
+                <ThemedView style={styles.serviceMenuIcon}>
+                  <MaterialIcons name="delete" size={20} color="#ffffff" />
+                </ThemedView>
+                <ThemedText style={styles.serviceMenuText}>Clear Cache</ThemedText>
+                <MaterialIcons name="chevron-right" size={20} color="#666666" />
+              </TouchableOpacity>
             </ThemedView>
+            
+            {/* Bottom padding for scroll content */}
+            <View style={{ height: 20 }} />
           </ScrollView>
 
-          {/* Bottom Actions */}
+          {/* Bottom Actions - only Logout now */}
           <ThemedView style={styles.bottomActions}>
-            <TouchableOpacity 
-              style={styles.bottomActionButton} 
-              onPress={handleClearCache}
-              activeOpacity={0.7}
-            >
-              <MaterialIcons name="delete" size={20} color="#000000" />
-              <ThemedText style={styles.bottomActionText}>Clear Cache</ThemedText>
-            </TouchableOpacity>
-            
             <TouchableOpacity 
               style={styles.logoutBottomButton} 
               onPress={handleLogout}

@@ -3,8 +3,8 @@ import { TouchableOpacity, Text, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 
 // Different ways to implement session checking
-import { useSessionCheck, useProtectedAction } from '../hooks/useSessionCheck';
-import { withSessionCheck } from '../utils/sessionUtils';
+import { useSessionCheck, useProtectedAction } from '../../hooks/useSessionCheck';
+// import { withSessionCheck } from '../../utils_old/sessionUtils';
 import { SessionProtected, withSessionProtection } from '../../components/SessionProtected';
 
 /**
@@ -30,21 +30,21 @@ const ExampleWithHook = () => {
   );
 };
 
-// Approach 2: Using withSessionCheck utility
-const ExampleWithUtility = () => {
-  const router = useRouter();
+// Approach 2: Using withSessionCheck utility - COMMENTED OUT due to import issues
+// const ExampleWithUtility = () => {
+//   const router = useRouter();
 
-  const handleButtonPress = withSessionCheck(() => {
-    console.log('Action executed with utility session check');
-    router.push('/some-screen');
-  });
+//   const handleButtonPress = withSessionCheck(() => {
+//     console.log('Action executed with utility session check');
+//     router.push('/some-screen');
+//   });
 
-  return (
-    <TouchableOpacity onPress={handleButtonPress}>
-      <Text>Button with Utility Protection</Text>
-    </TouchableOpacity>
-  );
-};
+//   return (
+//     <TouchableOpacity onPress={handleButtonPress}>
+//       <Text>Button with Utility Protection</Text>
+//     </TouchableOpacity>
+//   );
+// };
 
 // Approach 3: Manual session check
 const ExampleWithManualCheck = () => {
@@ -105,7 +105,7 @@ export default function SessionCheckExamples() {
       </Text>
       
       <ExampleWithHook />
-      <ExampleWithUtility />
+      {/* <ExampleWithUtility /> */}
       <ExampleWithManualCheck />
       <ProtectedComponentWithHOC />
       <ExampleWithSessionProtected />

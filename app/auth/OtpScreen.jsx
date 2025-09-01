@@ -7,7 +7,7 @@ import Logo from '@/components/Logo';
 import { verifyLoginOtp, sendLoginOtp } from '../../services';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { saveSessionToken } from '../../services/auth/sessionManager';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../../hooks/useAuth';
 
 const { height: screenHeight } = Dimensions.get('window');
 
@@ -21,6 +21,8 @@ export default function OtpScreen() {
   const inputRefs = useRef([]);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [isAutoVerifying, setIsAutoVerifying] = useState(false);
+  const lastAutoVerifiedOtp = useRef('');
 
   useEffect(() => {
     if (timer > 0) {
@@ -30,6 +32,26 @@ export default function OtpScreen() {
       return () => clearInterval(interval);
     }
   }, [timer]);
+
+  // Auto-verify when OTP is complete (handles paste or programmatic filling)
+  useEffect(() => {
+    const otpString = otp.join('');
+    const isComplete = otpString.length === 6 && otp.every(digit => digit !== '');
+    
+    // Auto-verify only if OTP is complete, not loading, and we haven't already verified this exact OTP
+    if (isComplete && !loading && otpString !== lastAutoVerifiedOtp.current) {
+      console.log('Auto-verifying OTP:', otpString);
+      lastAutoVerifiedOtp.current = otpString;
+      setIsAutoVerifying(true);
+      
+      // Small delay to ensure UI stability, then auto-verify
+      const autoVerifyTimer = setTimeout(() => {
+        handleVerifyOtp();
+      }, 300);
+      
+      return () => clearTimeout(autoVerifyTimer);
+    }
+  }, [otp.join(''), loading]);
 
   const handleOtpChange = (text, index) => {
     if (text.length <= 1) {
@@ -161,11 +183,40 @@ export default function OtpScreen() {
         
       } else {
         setErrorMessage(apiResponse?.message || "Invalid OTP. Please try again.");
+        
+        // If auto-verifying failed, reset OTP to allow user to enter again
+        if (isAutoVerifying) {
+          setOtp(['', '', '', '', '', '']);
+          // Focus first input for better UX
+          setTimeout(() => {
+            if (inputRefs.current[0]) {
+              inputRefs.current[0].focus();
+            }
+          }, 100);
+        }
+        
+        // Reset last verified OTP on error to allow retry
+        lastAutoVerifiedOtp.current = '';
       }
     } catch (error) {
       setErrorMessage("Network error. Please check your connection and try again.");
+      
+      // If auto-verifying failed, reset OTP to allow user to enter again
+      if (isAutoVerifying) {
+        setOtp(['', '', '', '', '', '']);
+        // Focus first input for better UX
+        setTimeout(() => {
+          if (inputRefs.current[0]) {
+            inputRefs.current[0].focus();
+          }
+        }, 100);
+      }
+      
+      // Reset last verified OTP on error to allow retry
+      lastAutoVerifiedOtp.current = '';
     } finally {
       setLoading(false);
+      setIsAutoVerifying(false); // Reset auto-verifying flag
     }
   };
 
@@ -184,6 +235,7 @@ export default function OtpScreen() {
         if (response?.status === 'success') {
           setTimer(30);
           setOtp(['', '', '', '', '', '']);
+          lastAutoVerifiedOtp.current = ''; // Reset to allow auto-verify for new OTP
           Alert.alert('Success', 'OTP sent successfully');
         } else {
           setErrorMessage(response?.message || 'Failed to resend OTP');
@@ -200,8 +252,9 @@ export default function OtpScreen() {
 
   return (
     <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
+      keyboardVerticalOffset={0}
     >
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       
@@ -209,6 +262,7 @@ export default function OtpScreen() {
         contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        bounces={false}
       >
         {/* Header Section with Background Image */}
         <ThemedView style={styles.header}>
@@ -285,9 +339,11 @@ export default function OtpScreen() {
               </ThemedView>
             </ThemedView>
 
-            {errorMessage ? (
-              <ThemedText style={styles.errorText}>{errorMessage}</ThemedText>
-            ) : null}
+            <View style={styles.errorContainer}>
+              {errorMessage ? (
+                <ThemedText style={styles.errorText}>{errorMessage}</ThemedText>
+              ) : null}
+            </View>
 
             <TouchableOpacity 
               style={[
@@ -318,9 +374,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+    position: 'relative', // Prevent layout shifts
   },
   scrollContainer: {
     flexGrow: 1,
+    minHeight: screenHeight, // Ensure minimum height to prevent blinking
   },
 
   // Header Section with Background Image
@@ -486,6 +544,10 @@ const styles = StyleSheet.create({
   },
   
   // Error message style
+  errorContainer: {
+    minHeight: 20, // Reserve space for error messages to prevent layout shifts
+    justifyContent: 'center',
+  },
   errorText: {
     color: '#EF4444',
     fontSize: 14,

@@ -6,7 +6,7 @@ import Header, { HeaderPresets } from '@/components/Header';
 import SimpleCardSlider from '@/components/SimpleCardSlider';
 import ServicesSection from '@/components/ServicesSection';
 import UpcomingDues from '@/components/UpcomingDues';
-import { protect, protectedPush } from '../utils/sessionProtection';
+import { protect, protectedPush } from '../../utils_old/sessionProtection';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function HomeScreen() {
@@ -102,8 +102,8 @@ export default function HomeScreen() {
           return;
         }
         
-        // Import DTH validation service
-        const { validateDthNumber } = await import('../../services');
+        // Use require instead of dynamic import to avoid module resolution issues
+        const { validateDthNumber } = require('../../services');
         
         // Extract DTH number safely
         const dthNumber = originalData.mobile || originalData.dthNumber || 

@@ -1,5 +1,6 @@
-import React, { useState, useRef } from 'react';
-import { StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Image, Dimensions, StatusBar, View, ScrollView, Text, Alert } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Image, Dimensions, StatusBar, View, ScrollView, Text, Alert, Keyboard } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -12,6 +13,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const searchParams = useLocalSearchParams();
   const inputRef = useRef(null);
+  const insets = useSafeAreaInsets();
   const [mobileNumber, setMobileNumber] = useState('');
   const [referralCode, setReferralCode] = useState('');
   const [showReferralField, setShowReferralField] = useState(false);
@@ -19,6 +21,23 @@ export default function LoginScreen() {
   const [isMobileFocused, setIsMobileFocused] = useState(false);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  // Keyboard event listeners
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', (event) => {
+      setKeyboardHeight(event.endCoordinates.height);
+    });
+    
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
 
   // Check for referral code in URL query parameters
   React.useEffect(() => {
@@ -82,14 +101,9 @@ export default function LoginScreen() {
     <KeyboardAvoidingView 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
     >
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-      
-      <ScrollView 
-        contentContainerStyle={styles.scrollContainer}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
         {/* Header Section with Background Image */}
         <ThemedView style={styles.header}>
           <Image 
@@ -114,33 +128,22 @@ export default function LoginScreen() {
         </ThemedView>
         
         <ThemedView style={styles.welcomeSection}>
-          
           <ThemedText style={styles.welcomeSubtitle}>Login to your account</ThemedText>
         </ThemedView>
 
         <ThemedView style={styles.form}>
           <ThemedView style={styles.inputGroup}>
-            <TouchableOpacity
+            <View
               style={[
                 styles.mobileInputContainer,
                 isMobileFocused && styles.mobileInputContainerFocused,
                 errors.mobile && styles.inputError
               ]}
-              onPress={() => inputRef.current?.focus()}
-              activeOpacity={1}
             >
               <Text style={styles.prefixText}>+91 </Text>
-              <View style={styles.inputDisplayArea}>
-                <Text style={[
-                  styles.inputDisplayText,
-                  !mobileNumber && styles.placeholderText
-                ]}>
-                  {mobileNumber || 'Enter mobile number'}
-                </Text>
-              </View>
               <TextInput
                 ref={inputRef}
-                style={styles.hiddenInput}
+                style={styles.mobileInput}
                 value={mobileNumber}
                 onChangeText={setMobileNumber}
                 onFocus={() => setIsMobileFocused(true)}
@@ -148,14 +151,17 @@ export default function LoginScreen() {
                 keyboardType="phone-pad"
                 maxLength={10}
                 autoFocus={true}
-                caretHidden={true}
-                selectionColor="transparent"
+                placeholder="Enter mobile number"
+                placeholderTextColor="#9CA3AF"
+                selectionColor="#000000"
                 underlineColorAndroid="transparent"
               />
-            </TouchableOpacity>
-            {errors.mobile && (
-              <ThemedText style={styles.errorText}>{errors.mobile}</ThemedText>
-            )}
+            </View>
+            <View style={styles.errorContainer}>
+              {errors.mobile && (
+                <ThemedText style={styles.errorText}>{errors.mobile}</ThemedText>
+              )}
+            </View>
           </ThemedView>
 
           {/* Referral Code Field - Hidden by default, shown via URL parameter */}
@@ -185,25 +191,36 @@ export default function LoginScreen() {
             </TouchableOpacity>
           )}
 
-          {errors.general && (
-            <ThemedText style={styles.errorText}>{errors.general}</ThemedText>
-          )}
+          <View style={styles.errorContainer}>
+            {errors.general && (
+              <ThemedText style={styles.errorText}>{errors.general}</ThemedText>
+            )}
+          </View>
 
-          <TouchableOpacity 
-            style={[
-              styles.loginButton, 
-              (mobileNumber.length !== 10 || loading) && styles.loginButtonDisabled
-            ]} 
-            onPress={handleLogin}
-            disabled={mobileNumber.length !== 10 || loading}
-          >
-            <ThemedText style={styles.loginButtonText}>
-              {loading ? 'Sending OTP...' : 'Login'}
-            </ThemedText>
-          </TouchableOpacity>
+          {/* Login Button with keyboard-aware positioning */}
+          <View style={[
+            styles.buttonContainer, 
+            { 
+              marginTop: 16, // Reduced from 24 to 16
+              marginBottom: keyboardHeight > 0 ? 20 : Math.max(insets.bottom, 20),
+              paddingBottom: keyboardHeight > 0 ? 10 : 0,
+            }
+          ]}>
+            <TouchableOpacity 
+              style={[
+                styles.loginButton, 
+                (mobileNumber.length !== 10 || loading) && styles.loginButtonDisabled
+              ]} 
+              onPress={handleLogin}
+              disabled={mobileNumber.length !== 10 || loading}
+            >
+              <ThemedText style={styles.loginButtonText}>
+                {loading ? 'Sending OTP...' : 'Login'}
+              </ThemedText>
+            </TouchableOpacity>
+          </View>
         </ThemedView>
         </ThemedView>
-      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -212,9 +229,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-  },
-  scrollContainer: {
-    flexGrow: 1,
   },
 
   // Header Section with Background Image
@@ -266,14 +280,14 @@ const styles = StyleSheet.create({
 
   // Form Section
   formContainer: {
-    flex: 1,
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     marginTop: -24,
     paddingHorizontal: 32,
     paddingTop: 40,
-    paddingBottom: 32,
+    paddingBottom: 20,
+    minHeight: 400, // Ensure form has minimum height but allows scrolling
   },
   logoSection: {
     alignItems: 'center',
@@ -281,13 +295,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingVertical: 16,
   },
-  logoContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   welcomeSection: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 24, // Reduced from 40 to 24
   },
   welcomeTitle: {
     fontSize: 32,
@@ -307,7 +317,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   inputGroup: {
-    marginBottom: 32,
+    marginBottom: 24, // Same as welcomeSection marginBottom
   },
   mobileInputContainer: {
     flexDirection: 'row',
@@ -318,6 +328,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
     height: 56,
     paddingHorizontal: 16,
+    paddingVertical: 8, // Add some vertical padding for better cursor visibility
   },
   mobileInputContainerFocused: {
     borderColor: '#000000',
@@ -327,25 +338,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#374151',
-    marginRight: 4,
+    marginRight: 8,
   },
-  inputDisplayArea: {
+  mobileInput: {
     flex: 1,
-    justifyContent: 'center',
-  },
-  inputDisplayText: {
     fontSize: 16,
     color: '#111827',
-  },
-  placeholderText: {
-    color: '#9CA3AF',
-  },
-  hiddenInput: {
-    position: 'absolute',
-    left: -9999,
-    opacity: 0,
-    width: 1,
-    height: 1,
+    paddingVertical: 0, // Remove default padding to align with container
+    textAlign: 'left',
   },
   input: {
     height: 56,
@@ -361,6 +361,10 @@ const styles = StyleSheet.create({
     borderColor: '#EF4444',
     borderWidth: 2,
   },
+  errorContainer: {
+    minHeight: 20, // Reserve space for error messages to prevent layout shifts
+    justifyContent: 'center',
+  },
   errorText: {
     color: '#EF4444',
     fontSize: 14,
@@ -368,6 +372,12 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
 
+  // Button Container (inside scroll view)
+  buttonContainer: {
+    paddingHorizontal: 0, // No extra padding since it's inside form container
+    paddingTop: 0,
+  },
+  
   // Login Button
   loginButton: {
     backgroundColor: '#000000',
@@ -375,7 +385,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 32,
     shadowColor: '#000000',
     shadowOffset: {
       width: 0,

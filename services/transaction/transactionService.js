@@ -86,44 +86,67 @@ export const getTransactionHistory = async (pageNumber = 0, sessionToken) => {
 };
 
 /**
- * Submit complaint for a transaction
+ * Submit complaint for a transaction or check complaint status
  * @param {string} txnId - Transaction ID
- * @param {string} description - Complaint description
+ * @param {string} description - Complaint description (empty for status check)
  * @param {string} sessionToken - User's session token
+ * @param {string} action - Action to perform ('check' or 'add')
  * @returns {Promise} API response
  */
-export const submitComplaint = async (txnId, description, sessionToken) => {
+export const submitComplaint = async (txnId, description, sessionToken, action = 'add') => {
   try {
     const endpoint = 'api/customer/complaint/addComplaint';
     const payload = {
       txnId,
-      description: description || 'No description provided'
+      description: action === 'check' ? '' : (description || 'No description provided'),
+      action
     };
     
-    console.log('Submitting complaint:', { endpoint, txnId, hasDescription: !!description });
+    console.log('Processing complaint request:', { endpoint, txnId, action, hasDescription: !!description });
     
     const response = await postRequest(endpoint, payload, sessionToken);
     
-    console.log('Complaint submission response:', response);
+    console.log('Complaint API response:', response);
     
-    if (response?.status === 'success') {
-      return {
-        status: 'success',
-        message: response.message || 'Complaint submitted successfully',
-        data: response.data
-      };
+    if (response?.status === 'success' || response?.Status === 'SUCCESS') {
+      if (action === 'check') {
+        // For status check, return detailed information
+        return {
+          status: 'success',
+          message: response.message || 'Complaint status checked successfully',
+          data: {
+            hasComplaint: response.data?.hasComplaint !== false, // Default to true if data.message exists
+            complaintDetails: response.data?.complaintDetails || null,
+            message: response.data?.message || 'No existing complaint found',
+            complaintStatus: response.data?.complaintStatus || null
+          }
+        };
+      } else {
+        // For adding complaint - check if there's already a complaint
+        const hasExistingComplaint = response.data?.message && 
+          (response.data.message.includes('already') || response.data.message.includes('processing'));
+        
+        return {
+          status: 'success',
+          message: response.message || 'Complaint submitted successfully',
+          data: {
+            ...response.data,
+            hasExistingComplaint
+          }
+        };
+      }
     }
     
     return {
       status: 'error',
-      message: response?.message || 'Failed to submit complaint'
+      message: response?.message || `Failed to ${action === 'check' ? 'check complaint status' : 'submit complaint'}`
     };
     
   } catch (error) {
-    console.error('Complaint submission error:', error);
+    console.error('Complaint API error:', error);
     return {
       status: 'error',
-      message: 'Network error while submitting complaint'
+      message: `Network error while ${action === 'check' ? 'checking complaint status' : 'submitting complaint'}`
     };
   }
 };

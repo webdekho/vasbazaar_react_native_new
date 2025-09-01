@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { StyleSheet, ScrollView, TouchableOpacity, Animated, Alert, Platform } from 'react-native';
+import { StyleSheet, ScrollView, TouchableOpacity, Animated, Alert, Platform, Modal, View, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { ThemedText } from '@/components/ThemedText';
@@ -8,6 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getSessionToken } from '../../../services/auth/sessionManager';
 import { postRequest } from '../../../services/api/baseApi';
 import { checkTransactionStatus as checkTransactionStatusAPI } from '../../../services/transaction/transactionService';
+import { WebView } from 'react-native-webview';
 
 export default function PendingScreen() {
   const router = useRouter();
@@ -18,6 +19,8 @@ export default function PendingScreen() {
   const [hasCalledPayment, setHasCalledPayment] = useState(false);
   const [isInitialCheck, setIsInitialCheck] = useState(false);
   const [savedPayload, setSavedPayload] = useState(null);
+  const [showWebView, setShowWebView] = useState(false);
+  const [paymentUrl, setPaymentUrl] = useState('');
 
   // Extract transaction ID from params - supports both txn_id and transactionId
   const txnId = params.txn_id || params.transactionId || 'TXN' + Date.now();
@@ -272,30 +275,25 @@ export default function PendingScreen() {
   };
 
   const openPaymentWindow = async(paymentUrl) => {
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    console.log('PendingScreen openPaymentWindow called with Platform.OS:', Platform.OS);
+    console.log('Payment URL:', paymentUrl);
+    
+    if (Platform.OS === 'android' || Platform.OS === 'ios') {
+      // For Android and iOS, use WebView
+      console.log('Using WebView for mobile platform');
+      setPaymentUrl(paymentUrl);
+      setShowWebView(true);
+    } else if (Platform.OS === 'web' && typeof window !== 'undefined') {
       try {
-        const paymentWindow = window.open(
-          paymentUrl, 
-          'payment',
-          'width=800,height=600,scrollbars=yes,resizable=yes,status=yes,location=yes,toolbar=no,menubar=no'
-        );
-
-        if (paymentWindow) {
-          // Focus the payment window
-          paymentWindow.focus();
-        } else {
-          // Popup was blocked
-          Alert.alert(
-            'Payment Window Blocked',
-            'Payment window was blocked by your browser.\n\nPlease allow popups for this site and try again.\nAlternatively, you can copy this URL and open it manually:\n\n' + paymentUrl
-          );
-        }
+        // Redirect to payment URL in same tab
+        window.location.href = paymentUrl;
       } catch (error) {
-        Alert.alert('Error', 'Failed to open payment window: ' + error.message);
+        Alert.alert('Error', 'Failed to redirect to payment: ' + error.message);
       }
     } else {
-      // For mobile platforms, open in browser
-      Alert.alert('Info', 'Payment functionality is only available on web platform.');
+      // For unknown platforms, show message
+      console.log('Unknown platform, showing alert');
+      Alert.alert('Info', 'Payment functionality is available on Android, iOS and Web platforms.');
     }
   };
 
@@ -465,6 +463,65 @@ export default function PendingScreen() {
           <ThemedText style={styles.homeButtonText}>Go to Home</ThemedText>
         </TouchableOpacity>
       </ThemedView>
+
+      {/* WebView Modal for Android/iOS UPI Payment */}
+      <Modal visible={showWebView} animationType="slide" presentationStyle="fullScreen">
+        <View style={styles.webviewContainer}>
+          <View style={styles.webviewHeader}>
+            <TouchableOpacity onPress={() => setShowWebView(false)} style={styles.webviewCloseButton}>
+              <ThemedText style={styles.webviewCloseButtonText}>✕ Close</ThemedText>
+            </TouchableOpacity>
+            <ThemedText style={styles.webviewTitle}>UPI Payment</ThemedText>
+            <View style={styles.webviewSpacer} />
+          </View>
+          <WebView
+            source={{ uri: paymentUrl }}
+            style={styles.webview}
+            javaScriptEnabled={true}
+            domStorageEnabled={true}
+            startInLoadingState={true}
+            scalesPageToFit={true}
+            onNavigationStateChange={(navState) => {
+              console.log('PendingScreen WebView navigation:', navState.url);
+              
+              // Check if payment is completed based on URL patterns
+              if (navState.url.includes('success') || navState.url.includes('completed')) {
+                setShowWebView(false);
+                router.replace({
+                  pathname: '/main/common/SuccessScreen',
+                  params: {
+                    ...params,
+                    status: 'SUCCESS',
+                    response: JSON.stringify({ status: 'success', message: 'Payment completed successfully' }),
+                  }
+                });
+              } else if (navState.url.includes('failed') || navState.url.includes('cancel')) {
+                setShowWebView(false);
+                router.replace({
+                  pathname: '/main/common/FailedScreen',
+                  params: {
+                    ...params,
+                    status: 'FAILED',
+                    reason: 'Payment was cancelled or failed',
+                  }
+                });
+              }
+            }}
+            onError={(syntheticEvent) => {
+              const { nativeEvent } = syntheticEvent;
+              console.warn('PendingScreen WebView error: ', nativeEvent);
+              setShowWebView(false);
+              Alert.alert('Error', 'Failed to load payment gateway');
+            }}
+            renderLoading={() => (
+              <View style={styles.webviewLoading}>
+                <ActivityIndicator size="large" color="#FF9800" />
+                <ThemedText style={styles.webviewLoadingText}>Loading payment gateway...</ThemedText>
+              </View>
+            )}
+          />
+        </View>
+      </Modal>
     </ThemedView>
   );
 }
@@ -737,5 +794,55 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  webviewContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  webviewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingTop: Platform.OS === 'android' ? 40 : 12,
+    backgroundColor: '#FF9800',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  webviewCloseButton: {
+    padding: 8,
+  },
+  webviewCloseButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  webviewTitle: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  webviewSpacer: {
+    width: 50,
+  },
+  webview: {
+    flex: 1,
+  },
+  webviewLoading: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  webviewLoadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
   },
 });

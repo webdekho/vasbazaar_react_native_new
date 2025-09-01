@@ -5,7 +5,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { authenticateWithPin } from '../../services';
 import { saveSessionToken } from '../../services/auth/sessionManager';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../../hooks/useAuth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function PinValidateScreen() {
