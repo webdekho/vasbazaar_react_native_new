@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SESSION_TOKEN_KEY = 'sessionToken';
 const SESSION_EXPIRY_KEY = 'sessionExpiry';
-const SESSION_DURATION = 60 * 60 * 1000; // 60 minutes (1 hour) in milliseconds
+const SESSION_DURATION = 30 * 60 * 1000; // 30 minutes in milliseconds
 
 // Prevent excessive session checks
 let lastSessionCheck = 0;
@@ -24,7 +24,6 @@ export const saveSessionToken = async (token) => {
     ]);
 
   } catch (error) {
-    console.error('Error saving session token:', error);
   }
 };
 
@@ -67,7 +66,6 @@ export const getSessionToken = async () => {
     return null;
 
   } catch (error) {
-    console.error('Error getting session token:', error);
     return null;
   }
 };
@@ -83,11 +81,9 @@ export const clearExpiredSession = async (silent = false) => {
       'userData' // Also clear user data when session expires
     ]);
     if (!silent) {
-      console.log('Session expired and cleared');
     }
   } catch (error) {
     if (!silent) {
-      console.error('Error clearing expired session:', error);
     }
   }
 };
@@ -117,13 +113,12 @@ export const getRemainingSessionTime = async () => {
     return remaining > 0 ? Math.ceil(remaining / (1000 * 60)) : 0;
 
   } catch (error) {
-    console.error('Error getting remaining session time:', error);
     return 0;
   }
 };
 
 /**
- * Extend session by another 1 hour
+ * Extend session by another 30 minutes
  * @returns {boolean} True if session was extended successfully
  */
 export const extendSession = async () => {
@@ -139,7 +134,6 @@ export const extendSession = async () => {
     
     return false;
   } catch (error) {
-    console.error('Error extending session:', error);
     return false;
   }
 };
@@ -155,8 +149,6 @@ export const logout = async () => {
       SESSION_TOKEN_KEY,
       SESSION_EXPIRY_KEY
     ]);
-    console.log('User logged out successfully - permanentToken and session removed');
   } catch (error) {
-    console.error('Error during logout:', error);
   }
 };

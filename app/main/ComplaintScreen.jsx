@@ -205,9 +205,9 @@ export default function ComplaintScreen() {
 
         {/* User Info Section */}
         <View style={styles.userSection}>
-          {item.userId?.profile ? (
+          {item.logo ? (
             <Image
-              source={{ uri: item.userId.profile }}
+              source={{ uri: item.logo }}
               style={styles.userAvatar}
               defaultSource={require('../../assets/images/avatar.jpg')}
             />
@@ -217,10 +217,10 @@ export default function ComplaintScreen() {
             </View>
           )}
           <View style={styles.userInfo}>
-            <Text style={styles.userName}>{item.userId?.name || 'Unknown User'}</Text>
+            <Text style={styles.userName}>{item?.name || 'Unknown User'}</Text>
             <Text style={styles.userMobile}>
               <FontAwesome name="phone" size={12} color="#666666" />
-              {' '}{item.userId?.mobileNumber || 'N/A'}
+              {' '}{item?.mobile || 'N/A'}
             </Text>
           </View>
         </View>

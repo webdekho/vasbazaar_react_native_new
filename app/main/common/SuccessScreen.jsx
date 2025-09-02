@@ -87,7 +87,6 @@ export default function SuccessScreen() {
       case 'card': return 'Credit/Debit Card';
       case 'netbanking': return 'Net Banking';
       case 'wallet': return 'Wallet';
-      case 'payu': return 'PayU Gateway';
       case 'cod': return 'Cash on Delivery';
       default: return method;
     }

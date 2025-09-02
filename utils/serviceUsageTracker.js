@@ -13,7 +13,7 @@ export const loadServiceUsage = async () => {
     const storedUsage = await AsyncStorage.getItem(STORAGE_KEY);
     if (storedUsage) {
       const parsedUsage = JSON.parse(storedUsage);
-      console.log('📊 Loaded service usage:', parsedUsage);
+      // console.log('📊 Loaded service usage:', parsedUsage);
       return parsedUsage;
     }
     return {};
@@ -27,7 +27,7 @@ export const loadServiceUsage = async () => {
 export const saveServiceUsage = async (usage) => {
   try {
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(usage));
-    console.log('💾 Saved service usage:', usage);
+    // console.log('💾 Saved service usage:', usage);
   } catch (error) {
     console.error('❌ Error saving service usage:', error);
   }
@@ -59,10 +59,10 @@ export const trackServiceUsage = async (serviceId, serviceName) => {
     };
     
     await saveServiceUsage(updatedUsage);
-    console.log(`🎯 Tracked usage for "${serviceName}" (${key}):`, {
-      useCount: updatedUsage[key].useCount,
-      lastUsed: new Date(updatedUsage[key].lastUsed).toLocaleString()
-    });
+    // console.log(`🎯 Tracked usage for "${serviceName}" (${key}):`, {
+    //   useCount: updatedUsage[key].useCount,
+    //   lastUsed: new Date(updatedUsage[key].lastUsed).toLocaleString()
+    // });
     
     return updatedUsage;
   } catch (error) {
@@ -106,9 +106,9 @@ export const sortServicesByUsage = (services, serviceUsage = {}) => {
     return !keys.some(key => serviceUsage[key]);
   });
   
-  console.log(`🔄 Sorted ${services.length} services: ${usedServices.length} used, ${unusedServices.length} unused`);
+  // console.log(`🔄 Sorted ${services.length} services: ${usedServices.length} used, ${unusedServices.length} unused`);
   if (usedServices.length > 0) {
-    console.log('📈 Most used services:', usedServices.slice(0, 3).map(s => s.title));
+    // console.log('📈 Most used services:', usedServices.slice(0, 3).map(s => s.title));
   }
   
   return sortedServices;

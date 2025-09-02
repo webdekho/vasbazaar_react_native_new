@@ -1,7 +1,7 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Tabs } from 'expo-router';
-import { View, StyleSheet, Platform, Dimensions } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Custom dark tab bar background - works on all platforms
@@ -25,44 +25,62 @@ function CustomTabBarBackground() {
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
-  const { height: screenHeight } = Dimensions.get('window');
   
-  // Platform-specific configurations
+  // Platform-specific configurations with enhanced stability
   const getTabBarStyle = () => {
+    const safeAreaBottom = Math.max(insets.bottom, Platform.OS === 'ios' ? 20 : 0);
+    
     if (Platform.OS === 'android') {
-      // Android: Completely locked positioning to prevent ANY movement
+      // Android: Ultra-stable positioning to prevent ANY movement
       return {
         backgroundColor: '#000000',
         borderTopWidth: 0,
-        height: 70,
-        paddingBottom: 10,
+        height: 70 + safeAreaBottom,
+        paddingBottom: safeAreaBottom > 0 ? safeAreaBottom : 10,
         paddingTop: 10,
+        // Absolute positioning locked to bottom
         position: 'absolute',
         bottom: 0,
         left: 0,
         right: 0,
-        zIndex: 9999, // Maximum z-index
-        elevation: 0, // Remove shadow to prevent layer issues
-        // Lock dimensions completely
-        minHeight: 70,
-        maxHeight: 70,
-        // Prevent any flex changes
+        // Maximum z-index to stay above everything
+        zIndex: 999999,
+        elevation: 0, // Remove shadow to prevent layer conflicts
+        // Completely lock dimensions
+        minHeight: 70 + safeAreaBottom,
+        maxHeight: 70 + safeAreaBottom,
+        // Prevent any flex behavior changes
         flexShrink: 0,
         flexGrow: 0,
+        flexBasis: 'auto',
+        // Force layout stability
+        alignSelf: 'stretch',
       };
     }
+    
+    // iOS and Web: Enhanced stability
+    const totalHeight = Platform.OS === 'ios' 
+      ? 44 + safeAreaBottom + 10 // Content + safe area + padding
+      : 60; // Web standard
     
     const baseStyle = {
       backgroundColor: '#000000',
       borderTopWidth: 0,
-      height: Platform.OS === 'ios' ? 85 : 70,
-      paddingBottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 20 : 10),
+      height: totalHeight,
+      paddingBottom: safeAreaBottom > 0 ? safeAreaBottom : 10,
       paddingTop: 10,
+      // Absolute positioning for stability
       position: 'absolute',
       bottom: 0,
       left: 0,
       right: 0,
-      zIndex: 999,
+      zIndex: 999999,
+      // Lock dimensions
+      minHeight: totalHeight,
+      maxHeight: totalHeight,
+      flexShrink: 0,
+      flexGrow: 0,
+      alignSelf: 'stretch',
     };
 
     // Platform-specific shadow/elevation
@@ -83,11 +101,15 @@ export default function TabLayout() {
         elevation: 10,
       };
     } else {
-      // Web
+      // Web - Fixed positioning for consistent display
       return {
         ...baseStyle,
+        position: 'fixed', // Use fixed positioning for web
         boxShadow: '0 -4px 8px rgba(0,0,0,0.25)', // CSS box-shadow for web
         borderTop: 'none',
+        width: '100%', // Ensure full width
+        display: 'flex', // Ensure flex display
+        visibility: 'visible', // Explicitly set visibility
       };
     }
   };
@@ -108,19 +130,28 @@ export default function TabLayout() {
         tabBarIconStyle: {
           marginBottom: -4,
         },
-        // Android-specific stability settings
+        // Enhanced stability settings for all platforms
         ...(Platform.OS === 'android' && {
-          tabBarHideOnKeyboard: false, // Never hide on Android
-          tabBarVisibilityAnimationConfig: undefined, // Disable all animations
-          freezeOnBlur: true, // Freeze inactive screens
+          tabBarHideOnKeyboard: false, // Never hide tab bar on Android
+          tabBarVisibilityAnimationConfig: undefined, // Disable visibility animations
+          freezeOnBlur: true, // Freeze inactive screens to save memory
+          // Additional Android stability
+          lazy: false, // Load all tabs immediately
+          swipeEnabled: false, // Disable swipe gestures that can cause displacement
         }),
-        // iOS/Web behavior
-        ...(Platform.OS !== 'android' && {
-          tabBarHideOnKeyboard: true,
-          tabBarVisibilityAnimationConfig: {
-            show: { animation: 'timing', config: { duration: 200 } },
-            hide: { animation: 'timing', config: { duration: 200 } },
-          },
+        // iOS stability settings
+        ...(Platform.OS === 'ios' && {
+          tabBarHideOnKeyboard: false, // Keep tab bar visible on iOS too
+          tabBarVisibilityAnimationConfig: undefined, // Disable animations
+          // iOS-specific optimizations
+          lazy: false,
+          swipeEnabled: false,
+        }),
+        // Web stability settings
+        ...(Platform.OS === 'web' && {
+          tabBarHideOnKeyboard: false,
+          tabBarVisibilityAnimationConfig: undefined,
+          lazy: false,
         }),
       }}
     >

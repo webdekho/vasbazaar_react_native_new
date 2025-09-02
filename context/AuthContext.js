@@ -28,17 +28,10 @@ export const AuthProvider = ({ children }) => {
       const user = await AsyncStorage.getItem('userData');
       const permToken = await AsyncStorage.getItem('permanentToken');
       
-      console.log('AuthContext - checkAuthState result:', {
-        hasSessionToken: !!sessionToken,
-        hasUserData: !!user,
-        hasPermanentToken: !!permToken
-      });
-      
       setUserToken(sessionToken);
       setUserData(user ? JSON.parse(user) : null);
       setPermanentToken(permToken);
     } catch (error) {
-      console.error('Error checking auth state:', error);
     } finally {
       setIsLoading(false);
     }
@@ -54,16 +47,7 @@ export const AuthProvider = ({ children }) => {
   
   // Debug logging for state changes
   React.useEffect(() => {
-    console.log('AuthContext - Computed auth state:', {
-      isAuthenticated,
-      needsPinValidation, 
-      shouldRedirectToLogin,
-      hasUserToken: !!userToken,
-      hasPermanentToken: !!permanentToken,
-      isVerified,
-      verifiedStatus: userData?.verified_status,
-      userData: userData
-    });
+ 
   }, [isAuthenticated, needsPinValidation, shouldRedirectToLogin, userToken, permanentToken, isVerified, userData]);
 
   const authContextValue = {

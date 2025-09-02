@@ -24,13 +24,13 @@ const ServicesSection = ({
   const fetchServices = async () => {
     try {
       setLoadingServices(true);
-      console.log('Fetching home services...');
+      // console.log('Fetching home services...');
       
       // Get user's session token (access_token)
       const sessionToken = await AsyncStorage.getItem('sessionToken');
       
       if (!sessionToken) {
-        console.log('No session token found, using default services');
+        // console.log('No session token found, using default services');
         setApiServices([]);
         setLoadingServices(false);
         return;
@@ -39,7 +39,7 @@ const ServicesSection = ({
       const response = await getHomeServices(sessionToken);
       
       if (response?.status === 'success' && response?.data) {
-        console.log('Successfully fetched services:', response.data.length);
+        // console.log('Successfully fetched services:', response.data.length);
         
         // Transform API services to match component format
         const transformedServices = response.data.map((service, index) => ({
@@ -100,7 +100,7 @@ const ServicesSection = ({
 
     const sorted = sortServicesByUsage(baseServices, serviceUsage);
     setSortedServices(sorted);
-    console.log('Services re-sorted based on usage:', sorted.map(s => s.title));
+    // console.log('Services re-sorted based on usage:', sorted.map(s => s.title));
   // eslint-disable-next-line react-hooks/exhaustive-deps  
   }, [apiServices, propServices, serviceUsage]);
 

@@ -17,7 +17,6 @@ try {
     // Fallback to React Native Clipboard
     Clipboard = require('@react-native-clipboard/clipboard');
   } catch (e2) {
-    console.log('No clipboard library available');
   }
 }
 
@@ -49,7 +48,6 @@ export const shareWithWhatsApp = async (options) => {
     await shareViaNativeShare({ message, title, url });
     
   } catch (error) {
-    console.error('Error in shareWithWhatsApp:', error);
     // Final fallback - copy to clipboard
     await fallbackToClipboard(message);
   }
@@ -74,13 +72,11 @@ const shareViaWhatsAppMobile = async (message) => {
           return true;
         }
       } catch (e) {
-        console.log(`Failed to open WhatsApp with URL: ${whatsappUrl}`);
       }
     }
     
     return false;
   } catch (error) {
-    console.error('WhatsApp mobile sharing error:', error);
     return false;
   }
 };
@@ -100,7 +96,6 @@ const shareViaWhatsAppWeb = async (message) => {
         return true;
       }
     } catch (e) {
-      console.log('Failed to open WhatsApp API URL');
     }
     
     // Fallback to WhatsApp Web
@@ -110,12 +105,10 @@ const shareViaWhatsAppWeb = async (message) => {
         return true;
       }
     } catch (e) {
-      console.log('Failed to open WhatsApp Web');
     }
     
     return false;
   } catch (error) {
-    console.error('WhatsApp web sharing error:', error);
     return false;
   }
 };
@@ -163,7 +156,6 @@ const shareViaNativeShare = async ({ message, title, url }) => {
       await fallbackToClipboard(message);
     }
   } catch (error) {
-    console.error('Native sharing error:', error);
     throw error;
   }
 };
@@ -210,7 +202,6 @@ const fallbackToClipboard = async (message) => {
       }
     }
   } catch (error) {
-    console.error('Clipboard error:', error);
     showManualCopyAlert(message);
   }
 };
@@ -234,7 +225,6 @@ const openWhatsAppApp = async () => {
           return true;
         }
       } catch (e) {
-        console.log(`Cannot open WhatsApp with URL: ${url}`);
       }
     }
     
@@ -258,7 +248,6 @@ const openWhatsAppApp = async () => {
     
     return false;
   } catch (error) {
-    console.error('Error opening WhatsApp:', error);
     return false;
   }
 };

@@ -139,7 +139,7 @@ export default function DthRecharge() {
           operator: operatorName,
           circle: null,
           plan: JSON.stringify({
-            price: `₹${formValues.field2 || '299'}`,
+            price: `₹${formValues.field2 || '0'}`,
             validity: 'Custom',
             name: 'Custom Recharge'
           })
@@ -227,7 +227,12 @@ export default function DthRecharge() {
       <View style={styles.wrapper}>
         <ScrollView 
           style={styles.container}
-          contentContainerStyle={{ paddingBottom: 20 }}
+          contentContainerStyle={{ 
+            paddingBottom: Platform.select({
+              web: 120,
+              default: 80,
+            })
+          }}
           showsVerticalScrollIndicator={false}
         >
         {Object.entries(finalInputFields).map(([key, field], index) => (
@@ -422,8 +427,20 @@ const styles = StyleSheet.create({
   bottomPaySection: {
     paddingHorizontal: 16,
     paddingVertical: 16,
-    paddingBottom: 20,
+    paddingBottom: Platform.select({
+      web: 30,
+      default: 20,
+    }),
     backgroundColor: '#f7f7f7',
+    ...Platform.select({
+      web: {
+        position: 'sticky',
+        bottom: 0,
+        zIndex: 1000,
+        borderTopWidth: 1,
+        borderTopColor: '#e5e5e5',
+      },
+    }),
   },
   confirmButton: {
     backgroundColor: '#000000',

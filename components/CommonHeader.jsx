@@ -216,7 +216,7 @@ export default function CommonHeader({
       {/* Header Container */}
       <ThemedView style={[
         styles.headerContainer,
-        { paddingTop: Platform.OS === 'ios' ? insets.top : 0 },
+        { paddingTop: Platform.OS === 'ios' ? Math.max(insets.top, 20) : 0 },
         headerStyle
       ]}>
         <View style={styles.headerContent}>

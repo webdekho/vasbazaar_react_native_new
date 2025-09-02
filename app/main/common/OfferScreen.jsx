@@ -54,6 +54,7 @@ export default function OfferScreen() {
   const [couponModalVisible, setCouponModalVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [couponDesc, setCouponDesc] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   
   // Confetti effect refs
   const confettiRef = useRef(null);
@@ -310,34 +311,41 @@ export default function OfferScreen() {
         <View style={styles.bottomPaySection}>
           <Button
             mode="contained"
-            onPress={() =>
-              router.push({
-                pathname: '/main/common/PaymentScreen',
-                params: {
-                  serviceId,
-                  operator_id,
-                  plan: typeof plan === 'string' ? plan : JSON.stringify(plan),
-                  circleCode,
-                  companyLogo,
-                  name,
-                  mobile,
-                  operator,
-                  circle,
-                  coupon,
-                  coupon2,
-                  selectedCoupon2,
-                  bill_details,
-                  couponDesc,
-                  couponName,
-                }
-              })
-            }
-            style={styles.payButton}
+            loading={isLoading}
+            disabled={isLoading}
+            onPress={async () => {
+              setIsLoading(true);
+              try {
+                router.push({
+                  pathname: '/main/common/PaymentScreen',
+                  params: {
+                    serviceId,
+                    operator_id,
+                    plan: typeof plan === 'string' ? plan : JSON.stringify(plan),
+                    circleCode,
+                    companyLogo,
+                    name,
+                    mobile,
+                    operator,
+                    circle,
+                    coupon,
+                    coupon2,
+                    selectedCoupon2,
+                    bill_details,
+                    couponDesc,
+                    couponName,
+                  }
+                });
+              } finally {
+                // Reset loading after navigation
+                setTimeout(() => setIsLoading(false), 500);
+              }
+            }}
+            style={[styles.payButton, isLoading && styles.payButtonLoading]}
             contentStyle={styles.payButtonContent}
-            labelStyle={styles.payButtonLabel}
-            icon=""
+            labelStyle={[styles.payButtonLabel, isLoading && styles.payButtonLabelLoading]}
           >
-            Proceed to Pay
+            {isLoading ? 'Processing...' : 'Proceed to Pay'}
           </Button>
         </View>
 
@@ -404,7 +412,7 @@ export default function OfferScreen() {
             {/* Confetti Cannon for modal - Enhanced */}
             <ConfettiCannon
               ref={modalConfettiRef}
-              count={45}
+              count={20}
               origin={{ x: screenWidth / 2, y: 80 }}
               autoStart={false}
               fadeOut={true}
@@ -431,7 +439,10 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     paddingHorizontal: 16,
-    paddingBottom: 90,
+    paddingBottom: Platform.select({
+      web: 120,
+      default: 90,
+    }),
     backgroundColor: '#f7f7f7',
   },
   viCard: {
@@ -550,8 +561,18 @@ const styles = StyleSheet.create({
   bottomPaySection: {
     paddingHorizontal: 16,
     paddingVertical: 16,
-    paddingBottom: 20,
+    paddingBottom: Platform.select({
+      web: 30,
+      default: 20,
+    }),
     backgroundColor: '#f7f7f7',
+    ...Platform.select({
+      web: {
+        position: 'sticky',
+        bottom: 0,
+        zIndex: 1000,
+      },
+    }),
   },
   payButton: {
     backgroundColor: '#000000ff',
@@ -567,6 +588,12 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '700',
+  },
+  payButtonLoading: {
+    backgroundColor: '#666666',
+  },
+  payButtonLabelLoading: {
+    color: '#CCCCCC',
   },
   modalInputGroup: {
     marginBottom: 16,

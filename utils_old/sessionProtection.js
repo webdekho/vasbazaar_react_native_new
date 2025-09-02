@@ -20,10 +20,8 @@ export const checkSession = async () => {
       const permanentToken = await AsyncStorage.getItem('permanentToken');
       
       if (permanentToken) {
-        console.log('🔒 Session invalid but permanent token exists - redirecting to PIN validation');
         router.replace('/auth/PinValidateScreen');
       } else {
-        console.log('🔒 No session or permanent token - redirecting to login');
         router.replace('/auth/LoginScreen');
       }
       return false;
@@ -31,7 +29,6 @@ export const checkSession = async () => {
     
     return true;
   } catch (error) {
-    console.error('🔒 Session check error:', error);
     router.replace('/auth/LoginScreen');
     return false;
   }

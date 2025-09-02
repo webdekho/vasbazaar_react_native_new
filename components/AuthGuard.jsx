@@ -50,30 +50,30 @@ export default function AuthGuard({ children }) {
       // Handle redirects based on auth state
       let targetPath = null;
       
-      console.log('AuthGuard - Navigation decision:', {
-        currentPath,
-        authState: {
-          isAuthenticated: authState.isAuthenticated,
-          needsPinValidation: authState.needsPinValidation,
-          shouldRedirectToLogin: authState.shouldRedirectToLogin,
-          isLoading: authState.isLoading,
-          isVerified: authState.isVerified,
-          verifiedStatus: authState.userData?.verified_status,
-          userToken: !!authState.userToken,
-          permanentToken: !!authState.permanentToken,
-          userTokenLength: authState.userToken?.length || 0,
-          permanentTokenLength: authState.permanentToken?.length || 0
-        },
-        inAuthGroup,
-        inTabsGroup,
-        inMainGroup,
-        lastRedirect,
-        bypassFlags: {
-          pinBypassFlag,
-          otpBypassFlag,
-          pinSetBypassFlag
-        }
-      });
+      // console.log('AuthGuard - Navigation decision:', {
+      //   currentPath,
+      //   authState: {
+      //     isAuthenticated: authState.isAuthenticated,
+      //     needsPinValidation: authState.needsPinValidation,
+      //     shouldRedirectToLogin: authState.shouldRedirectToLogin,
+      //     isLoading: authState.isLoading,
+      //     isVerified: authState.isVerified,
+      //     verifiedStatus: authState.userData?.verified_status,
+      //     userToken: !!authState.userToken,
+      //     permanentToken: !!authState.permanentToken,
+      //     userTokenLength: authState.userToken?.length || 0,
+      //     permanentTokenLength: authState.permanentToken?.length || 0
+      //   },
+      //   inAuthGroup,
+      //   inTabsGroup,
+      //   inMainGroup,
+      //   lastRedirect,
+      //   bypassFlags: {
+      //     pinBypassFlag,
+      //     otpBypassFlag,
+      //     pinSetBypassFlag
+      //   }
+      // });
       
       // Check for unverified users trying to access main routes
       if (!authState.isVerified && (inTabsGroup || inMainGroup)) {

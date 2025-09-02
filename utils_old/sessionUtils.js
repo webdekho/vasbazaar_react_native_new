@@ -11,7 +11,6 @@ export const withSessionCheck = (callback) => {
       const sessionToken = await getSessionToken();
       
       if (!sessionToken) {
-        console.log('SessionUtils: No valid session token, redirecting to PIN validation');
         router.replace('/auth/PinValidateScreen');
         return null;
       }
@@ -19,7 +18,6 @@ export const withSessionCheck = (callback) => {
       // Session is valid, execute the callback
       return await callback(...args);
     } catch (error) {
-      console.error('SessionUtils: Error checking session:', error);
       router.replace('/auth/PinValidateScreen');
       return null;
     }
@@ -46,14 +44,12 @@ export const validateSessionOrRedirect = async () => {
     const sessionToken = await getSessionToken();
     
     if (!sessionToken) {
-      console.log('SessionUtils: Invalid session, redirecting to PIN validation');
       router.replace('/auth/PinValidateScreen');
       return false;
     }
     
     return true;
   } catch (error) {
-    console.error('SessionUtils: Session validation error:', error);
     router.replace('/auth/PinValidateScreen');
     return false;
   }

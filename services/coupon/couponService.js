@@ -49,7 +49,6 @@ export const getCoupons = async (service_id, amount) => {
       message: response.message || 'No coupons available'
     };
   } catch (error) {
-    console.error('Error fetching coupons:', error);
     return {
       status: 'error',
       data: [],
@@ -98,7 +97,6 @@ export const applyCoupon = async (coupon_code, service_id, amount) => {
       message: response.message || 'Failed to apply coupon'
     };
   } catch (error) {
-    console.error('Error applying coupon:', error);
     return {
       status: 'error',
       data: null,

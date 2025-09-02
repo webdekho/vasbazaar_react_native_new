@@ -9,11 +9,11 @@ import { getRequest } from '../api/baseApi';
 export const getAdvertisementsByStatus = async (status = 'home', sessionToken) => {
   try {
     const endpoint = `api/customer/advertisement/getByStatus?status=${status}`;
-    console.log('Fetching advertisements:', { endpoint, status, hasToken: !!sessionToken });
+    // console.log('Fetching advertisements:', { endpoint, status, hasToken: !!sessionToken });
     
     const response = await getRequest(endpoint, {}, sessionToken);
     
-    console.log('Advertisement API response:', response);
+    // console.log('Advertisement API response:', response);
     
     if (response?.status === 'success' && response?.data) {
       // Transform API data to match component expectations

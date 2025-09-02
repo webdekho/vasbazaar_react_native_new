@@ -11,11 +11,9 @@ export const getTransactionHistory = async (pageNumber = 0, sessionToken) => {
     const endpoint = `api/customer/transaction/getByUserId`;
     const params = { pageNumber };
     
-    console.log('Fetching transaction history:', { endpoint, pageNumber, hasToken: !!sessionToken });
     
     const response = await getRequest(endpoint, params, sessionToken);
     
-    console.log('Transaction history API response:', response);
     
     if (response?.status === 'success' && response?.data) {
       const { records, totalPages, currentPage, totalRecords } = response.data;
@@ -71,7 +69,6 @@ export const getTransactionHistory = async (pageNumber = 0, sessionToken) => {
     };
     
   } catch (error) {
-    console.error('Transaction history API error:', error);
     return {
       status: 'error',
       data: {
@@ -102,11 +99,9 @@ export const submitComplaint = async (txnId, description, sessionToken, action =
       action
     };
     
-    console.log('Processing complaint request:', { endpoint, txnId, action, hasDescription: !!description });
     
     const response = await postRequest(endpoint, payload, sessionToken);
     
-    console.log('Complaint API response:', response);
     
     if (response?.status === 'success' || response?.Status === 'SUCCESS') {
       if (action === 'check') {
@@ -143,7 +138,6 @@ export const submitComplaint = async (txnId, description, sessionToken, action =
     };
     
   } catch (error) {
-    console.error('Complaint API error:', error);
     return {
       status: 'error',
       message: `Network error while ${action === 'check' ? 'checking complaint status' : 'submitting complaint'}`
@@ -162,7 +156,6 @@ export const getTransactionDetails = async (txnId, sessionToken) => {
     const endpoint = `api/customer/transaction/getById`;
     const params = { txnId };
     
-    console.log('Fetching transaction details:', { endpoint, txnId });
     
     const response = await getRequest(endpoint, params, sessionToken);
     
@@ -181,7 +174,6 @@ export const getTransactionDetails = async (txnId, sessionToken) => {
     };
     
   } catch (error) {
-    console.error('Transaction details API error:', error);
     return {
       status: 'error',
       data: null,
@@ -205,11 +197,9 @@ export const checkTransactionStatus = async (txnId, sessionToken, additionalPayl
       ...additionalPayload // Include field1, viewBillResponse, validity if provided
     };
     
-    console.log('Checking transaction status:', { endpoint, txnId, additionalPayload });
     
     const response = await postRequest(endpoint, payload, sessionToken);
     
-    console.log('Transaction status check response:', response);
     
     if (response?.status === 'success' && response?.data) {
       // Transform the response to match expected format
@@ -254,7 +244,6 @@ export const checkTransactionStatus = async (txnId, sessionToken, additionalPayl
     };
     
   } catch (error) {
-    console.error('Transaction status check error:', error);
     return {
       status: 'error',
       data: null,

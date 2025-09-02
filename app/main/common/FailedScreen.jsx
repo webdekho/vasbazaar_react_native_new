@@ -10,20 +10,46 @@ export default function FailedScreen() {
   const params = useLocalSearchParams();
   const [shakeAnim] = useState(new Animated.Value(0));
 
+  // Parse API response if available
+  let apiResponse = null;
+  try {
+    if (params.response) {
+      apiResponse = JSON.parse(params.response);
+    }
+  } catch (error) {
+    console.warn('Could not parse API response:', error);
+  }
+
+  // Parse plan data if available
+  let planData = {};
+  try {
+    if (params.plan) {
+      planData = typeof params.plan === 'string' ? JSON.parse(params.plan) : params.plan;
+    }
+  } catch (error) {
+    console.warn('Could not parse plan data:', error);
+  }
+
+  // Use actual data from API response and params
   const transactionData = {
-    type: params.type || 'recharge',
-    amount: parseFloat(params.finalAmount) || parseFloat(params.amount) || 0,
-    phoneNumber: params.phoneNumber || '',
+    // Service type based on serviceId
+    type: params.serviceId === '1' ? 'prepaid' : params.serviceId === '2' ? 'dth' : 'bill',
+    amount: parseFloat(planData?.price?.replace(/[₹,\s]/g, '')) || parseFloat(params.finalAmount) || parseFloat(params.amount) || 0,
+    phoneNumber: params.mobile || params.phoneNumber || '',
     subscriberId: params.subscriberId || '',
     accountNumber: params.accountNumber || '',
     operator: params.operator || '',
     billerName: params.billerName || '',
-    customerName: params.customerName || '',
-    contactName: params.contactName || '',
-    paymentMethod: params.paymentMethod || '',
-    reason: params.reason || 'Transaction failed due to technical issues',
+    customerName: params.name || params.customerName || '',
+    contactName: params.name || params.contactName || '',
+    paymentMethod: params.paymentType || params.paymentMethod || '',
+    reason: params.reason || apiResponse?.message || 'Transaction failed due to technical issues',
     timestamp: new Date().toLocaleString(),
-    referenceId: 'REF' + Date.now()
+    referenceId: params.referenceId || params.transactionId || params.requestId || 'N/A',
+    transactionId: params.transactionId || params.requestId || params.txnId || 'N/A',
+    // Additional data from API response
+    commission: apiResponse?.data?.commission || '0',
+    vendorRefId: params.vendorRefId || apiResponse?.data?.vendorRefId || 'N/A'
   };
 
   const failureReasons = [
@@ -168,10 +194,19 @@ export default function FailedScreen() {
           </ThemedView>
 
           <ThemedView style={styles.detailsList}>
-            <ThemedView style={styles.detailRow}>
-              <ThemedText style={styles.detailLabel}>Reference ID:</ThemedText>
-              <ThemedText style={styles.detailValue}>{transactionData.referenceId}</ThemedText>
-            </ThemedView>
+            {transactionData.transactionId && transactionData.transactionId !== 'N/A' && (
+              <ThemedView style={styles.detailRow}>
+                <ThemedText style={styles.detailLabel}>Transaction ID:</ThemedText>
+                <ThemedText style={styles.detailValue}>{transactionData.transactionId}</ThemedText>
+              </ThemedView>
+            )}
+            
+            {transactionData.referenceId && transactionData.referenceId !== 'N/A' && (
+              <ThemedView style={styles.detailRow}>
+                <ThemedText style={styles.detailLabel}>Reference ID:</ThemedText>
+                <ThemedText style={styles.detailValue}>{transactionData.referenceId}</ThemedText>
+              </ThemedView>
+            )}
             
             <ThemedView style={styles.detailRow}>
               <ThemedText style={styles.detailLabel}>Service:</ThemedText>
@@ -237,6 +272,13 @@ export default function FailedScreen() {
               <ThemedText style={styles.detailLabel}>Date & Time:</ThemedText>
               <ThemedText style={styles.detailValue}>{transactionData.timestamp}</ThemedText>
             </ThemedView>
+
+            {transactionData.reason && transactionData.reason !== 'Transaction failed due to technical issues' && (
+              <ThemedView style={styles.detailRow}>
+                <ThemedText style={styles.detailLabel}>Failure Reason:</ThemedText>
+                <ThemedText style={[styles.detailValue, { color: '#FF5722' }]}>{transactionData.reason}</ThemedText>
+              </ThemedView>
+            )}
           </ThemedView>
         </ThemedView>
 

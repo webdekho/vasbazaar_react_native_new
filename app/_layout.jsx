@@ -2,12 +2,13 @@ import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { KeyboardAvoidingView, Platform, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, View, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 import AuthGuard from '../components/AuthGuard';
 import { GlobalSessionInterceptor } from '../components/GlobalSessionInterceptor';
 import { AuthProvider } from '../context/AuthContext';
+import { StableLayoutProvider } from '../components/StableLayoutProvider';
 
 
 export default function RootLayout() {
@@ -21,35 +22,27 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <ThemeProvider value={DefaultTheme}>
-          <AuthGuard>
-            <GlobalSessionInterceptor>
-              {/* StatusBar configuration for stable layout */}
-              <StatusBar 
-                style="dark" 
-                backgroundColor="#ffffff"
-                translucent={false}
-                hideTransitionAnimation="fade"
-              />
-              
-              {/* Root container with viewport stabilization */}
-              <View style={{
-                flex: 1,
-                ...(Platform.OS === 'android' && {
-                  position: 'relative',
-                  overflow: 'hidden',
-                })
-              }}>
-                <KeyboardAvoidingView 
-                  style={{ 
-                    flex: 1, 
-                    position: 'relative',
-                  }} 
-                  behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                  keyboardVerticalOffset={0}
-                  enabled={Platform.OS === 'ios'} // Only enable on iOS
-                >
+      <StableLayoutProvider>
+        <AuthProvider>
+          <ThemeProvider value={DefaultTheme}>
+            <AuthGuard>
+              <GlobalSessionInterceptor>
+                {/* StatusBar configuration for stable layout */}
+                <StatusBar 
+                  style="dark" 
+                  backgroundColor="#ffffff"
+                  translucent={false}
+                  hideTransitionAnimation="fade"
+                />
+                
+                {/* Root container with viewport stabilization */}
+                <View style={styles.rootContainer}>
+                  <KeyboardAvoidingView 
+                    style={styles.keyboardContainer} 
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                    keyboardVerticalOffset={0}
+                    enabled={Platform.OS === 'ios'}
+                  >
                   <Stack>
         {/* Root redirect */}
         <Stack.Screen name="index" options={{ headerShown: false }} />
@@ -94,12 +87,41 @@ export default function RootLayout() {
         
         <Stack.Screen name="+not-found" />
                   </Stack>
-                </KeyboardAvoidingView>
-              </View>
-            </GlobalSessionInterceptor>
-          </AuthGuard>
-        </ThemeProvider>
-      </AuthProvider>
+                  </KeyboardAvoidingView>
+                </View>
+              </GlobalSessionInterceptor>
+            </AuthGuard>
+          </ThemeProvider>
+        </AuthProvider>
+      </StableLayoutProvider>
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  rootContainer: {
+    flex: 1,
+    // Stable layout positioning
+    position: 'relative',
+    // Prevent viewport shifts
+    ...(Platform.OS === 'android' && {
+      overflow: 'hidden',
+    }),
+    // Lock dimensions on web with tab bar space
+    ...(Platform.OS === 'web' && {
+      minHeight: '100vh',
+      maxHeight: '100vh',
+      paddingBottom: 60, // Add space for tab bar
+    }),
+  },
+  keyboardContainer: {
+    flex: 1,
+    position: 'relative',
+    // Ensure consistent behavior across platforms
+    ...(Platform.OS === 'android' && {
+      // Android-specific optimizations
+      flexShrink: 0,
+      flexGrow: 1,
+    }),
+  },
+});

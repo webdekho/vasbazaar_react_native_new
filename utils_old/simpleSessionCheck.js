@@ -10,14 +10,12 @@ export const checkSessionOrRedirect = async () => {
     const sessionToken = await getSessionToken();
     
     if (!sessionToken) {
-      console.log('Session check: No valid session token, redirecting to PIN validation');
       router.replace('/auth/PinValidateScreen');
       return false;
     }
     
     return true;
   } catch (error) {
-    console.error('Session check error:', error);
     router.replace('/auth/PinValidateScreen');
     return false;
   }

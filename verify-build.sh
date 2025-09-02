@@ -99,11 +99,11 @@ check_file "dist/sitemap.xml" "SEO sitemap"
 check_file "dist/build-info.json" "Build information"
 check_file "dist/favicon.ico" "Favicon"
 
-# Check PayU callback files
+# Check payment integration files
 echo
-echo "💳 Checking PayU integration files..."
-check_file "dist/payu-callback.html" "PayU callback handler"
-check_file "dist/test-payu.html" "PayU testing interface"
+echo "💳 Checking payment integration files..."
+check_file "dist/upi-callback.html" "UPI callback handler"
+check_file "dist/payment-status.html" "Payment status handler"
 
 # Check route files
 echo

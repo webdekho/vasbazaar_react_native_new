@@ -43,15 +43,15 @@ export default function RechargePlanScreen() {
   
   // Parse operator info  
   const operatorData = params?.operatorData ? JSON.parse(params.operatorData) : {};
-  console.log('RechargePlanScreen - Received params:', {
-    operatorCode: params?.operatorCode,
-    operatorData: operatorData,
-    fromDues: params?.fromDues
-  });
+  // console.log('RechargePlanScreen - Received params:', {
+  //   operatorCode: params?.operatorCode,
+  //   operatorData: operatorData,
+  //   fromDues: params?.fromDues
+  // });
   
   // Get operator code from operatorData or params
   const operatorCode = params?.operatorCode || operatorData?.opCode || '';
-  console.log('RechargePlanScreen - Using operatorCode:', operatorCode);
+  // console.log('RechargePlanScreen - Using operatorCode:', operatorCode);
   
   // Parse contact info
   let contact = {};
@@ -77,11 +77,18 @@ export default function RechargePlanScreen() {
     const init = async () => {
       // First get operator list
       await getOperatorList(serviceId);
-      
       // If we have operator code, fetch plans and try to match operator
+      
       if (operatorCode) {
-        await fetchPlan(operatorCode);
+        if(!circleCode){
+          let crlcde = await fetchOperatorAndCircle(contact, mobile);
+          await fetchPlan(operatorCode, crlcde);
+        }else{
+          await fetchPlan(operatorCode);
+        } 
       }
+
+
     };
     init();
   }, []);
@@ -97,7 +104,7 @@ export default function RechargePlanScreen() {
         return;
       }
 
-      console.log('Fetching plans with:', { opCode, circleCode: crCode });
+      // console.log('Fetching plans with:', { opCode, circleCode: crCode });
 
       const response = await postRequest(
         'api/customer/plan_recharge/fetchPlansByCode',
@@ -105,14 +112,14 @@ export default function RechargePlanScreen() {
         sessionToken
       );
 
-      console.log('Plans API response:', response);
+      // console.log('Plans API response:', response);
 
       if (response?.status === 'success') {
         // Try different possible data structures for mobile plans
         const data = response.data;
         let plansData = data?.RDATA || data?.rdata || data?.data || data;
         
-        console.log('Plans data:', plansData);
+        // console.log('Plans data:', plansData);
         setJsonData(plansData);
       } else {
         Alert.alert('Error', response?.message || 'Failed to load mobile plans');
@@ -124,6 +131,37 @@ export default function RechargePlanScreen() {
       setIsLoading(false);
     }
   };
+
+
+
+    // Fetch Plan By Operator
+    const fetchOperatorAndCircle = async (contact, mobile_number) => {
+      try {
+        const sessionToken = await getSessionToken();
+        if (!sessionToken) {
+          router.push('/auth/PinValidateScreen');
+          return null;
+        }
+  
+        const response = await postRequest(
+          'api/customer/operator/fetchOperatorCircle',
+          { mobile: mobile_number },
+          sessionToken
+        );
+        if (response?.status === 'success') {
+          const data = response.data;
+          return data?.circleCode || u;
+        } else {
+          // Alert.alert('Error', response?.message || 'Something went wrong.');
+          return null;
+        }
+      } catch (error) {
+        // Alert.alert('Error', 'Network error. Please try again.');
+        return null;
+      }
+    };
+
+
 
   const getOperatorList = async (serviceId) => {
     try {
@@ -144,14 +182,14 @@ export default function RechargePlanScreen() {
         
         // Auto-select operator if operatorCode is provided
         if (operatorCode && response.data) {
-          console.log('Looking for operator with code:', operatorCode, 'in operators:', response.data.map(op => ({ name: op.operatorName, code: op.operatorCode || op.opCode })));
+          // console.log('Looking for operator with code:', operatorCode, 'in operators:', response.data.map(op => ({ name: op.operatorName, code: op.operatorCode || op.opCode })));
           
           const matchingOperator = response.data.find(op => 
             op.operatorCode === operatorCode || op.opCode === operatorCode
           );
           
           if (matchingOperator) {
-            console.log('Auto-selecting matching operator:', matchingOperator.operatorName);
+            // console.log('Auto-selecting matching operator:', matchingOperator.operatorName);
             setOperator(matchingOperator.operatorName);
             setOperatorId(matchingOperator.id);
             setLogo(matchingOperator.logo);
@@ -407,7 +445,10 @@ export default function RechargePlanScreen() {
         </View>
 
         {/* Scrollable Content */}
-        <ScrollView style={styles.scrollableContent}>
+        <ScrollView 
+          style={styles.scrollableContent}
+          contentContainerStyle={styles.scrollContentContainer}
+        >
 
         {/* Plans List */}
         {isLoading ? (
@@ -484,14 +525,14 @@ export default function RechargePlanScreen() {
             <Text style={styles.noPlansText}>No plans found</Text>
           </View>
         )}
-
-          {/* Disclaimer */}
-          <View style={styles.disclaimerContainer}>
-            <Text style={styles.disclaimerText}>
-              Disclaimer: Double check your plan before proceeding with the recharge.
-            </Text>
-          </View>
         </ScrollView>
+
+        {/* Disclaimer - Fixed at bottom */}
+        <View style={styles.disclaimerContainer}>
+          <Text style={styles.disclaimerText}>
+            Disclaimer: Review your plan with the operator before recharging.
+          </Text>
+        </View>
       </View>
 
       {/* Operator Modal */}
@@ -544,17 +585,27 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
   },
+  scrollContentContainer: {
+    paddingBottom: 80, // Add padding to prevent content from being hidden behind fixed disclaimer
+  },
   viCard: { 
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     margin: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.05)',
+    ...Platform.select({
+      ios: {
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+      },
+      android: {
+        elevation: 2,
+      },
+      web: {
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+      },
+      default: {},
+    }),
   },
   logo: { 
     width: 45, 
@@ -588,11 +639,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderColor: '#E5E7EB',
     borderWidth: 1,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    ...Platform.select({
+      ios: {
+        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+      },
+      android: {
+        elevation: 1,
+      },
+      web: {
+        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+      },
+      default: {},
+    }),
   },
   searchBarFocused: {
     borderColor: '#000000',
@@ -651,13 +709,20 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 8,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.05)',
+    ...Platform.select({
+      ios: {
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+      },
+      android: {
+        elevation: 2,
+      },
+      web: {
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+      },
+      default: {},
+    }),
   },
   planHeader: {
     flexDirection: 'row',
@@ -814,14 +879,41 @@ const styles = StyleSheet.create({
   },
   disclaimerContainer: { 
     padding: 16, 
-    backgroundColor: '#FFF9E6',
-    marginVertical: 16,
-    borderRadius: 8,
+    backgroundColor: '#FFF9E6', // Proper yellow background
+    borderTopWidth: 1,
+    borderTopColor: '#F59E0B',
+    // Fixed positioning for all platforms
+    position: 'fixed',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    width: '100%',
+    zIndex: 1000,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 4,
+      },
+      web: {
+        position: 'fixed', // Explicit fixed positioning for web
+        boxShadow: '0 -2px 3px rgba(0,0,0,0.1)',
+        display: 'flex',
+        visibility: 'visible',
+        opacity: 1,
+      },
+    }),
   },
   disclaimerText: { 
-    fontSize: 12, 
+    fontSize: 13, 
     textAlign: 'center', 
-    color: '#666' 
+    color: '#92400E', // Warning brown color
+    fontWeight: '500',
+    lineHeight: 18,
   },
   modalOverlay: { 
     flex: 1, 

@@ -9,11 +9,9 @@ import { getRequest } from '../api/baseApi';
 export const getAllServices = async (displayOnScreen = 1, sessionToken) => {
   try {
     const endpoint = `api/customer/service/allService?displayOnScreen=${displayOnScreen}`;
-    console.log('Fetching services:', { endpoint, displayOnScreen, hasToken: !!sessionToken });
     
     const response = await getRequest(endpoint, {}, sessionToken);
     
-    console.log('Services API response:', response);
     
     if (response?.status === 'success' && response?.data) {
       // Sort services by priority (ascending order)
@@ -43,7 +41,6 @@ export const getAllServices = async (displayOnScreen = 1, sessionToken) => {
     };
     
   } catch (error) {
-    console.error('Services API error:', error);
     return {
       status: 'error',
       data: [],
@@ -71,11 +68,9 @@ export const getAllServicesForScreen = async (sessionToken) => {
     // Try different endpoint approaches to get all services
     const endpoint = 'api/customer/service/allService';
     const params = {}; // No displayOnScreen filter to get ALL services
-    console.log('Fetching all services for AllServicesScreen:', { endpoint, params, hasToken: !!sessionToken });
     
     const response = await getRequest(endpoint, {}, sessionToken);
     
-    console.log('All services API response:', response);
     
     // Check for various response success formats
     const isSuccess = response?.status === 'success' || 
@@ -83,7 +78,6 @@ export const getAllServicesForScreen = async (sessionToken) => {
                      response?.success === true;
     
     if (isSuccess && response?.data && Array.isArray(response.data)) {
-      console.log('Services found:', response.data.length);
       
       // Sort services by priority (ascending order)
       const sortedServices = response.data.sort((a, b) => (a.priority || 0) - (b.priority || 0));
@@ -101,7 +95,6 @@ export const getAllServicesForScreen = async (sessionToken) => {
         originalData: service
       }));
       
-      console.log('Transformed services:', transformedServices.length);
       
       return {
         status: 'success',
@@ -110,16 +103,6 @@ export const getAllServicesForScreen = async (sessionToken) => {
       };
     }
     
-    console.log('Services API failed - Response details:', {
-      hasResponse: !!response,
-      status: response?.status,
-      Status: response?.Status,
-      success: response?.success,
-      hasData: !!response?.data,
-      dataIsArray: Array.isArray(response?.data),
-      dataLength: response?.data?.length,
-      fullResponse: response
-    });
     
     return {
       status: 'error',
@@ -128,7 +111,6 @@ export const getAllServicesForScreen = async (sessionToken) => {
     };
     
   } catch (error) {
-    console.error('All services API error:', error);
     return {
       status: 'error',
       data: [],

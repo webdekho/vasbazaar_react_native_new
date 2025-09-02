@@ -38,11 +38,6 @@ export const verifyPinOtp = async (otp, permanentToken, tempToken) => {
   };
   
   // Use permanentToken as access_token in header
-  console.log('Calling verifyOTP_token API with:', {
-    endpoint: 'login/verifyOTP_token',
-    payload,
-    access_token: permanentToken?.substring(0, 20) + '...'
-  });
   
   return await postRequest('login/verifyOTP_token', payload, permanentToken);
 };

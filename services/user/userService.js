@@ -14,11 +14,9 @@ export const updateUserProfile = async (profileData, sessionToken) => {
 export const getUserBalance = async (sessionToken) => {
   try {
     const endpoint = 'api/customer/user/getByUserId';
-    console.log('Fetching user balance:', { endpoint, hasToken: !!sessionToken });
     
     const response = await getRequest(endpoint, {}, sessionToken);
     
-    console.log('User balance API response:', response);
     
     if (response?.status === 'success' && response?.data) {
       // Extract and format balance data
@@ -51,7 +49,6 @@ export const getUserBalance = async (sessionToken) => {
     };
     
   } catch (error) {
-    console.error('User balance API error:', error);
     return {
       status: 'error',
       data: {
@@ -110,7 +107,6 @@ const fixImageOrientation = (imageUri) => {
     };
 
     img.onerror = () => {
-      console.error('Failed to load image for orientation correction');
       resolve(imageUri); // Return original if correction fails
     };
 
@@ -120,14 +116,10 @@ const fixImageOrientation = (imageUri) => {
 
 export const updateProfilePhoto = async (imageUri, sessionToken) => {
   try {
-    console.log('updateProfilePhoto service called');
-    console.log('Image URI:', imageUri);
-    console.log('Has token:', !!sessionToken);
     
     // Fix image orientation if it's a data URI (web/cropped images)
     let correctedImageUri = imageUri;
     if (Platform.OS === 'web' && imageUri.startsWith('data:')) {
-      console.log('Applying orientation correction...');
       correctedImageUri = await fixImageOrientation(imageUri);
     }
     
@@ -150,7 +142,6 @@ export const updateProfilePhoto = async (imageUri, sessionToken) => {
     
     // Check if the image is base64 (common on web or when base64 is enabled)
     if (correctedImageUri.startsWith('data:') || correctedImageUri.startsWith('blob:')) {
-      console.log('Detected data URI or blob, processing for web...');
       
       if (correctedImageUri.startsWith('data:')) {
         // Extract base64 data and mime type
@@ -176,11 +167,6 @@ export const updateProfilePhoto = async (imageUri, sessionToken) => {
         // Append the file to FormData
         formData.append('photo', file, cleanFilename);
         
-        console.log('FormData created with photo (data URI):', {
-          filename: cleanFilename,
-          type: detectedMimeType,
-          size: file.size
-        });
       } else {
         // Handle blob URLs (common in browsers)
         try {
@@ -192,20 +178,13 @@ export const updateProfilePhoto = async (imageUri, sessionToken) => {
           });
           formData.append('photo', file, cleanFilename);
           
-          console.log('FormData created with photo (blob URL):', {
-            filename: cleanFilename,
-            type: file.type,
-            size: file.size
-          });
         } catch (blobError) {
-          console.error('Error processing blob URL:', blobError);
           throw new Error('Failed to process image file');
         }
       }
       
     } else {
       // Handle file URIs (mobile platforms)
-      console.log('Processing file URI for mobile platform:', Platform.OS);
       
       let fileUri = correctedImageUri;
       
@@ -235,18 +214,10 @@ export const updateProfilePhoto = async (imageUri, sessionToken) => {
       // React Native requires the object format, not File/Blob
       formData.append('photo', fileObject);
       
-      console.log('FormData created with photo for mobile:', {
-        uri: fileUri,
-        name: cleanFilename,
-        type: mimeType,
-        platform: Platform.OS
-      });
     }
     
     // Call the upload API
-    console.log('About to call uploadMultipartApi...');
     const response = await uploadMultipartApi('api/customer/user/updateProfile', formData, sessionToken);
-    console.log('API call completed, response:', response);
     
     // Handle various response formats
     const isSuccess = response?.success || 
@@ -283,7 +254,6 @@ export const updateProfilePhoto = async (imageUri, sessionToken) => {
       response: response
     };
   } catch (error) {
-    console.error('Profile photo upload error:', error);
     
     // Better error message based on error type
     let errorMessage = 'Failed to upload profile photo';

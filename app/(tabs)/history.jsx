@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, ScrollView, View, Text, TouchableOpacity, Image, ActivityIndicator, FlatList, TextInput, Modal, Pressable, Alert, RefreshControl, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { ThemedText } from '@/components/ThemedText';
@@ -11,6 +12,7 @@ import { getTransactionHistory, submitComplaint } from '../../services';
 
 export default function HistoryScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   
   // State management
   const [transactions, setTransactions] = useState([]);
@@ -40,6 +42,82 @@ export default function HistoryScreen() {
     router.push('/main/AllServicesScreen');
   };
 
+  // Function to get color and icon based on complaint status
+  const getComplaintStatusStyle = (status) => {
+    const normalizedStatus = status?.toLowerCase();
+    
+    switch (normalizedStatus) {
+      case 'pending':
+        return {
+          backgroundColor: '#FFF3E0',
+          textColor: '#FF9800',
+          icon: 'clock-o'
+        };
+      case 'processing':
+      case 'in_progress':
+      case 'under_review':
+        return {
+          backgroundColor: '#E3F2FD',
+          textColor: '#2196F3',
+          icon: 'refresh'
+        };
+      case 'failed':
+      case 'failure':
+      case 'rejected':
+      case 'declined':
+      case 'cancelled':
+        return {
+          backgroundColor: '#FFEBEE',
+          textColor: '#F44336',
+          icon: 'times-circle'
+        };
+      case 'closed':
+      case 'resolved':
+      case 'completed':
+        return {
+          backgroundColor: '#E8F5E8',
+          textColor: '#4CAF50',
+          icon: 'check-circle'
+        };
+      case 'escalated':
+        return {
+          backgroundColor: '#FCE4EC',
+          textColor: '#E91E63',
+          icon: 'arrow-up'
+        };
+      case 'on_hold':
+      case 'paused':
+        return {
+          backgroundColor: '#F3E5F5',
+          textColor: '#9C27B0',
+          icon: 'pause'
+        };
+      default:
+        return {
+          backgroundColor: '#F5F5F5',
+          textColor: '#757575',
+          icon: 'question-circle'
+        };
+    }
+  };
+
+  // Check if message contains error keywords and return appropriate color
+  const getMessageColor = (message) => {
+    if (!message) return '#333';
+    
+    const errorKeywords = [
+      'error', 'failed', 'failure', 'problem', 'issue', 'unable', 'cannot', 
+      'invalid', 'incorrect', 'wrong', 'rejected', 'denied', 'unsuccessful',
+      'timeout', 'expired', 'unavailable', 'blocked', 'restricted', 'not found',
+      'service unavailable', 'server error', 'network error', 'connection failed'
+    ];
+    
+    const messageText = message.toLowerCase();
+    const hasErrorKeyword = errorKeywords.some(keyword => messageText.includes(keyword));
+    
+    return hasErrorKeyword ? '#F44336' : '#333';
+  };
+
  
 
   // Fetch transactions from API
@@ -65,7 +143,7 @@ export default function HistoryScreen() {
         setTransactions(records);
         setTotalPages(totalPages);
         setPage(1);
-        console.log('Successfully fetched transactions:', records.length);
+        // console.log('Successfully fetched transactions:', records.length);
       } else {
         console.log('Failed to fetch transactions:', response?.message);
         Alert.alert('Error', 'Failed to load transaction history. Please try again.');
@@ -93,7 +171,14 @@ export default function HistoryScreen() {
       
       if (response?.status === 'success' && response?.data) {
         const { records } = response.data;
-        setTransactions(prev => [...prev, ...records]);
+        // Filter out duplicates based on txnId + date + time
+        setTransactions(prev => {
+          const existingKeys = new Set(prev.map(txn => `${txn.txnId}-${txn.date}-${txn.time}`));
+          const newRecords = records.filter(record => 
+            !existingKeys.has(`${record.txnId}-${record.date}-${record.time}`)
+          );
+          return [...prev, ...newRecords];
+        });
         setPage(prev => prev + 1);
       }
     } catch (error) {
@@ -103,7 +188,7 @@ export default function HistoryScreen() {
     }
   };
 
-  // Step 1: Check complaint status
+  // Step 1: Check complaint status and always show submit form
   const checkComplaintStatus = async (txnId) => {
     try {
       setCheckingStatus(true);
@@ -116,41 +201,34 @@ export default function HistoryScreen() {
         'check' // Action parameter for checking status
       );
       
+      // Always show the complaint form after API response
+      setShowComplaintForm(true);
+      
       if (response?.status === 'success' && response?.data) {
         const { hasComplaint, complaintDetails, message } = response.data;
         
+        // Store API response for display but don't prevent form submission
         setComplaintStatus({
           hasComplaint,
           details: complaintDetails,
-          message: message || 'Complaint status checked successfully'
+          message: message || 'Complaint status checked successfully',
+          complaintStatus: response.data.complaintStatus,
+          apiResponse: response.data // Store full API response for reference
         });
-        
-        if (hasComplaint || response?.data?.message) {
-          // Show existing complaint details or API message
-          const displayMessage = response.data.message || 
-            `A complaint already exists for this transaction.\n\nStatus: ${complaintDetails?.status || 'Under Review'}\nDate: ${complaintDetails?.date || 'N/A'}\nDescription: ${complaintDetails?.description || 'No description available'}`;
-          
-          setComplaintStatus({
-            hasComplaint: true,
-            details: complaintDetails,
-            message: displayMessage,
-            complaintStatus: response.data.complaintStatus
-          });
-        } else {
-          // Show complaint form
-          setShowComplaintForm(true);
-        }
       } else {
-        // No existing complaint found or API error, show form
-        setComplaintStatus({ hasComplaint: false });
-        setShowComplaintForm(true);
+        // API error or no data - still show form
+        setComplaintStatus({ 
+          hasComplaint: false,
+          message: 'Ready to submit new complaint'
+        });
       }
     } catch (error) {
       console.error('Error checking complaint status:', error);
-      // On error, show complaint form anyway
-      setComplaintStatus({ hasComplaint: false });
-      setShowComplaintForm(true);
-      Alert.alert('Info', 'Unable to check complaint status. You can still submit a new complaint.');
+      // On error, show complaint form
+      setComplaintStatus({ 
+        hasComplaint: false,
+        message: 'Unable to check status - you can still submit a complaint'
+      });
     } finally {
       setCheckingStatus(false);
     }
@@ -162,51 +240,77 @@ export default function HistoryScreen() {
       setSubmitting(true);
       const sessionToken = await AsyncStorage.getItem('sessionToken');
       
+      // Prepare payload in exact format requested
+      const payload = {
+        "txnId": selectedTransaction.txnId,
+        "description": complaintText.trim(),
+        "action": "add"
+      };
+      
+      console.log('Submitting complaint with payload:', payload);
+      
       const response = await submitComplaint(
         selectedTransaction.txnId, 
         complaintText.trim(), 
         sessionToken,
-        'add' // Action parameter for adding new complaint
+        'add', // Action parameter for adding new complaint
+        payload // Pass the full payload
       );
       
-      if (response?.status === 'success') {
-        if (response.data?.hasExistingComplaint || response.data?.message) {
-          // Show existing complaint message in modal
-          setShowComplaintForm(false);
-          setComplaintStatus({
-            hasComplaint: true,
-            details: null,
-            message: response.data.message,
-            complaintStatus: response.data.complaintStatus || 'processing'
-          });
-        } else {
-          // Step 3: Close modal and refresh history for new complaint
-          setModalVisible(false);
-          setComplaintText('');
-          setShowComplaintForm(false);
-          setComplaintStatus(null);
-          
-          Alert.alert(
-            'Success', 
-            `Your complaint has been registered with Transaction ID: ${selectedTransaction.txnId}. Our support team will review it shortly.`,
-            [{ 
-              text: 'OK', 
-              onPress: () => {
-                // Refresh transaction history after user acknowledges
-                fetchTransactions(true);
-              }
-            }]
-          );
-          
-          // Update local state immediately
-          setTransactions(prev => 
-            prev.map(txn => 
-              txn.txnId === selectedTransaction.txnId 
-                ? { ...txn, hasComplaint: true }
-                : txn
-            )
-          );
-        }
+      // Check for successful response (both 'success' and 'SUCCESS' status)
+      const isSuccess = response?.status === 'success' || response?.Status === 'SUCCESS';
+      
+      if (isSuccess) {
+        console.log('Complaint submission successful:', response);
+        console.log('Response data:', response.data);
+        console.log('Data message:', response.data?.message);
+        
+        // Display the data.message from the API response
+        const successMessage = response.data?.message || 'Complaint registered successfully';
+        const complaintStatus = response.data?.complaintStatus || 'pending';
+        
+        console.log('Success message to display:', successMessage);
+        
+        // Show success message in the modal first
+        setShowComplaintForm(false);
+        const successData = {
+          hasComplaint: false, // Don't block future submissions
+          isSuccess: true, // Flag to show success state
+          details: response.data,
+          message: successMessage,
+          complaintStatus: complaintStatus,
+          operatorInfo: {
+            name: response.data?.operatorName,
+            logo: response.data?.logo,
+            mobile: response.data?.mobile
+          }
+        };
+        
+        console.log('Setting success state:', successData);
+        setComplaintStatus(successData);
+        
+        // Update local transaction state to show complaint submitted
+        setTransactions(prev => 
+          prev.map(txn => 
+            txn.txnId === selectedTransaction.txnId 
+              ? { ...txn, hasComplaint: true }
+              : txn
+          )
+        );
+        
+        // Auto-close modal after showing success message for 3 seconds
+        setTimeout(() => {
+          if (modalVisible) {
+            setModalVisible(false);
+            setComplaintText('');
+            setShowComplaintForm(false);
+            setComplaintStatus(null);
+            
+            // Refresh transaction history
+            fetchTransactions(true);
+          }
+        }, 3000);
+        
       } else {
         Alert.alert('Error', response?.message || 'Unable to submit your complaint. Please try again later.');
       }
@@ -263,6 +367,7 @@ export default function HistoryScreen() {
 
       grouped[monthYear].push({
         id: item.txnId,
+        uniqueKey: `${item.txnId}-${item.date}-${item.time}`, // Add unique key
         name: item.operatorId?.name || item.serviceType,
         desc: description,
         amount: item.txnAmt,
@@ -403,8 +508,92 @@ export default function HistoryScreen() {
                 <ActivityIndicator color="#FF9800" size="large" />
                 <Text style={styles.statusCheckText}>Checking complaint status...</Text>
               </View>
+            ) : complaintStatus?.isSuccess ? (
+              <View style={styles.successContainer}>
+                <View style={styles.successHeader}>
+                  <FontAwesome name="check-circle" size={32} color="#4CAF50" />
+                  <Text style={styles.successTitle}>Complaint Submitted!</Text>
+                </View>
+                
+                <View style={styles.successMessageContainer}>
+                  <Text style={[styles.successMessage, { color: getMessageColor(complaintStatus.message) }]}>
+                    {complaintStatus.message}
+                  </Text>
+                  
+                  {complaintStatus.operatorInfo && (
+                    <View style={styles.operatorInfoContainer}>
+                      <View style={styles.operatorInfoRow}>
+                        <Text style={styles.operatorLabel}>Operator:</Text>
+                        <Text style={styles.operatorValue}>{complaintStatus.operatorInfo.name}</Text>
+                      </View>
+                      <View style={styles.operatorInfoRow}>
+                        <Text style={styles.operatorLabel}>Mobile:</Text>
+                        <Text style={styles.operatorValue}>{complaintStatus.operatorInfo.mobile}</Text>
+                      </View>
+                    </View>
+                  )}
+                  
+                  {complaintStatus.complaintStatus && (
+                    <View style={styles.statusBadgeContainer}>
+                      {(() => {
+                        const statusStyle = getComplaintStatusStyle(complaintStatus.complaintStatus);
+                        return (
+                          <View style={[styles.complaintStatusBadge, {
+                            backgroundColor: statusStyle.backgroundColor
+                          }]}>
+                            <FontAwesome 
+                              name={statusStyle.icon} 
+                              size={14} 
+                              color={statusStyle.textColor} 
+                            />
+                            <Text style={[styles.complaintStatusText, {
+                              color: statusStyle.textColor
+                            }]}>
+                              {complaintStatus.complaintStatus.toUpperCase()}
+                            </Text>
+                          </View>
+                        );
+                      })()}
+                    </View>
+                  )}
+                </View>
+                
+                <Text style={styles.autoCloseText}>This dialog will close automatically in a few seconds...</Text>
+              </View>
             ) : showComplaintForm ? (
               <>
+                {/* Show API response as information if available */}
+                {complaintStatus?.message && (
+                  <View style={styles.apiResponseContainer}>
+                    <View style={styles.apiResponseHeader}>
+                      <FontAwesome name="info-circle" size={16} color="#2196F3" />
+                      <Text style={styles.apiResponseTitle}>Status Information</Text>
+                    </View>
+                    <Text style={[styles.apiResponseText, { color: getMessageColor(complaintStatus.message) }]}>
+                      {complaintStatus.message}
+                    </Text>
+                    {complaintStatus.complaintStatus && (
+                      <View style={styles.statusBadgeContainer}>
+                        <View style={[styles.complaintStatusBadge, {
+                          backgroundColor: complaintStatus.complaintStatus === 'processing' ? '#FFF3E0' : '#E8F5E8'
+                        }]}>
+                          <FontAwesome 
+                            name={complaintStatus.complaintStatus === 'processing' ? 'clock-o' : 'check-circle'} 
+                            size={12} 
+                            color={complaintStatus.complaintStatus === 'processing' ? '#FF9800' : '#4CAF50'} 
+                          />
+                          <Text style={[styles.complaintStatusText, {
+                            color: complaintStatus.complaintStatus === 'processing' ? '#FF9800' : '#4CAF50',
+                            fontSize: 10
+                          }]}>
+                            {complaintStatus.complaintStatus.toUpperCase()}
+                          </Text>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                )}
+
                 <Text style={styles.inputLabel}>Describe your issue (Optional)</Text>
                 <TextInput
                   style={styles.complaintInput}
@@ -442,50 +631,7 @@ export default function HistoryScreen() {
                   </Pressable>
                 </View>
               </>
-            ) : complaintStatus?.hasComplaint ? (
-              <View style={styles.existingComplaintContainer}>
-                <View style={styles.complaintStatusHeader}>
-                  <FontAwesome name="info-circle" size={28} color="#FF9800" />
-                  <Text style={styles.complaintStatusTitle}>Complaint Status</Text>
-                </View>
-                
-                <View style={styles.complaintMessageContainer}>
-                  <Text style={styles.complaintMessageText}>
-                    {complaintStatus.message}
-                  </Text>
-                  
-                  {complaintStatus.complaintStatus && (
-                    <View style={styles.statusBadgeContainer}>
-                      <View style={[styles.complaintStatusBadge, {
-                        backgroundColor: complaintStatus.complaintStatus === 'processing' ? '#FFF3E0' : '#E8F5E8'
-                      }]}>
-                        <FontAwesome 
-                          name={complaintStatus.complaintStatus === 'processing' ? 'clock-o' : 'check-circle'} 
-                          size={14} 
-                          color={complaintStatus.complaintStatus === 'processing' ? '#FF9800' : '#4CAF50'} 
-                        />
-                        <Text style={[styles.complaintStatusText, {
-                          color: complaintStatus.complaintStatus === 'processing' ? '#FF9800' : '#4CAF50'
-                        }]}>
-                          {complaintStatus.complaintStatus.toUpperCase()}
-                        </Text>
-                      </View>
-                    </View>
-                  )}
-                </View>
-                
-                <Pressable
-                  style={[styles.modalButton, styles.cancelButton, { marginTop: 20 }]}
-                  onPress={closeComplaintModal}
-                >
-                  <Text style={styles.cancelButtonText}>Close</Text>
-                </Pressable>
-              </View>
-            ) : (
-              <View style={styles.waitingContainer}>
-                <Text style={styles.waitingText}>Please wait while we check your complaint status...</Text>
-              </View>
-            )}
+            ) : null}
           </View>
         </View>
       </Modal>
@@ -516,7 +662,7 @@ export default function HistoryScreen() {
           <Text style={styles.loadingText}>Loading transactions...</Text>
         </View>
       ) : transactions.length === 0 ? (
-        <View style={styles.emptyContainer}>
+        <View style={[styles.emptyContainer, { paddingBottom: Math.max(insets.bottom + 80, 100) }]}>
           <Text style={styles.emptyIcon}>📊</Text>
           <Text style={styles.emptyTitle}>No Transactions Found</Text>
           <Text style={styles.emptySubtitle}>
@@ -531,8 +677,8 @@ export default function HistoryScreen() {
             <View style={styles.monthSection}>
               <Text style={styles.monthTitle}>{month}</Text>
               
-              {entries.map((txn) => (
-                <View key={txn.id.toString()} style={styles.item}>
+              {entries.map((txn, index) => (
+                <View key={txn.uniqueKey || `${month}-${txn.id}-${index}`} style={styles.item}>
                   <View style={styles.cardContent}>
                     <View style={styles.iconBox}>
                       <OperatorIcon icon={txn.icon} />
@@ -600,6 +746,10 @@ export default function HistoryScreen() {
           )}
           onEndReached={loadMoreTransactions}
           onEndReachedThreshold={0.3}
+          contentContainerStyle={[
+            styles.listContainer,
+            { paddingBottom: Math.max(insets.bottom + 80, 100) } // Tab bar height + safe area + extra padding
+          ]}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -607,13 +757,17 @@ export default function HistoryScreen() {
               colors={['#2196F3']}
             />
           }
+          showsVerticalScrollIndicator={false}
           ListFooterComponent={() => (
             isLoadingMore ? (
               <View style={styles.footerLoader}>
                 <ActivityIndicator size="small" color="#2196F3" />
                 <Text style={styles.footerText}>Loading more transactions...</Text>
               </View>
-            ) : null
+            ) : (
+              // Add a spacer view to ensure proper bottom spacing
+              <View style={styles.bottomSpacer} />
+            )
           )}
         />
       )}
@@ -701,6 +855,12 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     fontSize: 14,
     color: '#666',
+  },
+  listContainer: {
+    flexGrow: 1,
+  },
+  bottomSpacer: {
+    height: 20, // Additional spacing for the last transaction
   },
   // Transaction List
   monthSection: {
@@ -1056,5 +1216,87 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     fontStyle: 'italic',
+  },
+  // API Response Info Styles
+  apiResponseContainer: {
+    backgroundColor: '#E3F2FD',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    borderLeftWidth: 3,
+    borderLeftColor: '#2196F3',
+  },
+  apiResponseHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  apiResponseTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1976D2',
+    marginLeft: 6,
+  },
+  apiResponseText: {
+    fontSize: 13,
+    color: '#1565C0',
+    lineHeight: 18,
+  },
+  // Success Container Styles
+  successContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  successHeader: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  successTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#4CAF50',
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  successMessageContainer: {
+    backgroundColor: '#E8F5E8',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 16,
+    width: '100%',
+    borderLeftWidth: 4,
+    borderLeftColor: '#4CAF50',
+  },
+  successMessage: {
+    fontSize: 16,
+    color: '#2E7D32',
+    textAlign: 'center',
+    marginBottom: 12,
+    fontWeight: '500',
+  },
+  operatorInfoContainer: {
+    marginTop: 8,
+  },
+  operatorInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  operatorLabel: {
+    fontSize: 14,
+    color: '#4CAF50',
+    fontWeight: '500',
+  },
+  operatorValue: {
+    fontSize: 14,
+    color: '#2E7D32',
+    fontWeight: '600',
+  },
+  autoCloseText: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginTop: 12,
   },
 });

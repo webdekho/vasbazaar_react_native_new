@@ -8,11 +8,11 @@ import { getRequest } from '../api/baseApi';
 export const getUpcomingDues = async (sessionToken) => {
   try {
     const endpoint = 'api/customer/schedular/getAllRecharges';
-    console.log('Fetching upcoming dues:', { endpoint, hasToken: !!sessionToken });
+    // console.log('Fetching upcoming dues:', { endpoint, hasToken: !!sessionToken });
     
     const response = await getRequest(endpoint, {}, sessionToken);
     
-    console.log('Upcoming dues API response:', response);
+    // console.log('Upcoming dues API response:', response);
     
     if (response?.status === 'success' && response?.data) {
       // Transform API data to match component expectations

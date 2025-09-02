@@ -59,7 +59,7 @@ export default function CachedSvgImage({
         if (isMounted) {
           if (cached) {
             setIconData(cached);
-            console.log(`CachedSvgImage - Loaded ${cached.type} from cache: ${uri}`);
+            // console.log(`CachedSvgImage - Loaded ${cached.type} from cache: ${uri}`);
           } else {
             console.warn(`CachedSvgImage - Failed to load icon: ${uri}`);
             setError(true);

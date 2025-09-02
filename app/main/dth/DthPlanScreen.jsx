@@ -6,6 +6,7 @@ import {
   FlatList,
   Keyboard,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -124,11 +125,11 @@ export default function DthPlanScreen() {
   const allPlans = useMemo(() => {
     if (!jsonData || !Array.isArray(jsonData)) return [];
     
-    return jsonData.flatMap((comboItem) => {
+    return jsonData.flatMap((comboItem, comboIndex) => {
       if (!comboItem.Details || !Array.isArray(comboItem.Details)) return [];
       
-      return comboItem.Details.map((detail) => ({
-        id: `${comboItem.Language}-${detail.PlanName}`,
+      return comboItem.Details.map((detail, detailIndex) => ({
+        id: `${comboItem.Language}-${detail.PlanName}-${comboIndex}-${detailIndex}`,
         category: comboItem.Language,
         language: comboItem.Language,
         planName: detail.PlanName,
@@ -335,7 +336,10 @@ export default function DthPlanScreen() {
         </View>
 
         {/* Scrollable Content */}
-        <ScrollView style={styles.scrollableContent}>
+        <ScrollView 
+          style={styles.scrollableContent}
+          contentContainerStyle={styles.scrollContentContainer}
+        >
 
         {/* Plans List */}
         {isLoading ? (
@@ -410,14 +414,14 @@ export default function DthPlanScreen() {
             <Text style={styles.noPlansText}>No plans found</Text>
           </View>
         )}
-
-          {/* Disclaimer */}
-          <View style={styles.disclaimerContainer}>
-            <Text style={styles.disclaimerText}>
-              Disclaimer: Double check your plan before proceeding with the recharge.
-            </Text>
-          </View>
         </ScrollView>
+
+        {/* Disclaimer - Always show */}
+        <View style={styles.disclaimerContainer}>
+          <Text style={styles.disclaimerText}>
+            Disclaimer: Review your plan with the operator before recharging.
+          </Text>
+        </View>
       </View>
 
       {/* Operator Modal */}
@@ -469,17 +473,27 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
   },
+  scrollContentContainer: {
+    paddingBottom: 80, // Add padding to prevent content from being hidden behind fixed disclaimer
+  },
   viCard: { 
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     margin: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.05)',
+    ...Platform.select({
+      ios: {
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+      },
+      android: {
+        elevation: 2,
+      },
+      web: {
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+      },
+      default: {},
+    }),
   },
   logo: { 
     width: 45, 
@@ -506,13 +520,20 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     margin: 16,
     marginTop: 0,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.05)',
+    ...Platform.select({
+      ios: {
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+      },
+      android: {
+        elevation: 2,
+      },
+      web: {
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+      },
+      default: {},
+    }),
   },
   dthInfoTitle: {
     fontSize: 16,
@@ -557,11 +578,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderColor: '#E5E7EB',
     borderWidth: 1,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    ...Platform.select({
+      ios: {
+        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+      },
+      android: {
+        elevation: 1,
+      },
+      web: {
+        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+      },
+      default: {},
+    }),
   },
   searchBarFocused: {
     borderColor: '#000000',
@@ -620,13 +648,20 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 8,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.05)',
+    ...Platform.select({
+      ios: {
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+      },
+      android: {
+        elevation: 2,
+      },
+      web: {
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+      },
+      default: {},
+    }),
   },
   planHeader: {
     flexDirection: 'row',
@@ -749,13 +784,40 @@ const styles = StyleSheet.create({
   disclaimerContainer: { 
     padding: 16, 
     backgroundColor: '#FFF9E6',
-    marginVertical: 16,
-    borderRadius: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F59E0B',
+    // Fixed positioning for all platforms
+    position: 'fixed',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    width: '100%',
+    zIndex: 1000,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 4,
+      },
+      web: {
+        position: 'fixed', // Explicit fixed positioning for web
+        boxShadow: '0 -2px 3px rgba(0,0,0,0.1)',
+        display: 'flex',
+        visibility: 'visible',
+        opacity: 1,
+      },
+    }),
   },
   disclaimerText: { 
-    fontSize: 12, 
+    fontSize: 13, 
     textAlign: 'center', 
-    color: '#666' 
+    color: '#92400E',
+    fontWeight: '500',
+    lineHeight: 18,
   },
   modalOverlay: { 
     flex: 1, 

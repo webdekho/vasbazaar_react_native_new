@@ -1,503 +1,885 @@
-import { useState } from 'react';
-import { StyleSheet, ScrollView, TouchableOpacity, Share } from 'react-native';
+import { useEffect, useState } from 'react';
+import {
+  Alert,
+  StyleSheet,
+  View,
+  TouchableOpacity,
+  ScrollView,
+  Image,
+  KeyboardAvoidingView,
+  Platform
+} from 'react-native';
+import { ActivityIndicator, Avatar, Card, Text, TextInput } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+
+import MainHeader from '../../../components/MainHeader';
 
 export default function BillViewScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const [isDownloading, setIsDownloading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const billData = {
-    billerName: params.billerName || 'Utility Provider',
-    accountNumber: params.accountNumber || '',
-    customerName: params.customerName || 'John Doe',
-    billNumber: params.billNumber || 'BILL2024001234',
-    billDate: params.billDate || '2024-01-01',
-    dueDate: params.dueDate || '2024-01-25',
-    amount: parseFloat(params.amount) || 0,
-    status: params.status || 'unpaid',
-    address: params.address || '123 Main Street, City - 400001',
-    units: params.units || '245 kWh',
-    previousReading: params.previousReading || '12500',
-    currentReading: params.currentReading || '12745',
-    tariff: params.tariff || '₹5.12 per unit',
-    lateFee: parseFloat(params.lateFee) || 0
+  const {
+    operator_id = null,
+    serviceId = 'NA',
+    contact = {},
+    operator = 'NA',
+    name = 'No Name',
+    companyLogo = '',
+    bill_details = {},
+    amountExactness
+  } = params || {};
+
+  // Parse contact if it's a string
+  let contactData = {};
+  try {
+    contactData = typeof contact === 'string' ? JSON.parse(contact) : contact;
+  } catch (error) {
+    console.warn('Could not parse contact data:', error);
+    contactData = {};
+  }
+
+  // Parse bill_details if it's a string
+  let billDetailsData = {};
+  try {
+    billDetailsData = typeof bill_details === 'string' ? JSON.parse(bill_details) : bill_details;
+  } catch (error) {
+    console.warn('Could not parse bill_details data:', error);
+    billDetailsData = {};
+  }
+
+  const [mobile] = useState(contactData?.number || params.mobile || 'NA');
+  const [logo] = useState(companyLogo);
+  const [amount, setAmount] = useState(billDetailsData?.billAmount?.toString() || '');
+  const amt = billDetailsData?.billAmount || 0;
+  
+  // Predefined amounts for quick selection
+  const quickAmounts = ['500', '2000', '3000', '4000'];
+
+  useEffect(() => {
+    console.log('BillViewScreen mounted with params:', params);
+    console.log('Parsed bill details:', billDetailsData);
+    
+    // Set default amount based on serviceId
+    if (serviceId === '5' || serviceId === 5 || parseInt(serviceId) === 5) {
+      setAmount('1000');
+    }
+  }, [serviceId, params]);
+
+  const labelMap = {
+    customername: 'Customer Name',
+    dueDate: 'Due Date',
+    billAmount: 'Bill Amount',
+    statusMessage: 'Status Message',
+    acceptPayment: 'Accept Payment',
+    acceptPartPay: 'Accept Partial Payment',
+    maxBillAmount: 'Max Bill Amount',
+    billnumber: 'Bill Number',
+    billdate: 'Bill Date',
+    billperiod: 'Bill Period',
+    paymentAmountExactness: 'Exact Payment Required',
+    // FASTag specific fields
+    vehicleNumber: 'Vehicle Number',
+    fastagBalance: 'FASTag Balance',
+    vehicleModel: 'Vehicle Model',
+    tagId: 'Tag ID',
   };
 
-  const handlePayBill = () => {
-    router.push({
-      pathname: '/main/common/PaymentScreen',
-      params: {
-        type: 'bill',
-        billerId: params.billerId,
-        billerName: billData.billerName,
-        accountNumber: billData.accountNumber,
-        amount: billData.amount.toString(),
-        customerName: billData.customerName,
-        billNumber: billData.billNumber,
-        dueDate: billData.dueDate
-      }
-    });
+  // Keys to hide from bill details
+  const hiddenKeys = ['statusMessage', 'acceptPayment', 'acceptPartPay', 'paymentAmountExactness'];
+
+  const isExactAmount = amountExactness === "Exact" && amt > 0;
+
+  const formatValue = (key, value) => {
+    if ((key === 'billAmount' || key === 'fastagBalance') && value) {
+      return `₹${value}`;
+    }
+    if (typeof value === 'boolean') {
+      return value ? 'Yes' : 'No';
+    }
+    return value;
   };
 
-  const handleShareBill = async () => {
+  const handlePayBill = async () => {
     try {
-      await Share.share({
-        message: `Bill Details - ${billData.billerName}\nAccount: ${billData.accountNumber}\nAmount: ₹${billData.amount}\nDue Date: ${billData.dueDate}`,
-        title: 'Bill Details'
+      setIsSubmitting(true);
+
+      // Validate amount
+      if (!amount || isNaN(amount) || Number(amount) <= 0) {
+        Alert.alert('Invalid Amount', 'Please enter a valid amount');
+        return;
+      }
+
+      // Simulate API call delay (remove this in production)
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Prepare all required params
+      router.push({
+        pathname: '/main/common/PaymentScreen',
+        params: {
+          plan: JSON.stringify({ price: "₹" + amount.toString() }),
+          serviceId,
+          operator_id,
+          circleCode: null,
+          companyLogo: logo,
+          name,
+          mobile,
+          operator,
+          circle: null,
+          bill_details: JSON.stringify(billDetailsData),
+        }
       });
+
     } catch (error) {
-      console.log('Error sharing bill:', error);
+      console.error('Payment navigation error:', error);
+      Alert.alert('Error', 'Something went wrong. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleDownloadBill = () => {
-    setIsDownloading(true);
-    // Simulate download
-    setTimeout(() => {
-      setIsDownloading(false);
-      // Show success message or handle download
-    }, 2000);
-  };
+  // Render FASTag specific layout
+  const renderFasTagLayout = () => {
+    // Use data from route params and bill_details
+    const fastagData = {
+      customerName: billDetailsData?.customername || name || 'Customer Name',
+      fastagBalance: billDetailsData?.fastagBalance || billDetailsData?.billAmount || '-59.5',
+      vehicleModel: billDetailsData?.vehicleModel || '8 seater Maruti Omni',
+      tagId: billDetailsData?.tagId || mobile || 'MH11Y4381'
+    };
 
-  const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'paid': return '#4CAF50';
-      case 'overdue': return '#FF5722';
-      case 'pending': return '#FF9800';
-      default: return '#FF5722';
-    }
-  };
+    return (
+      <>
+        <MainHeader 
+          title={operator}
+          showBack={true}
+          onBackPress={() => router.back()}
+        />
+        
+        <KeyboardAvoidingView 
+          style={styles.keyboardContainer}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <ScrollView 
+            style={styles.container} 
+            contentContainerStyle={{ paddingBottom: 80 }}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
 
-  const getStatusIcon = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'paid': return 'check-circle';
-      case 'overdue': return 'exclamation-triangle';
-      case 'pending': return 'clock-o';
-      default: return 'exclamation-circle';
-    }
-  };
+        {/* FASTag Card */}
+        <View style={styles.fastagCard}>
+          <View style={styles.fastagLogoContainer}>
+            {logo ? (
+              <Image 
+                source={{ uri: logo }} 
+                style={styles.fastagLogo}
+                resizeMode="contain"
+              />
+            ) : (
+              <View style={[styles.fastagLogo, styles.fastagLogoPlaceholder]}>
+                <Ionicons name="car" size={30} color="#fff" />
+              </View>
+            )}
+            <View style={styles.fastagInfo}>
+              <Text style={styles.fastagTitle}>{operator}</Text>
+              <Text style={styles.fastagId}>{fastagData.tagId}</Text>
+            </View>
+          </View>
 
-  return (
-    <ThemedView style={styles.container}>
-      <ThemedView style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <FontAwesome name="arrow-left" size={24} color="#000000" />
-        </TouchableOpacity>
-        <ThemedText type="title" style={styles.headerTitle}>Bill Details</ThemedText>
-        <TouchableOpacity onPress={handleShareBill}>
-          <FontAwesome name="share-alt" size={20} color="#000000" />
-        </TouchableOpacity>
-      </ThemedView>
-
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Bill Header */}
-        <ThemedView style={styles.billHeader}>
-          <ThemedView style={styles.billerInfo}>
-            <ThemedText style={styles.billerName}>{billData.billerName}</ThemedText>
-            <ThemedText style={styles.billNumber}>Bill #{billData.billNumber}</ThemedText>
-          </ThemedView>
-          <ThemedView style={[styles.statusBadge, { backgroundColor: getStatusColor(billData.status) }]}>
-            <FontAwesome name={getStatusIcon(billData.status)} size={14} color="white" />
-            <ThemedText style={styles.statusText}>{billData.status.toUpperCase()}</ThemedText>
-          </ThemedView>
-        </ThemedView>
+          {/* Details Section */}
+          <View style={styles.detailsSection}>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Customer Name</Text>
+              <Text style={styles.detailValue}>{fastagData.customerName}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>FASTag Balance</Text>
+              <Text style={[styles.detailValue, styles.balanceText]}>{fastagData.fastagBalance}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Vehicle Model</Text>
+              <Text style={styles.detailValue}>{fastagData.vehicleModel}</Text>
+            </View>
+          </View>
+        </View>
 
         {/* Amount Section */}
-        <ThemedView style={styles.amountSection}>
-          <ThemedText style={styles.amountLabel}>Total Amount</ThemedText>
-          <ThemedText style={styles.amountValue}>₹{billData.amount}</ThemedText>
-          {billData.lateFee > 0 && (
-            <ThemedText style={styles.lateFeeText}>Includes late fee: ₹{billData.lateFee}</ThemedText>
+        <View style={styles.amountSection}>
+          <Text style={styles.amountTitle}>Amount</Text>
+          
+          {/* Amount Input */}
+          <View style={styles.amountInputContainer}>
+            <Text style={styles.rupeePrefix}>₹</Text>
+            <TextInput
+              value={amount}
+              onChangeText={isExactAmount ? undefined : (text) => {
+                // Only allow numbers and decimal point
+                const numericText = text.replace(/[^0-9.]/g, '');
+                // Ensure only one decimal point
+                const parts = numericText.split('.');
+                const filteredText = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : numericText;
+                setAmount(filteredText);
+              }}
+              style={[styles.amountInput, isExactAmount && styles.amountInputDisabled]}
+              keyboardType="numeric"
+              placeholder="0"
+              placeholderTextColor="#999"
+              editable={!isExactAmount}
+            />
+          </View>
+
+          {/* Quick Amount Selection */}
+          <View style={styles.quickAmountContainer}>
+            {quickAmounts.map((quickAmount) => (
+              <TouchableOpacity
+                key={quickAmount}
+                style={[
+                  styles.quickAmountButton,
+                  amount === quickAmount && styles.quickAmountButtonActive,
+                  isExactAmount && styles.quickAmountButtonDisabled
+                ]}
+                onPress={isExactAmount ? undefined : () => setAmount(quickAmount)}
+                disabled={isExactAmount}
+              >
+                <Text 
+                  style={[
+                    styles.quickAmountText,
+                    amount === quickAmount && styles.quickAmountTextActive,
+                    isExactAmount && styles.quickAmountTextDisabled
+                  ]}
+                >
+                  ₹{quickAmount}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          
+          {isExactAmount && (
+            <Text style={styles.exactAmountNoteFasTag}>
+              * Exact amount required for this bill
+            </Text>
           )}
-          <ThemedText style={styles.dueDateText}>Due Date: {billData.dueDate}</ThemedText>
-        </ThemedView>
+        </View>
 
-        {/* Customer Details */}
-        <ThemedView style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>Customer Details</ThemedText>
-          <ThemedView style={styles.detailsContainer}>
-            <ThemedView style={styles.detailRow}>
-              <ThemedText style={styles.detailLabel}>Name:</ThemedText>
-              <ThemedText style={styles.detailValue}>{billData.customerName}</ThemedText>
-            </ThemedView>
-            <ThemedView style={styles.detailRow}>
-              <ThemedText style={styles.detailLabel}>Account Number:</ThemedText>
-              <ThemedText style={styles.detailValue}>{billData.accountNumber}</ThemedText>
-            </ThemedView>
-            {billData.address && (
-              <ThemedView style={styles.detailRow}>
-                <ThemedText style={styles.detailLabel}>Address:</ThemedText>
-                <ThemedText style={[styles.detailValue, { flex: 2 }]}>{billData.address}</ThemedText>
-              </ThemedView>
-            )}
-          </ThemedView>
-        </ThemedView>
+        {/* Terms Text */}
+        <Text style={styles.termsText}>
+          By proceeding further, you allow vasbazaar to fetch your current and future bills and remind you
+        </Text>
+        
+        </ScrollView>
+        </KeyboardAvoidingView>
 
-        {/* Bill Details */}
-        <ThemedView style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>Bill Details</ThemedText>
-          <ThemedView style={styles.detailsContainer}>
-            <ThemedView style={styles.detailRow}>
-              <ThemedText style={styles.detailLabel}>Bill Date:</ThemedText>
-              <ThemedText style={styles.detailValue}>{billData.billDate}</ThemedText>
-            </ThemedView>
-            <ThemedView style={styles.detailRow}>
-              <ThemedText style={styles.detailLabel}>Due Date:</ThemedText>
-              <ThemedText style={styles.detailValue}>{billData.dueDate}</ThemedText>
-            </ThemedView>
-            {billData.units && (
-              <>
-                <ThemedView style={styles.detailRow}>
-                  <ThemedText style={styles.detailLabel}>Previous Reading:</ThemedText>
-                  <ThemedText style={styles.detailValue}>{billData.previousReading}</ThemedText>
-                </ThemedView>
-                <ThemedView style={styles.detailRow}>
-                  <ThemedText style={styles.detailLabel}>Current Reading:</ThemedText>
-                  <ThemedText style={styles.detailValue}>{billData.currentReading}</ThemedText>
-                </ThemedView>
-                <ThemedView style={styles.detailRow}>
-                  <ThemedText style={styles.detailLabel}>Units Consumed:</ThemedText>
-                  <ThemedText style={styles.detailValue}>{billData.units}</ThemedText>
-                </ThemedView>
-                {billData.tariff && (
-                  <ThemedView style={styles.detailRow}>
-                    <ThemedText style={styles.detailLabel}>Rate per Unit:</ThemedText>
-                    <ThemedText style={styles.detailValue}>{billData.tariff}</ThemedText>
-                  </ThemedView>
-                )}
-              </>
-            )}
-          </ThemedView>
-        </ThemedView>
-
-        {/* Amount Breakdown */}
-        <ThemedView style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>Amount Breakdown</ThemedText>
-          <ThemedView style={styles.detailsContainer}>
-            <ThemedView style={styles.detailRow}>
-              <ThemedText style={styles.detailLabel}>Base Amount:</ThemedText>
-              <ThemedText style={styles.detailValue}>₹{(billData.amount - billData.lateFee).toFixed(2)}</ThemedText>
-            </ThemedView>
-            {billData.lateFee > 0 && (
-              <ThemedView style={styles.detailRow}>
-                <ThemedText style={styles.detailLabel}>Late Fee:</ThemedText>
-                <ThemedText style={[styles.detailValue, { color: '#FF5722' }]}>₹{billData.lateFee}</ThemedText>
-              </ThemedView>
-            )}
-            <ThemedView style={[styles.detailRow, styles.totalRow]}>
-              <ThemedText style={styles.totalLabel}>Total Amount:</ThemedText>
-              <ThemedText style={styles.totalValue}>₹{billData.amount}</ThemedText>
-            </ThemedView>
-          </ThemedView>
-        </ThemedView>
-
-        {/* Action Buttons */}
-        <ThemedView style={styles.actionButtons}>
-          <TouchableOpacity 
-            style={styles.downloadButton} 
-            onPress={handleDownloadBill}
-            disabled={isDownloading}
+        {/* Fixed Button at Bottom */}
+        <View style={styles.bottomConfirmSection}>
+          <TouchableOpacity
+            style={[styles.confirmButton, isSubmitting && styles.confirmButtonDisabled]}
+            onPress={handlePayBill}
+            disabled={isSubmitting}
           >
-            {isDownloading ? (
-              <FontAwesome name="spinner" size={16} color="#000000" />
+            {isSubmitting ? (
+              <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <FontAwesome name="download" size={16} color="#000000" />
+              <Text style={styles.confirmButtonText}>Proceed to Pay</Text>
             )}
-            <ThemedText style={styles.downloadButtonText}>
-              {isDownloading ? 'Downloading...' : 'Download PDF'}
-            </ThemedText>
           </TouchableOpacity>
+        </View>
+      </>
+    );
+  };
 
-          <TouchableOpacity style={styles.shareButton} onPress={handleShareBill}>
-            <FontAwesome name="share" size={16} color="#000000" />
-            <ThemedText style={styles.shareButtonText}>Share Bill</ThemedText>
+  // Render default layout for other services
+  const renderDefaultLayout = () => {
+    return (
+      <>
+        <MainHeader 
+          title={operator}
+          showBack={true}
+          onBackPress={() => router.back()}
+        />
+      
+        <KeyboardAvoidingView 
+          style={styles.keyboardContainer}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <ScrollView 
+            style={styles.container} 
+            contentContainerStyle={{ paddingBottom: 80 }}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+          {/* Biller Header Card */}
+          <Card style={styles.billerHeaderCard}>
+            <Card.Content style={styles.billerHeaderContent}>
+              <View style={styles.billerInfoRow}>
+                <Avatar.Image
+                  source={logo ? { uri: logo } : require('../../../assets/icons/default.png')}
+                  style={styles.billerLogo}
+                  size={48}
+                />
+                <View style={styles.billerInfo}>
+                  <Text style={styles.billerName}>{operator}</Text>
+                  <Text style={styles.billerCategory}>Bharat Billpay</Text>
+                </View>
+              </View>
+            </Card.Content>
+          </Card>
+
+          {/* Amount to Pay Section */}
+          <View style={styles.amountToPaySection}>
+            <Text style={styles.amountToPayLabel}>Amount to pay</Text>
+            <Text style={styles.amountToPayValue}>₹{parseFloat(amount || '0').toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+          </View>
+
+          {/* Bill Details Card */}
+          <Card style={styles.billDetailsCard}>
+            <Card.Content style={styles.billDetailsContent}>
+              <View style={styles.billDetailsGrid}>
+                {Object.entries(billDetailsData)
+                  .filter(([key, value]) => 
+                    value != null && 
+                    value.toString().trim() !== '' &&
+                    !hiddenKeys.includes(key)
+                  )
+                  .map(([key, value], index) => {
+                    const formattedKey = labelMap[key] || key
+                      .replace(/_/g, ' ')
+                      .replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substring(1).toLowerCase());
+                    
+                    const allEntries = Object.entries(billDetailsData)
+                      .filter(([k, v]) => 
+                        v != null && 
+                        v.toString().trim() !== '' &&
+                        !hiddenKeys.includes(k)
+                      );
+                    
+                    const isEven = index % 2 === 0;
+                    const isLastRow = index >= allEntries.length - 2;
+
+                    return (
+                      <View key={key} style={[
+                        styles.billDetailItem,
+                        isEven ? styles.billDetailItemLeft : styles.billDetailItemRight,
+                        isLastRow && styles.billDetailItemLastRow
+                      ]}>
+                        <Text style={styles.billDetailLabel}>{formattedKey}</Text>
+                        <Text style={styles.billDetailValue}>{formatValue(key, value)}</Text>
+                      </View>
+                    );
+                  })}
+              </View>
+            </Card.Content>
+          </Card>
+
+          {/* Amount Input Card - Only show if amount is not exact */}
+          {!isExactAmount && (
+            <Card style={styles.amountInputCard}>
+              <Card.Content>
+                <Text variant="labelLarge" style={styles.amountFieldLabel}>Amount</Text>
+                <TextInput
+                  style={styles.amountTextInput}
+                  mode="outlined"
+                  placeholder="Enter Amount"
+                  keyboardType="numeric"
+                  value={amount}
+                  onChangeText={(text) => {
+                    // Only allow numbers and decimal point
+                    const numericText = text.replace(/[^0-9.]/g, '');
+                    // Ensure only one decimal point
+                    const parts = numericText.split('.');
+                    const filteredText = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : numericText;
+                    setAmount(filteredText);
+                  }}
+                  outlineColor="#E5E7EB"
+                  activeOutlineColor="#000000"
+                  outlineStyle={{ borderWidth: 2, borderRadius: 12 }}
+                  disabled={isSubmitting}
+                />
+              </Card.Content>
+            </Card>
+          )}
+
+          </ScrollView>
+        </KeyboardAvoidingView>
+
+        {/* Fixed Button at Bottom */}
+        <View style={styles.bottomConfirmSection}>
+          <TouchableOpacity
+            style={[styles.confirmButton, isSubmitting && styles.confirmButtonDisabled]}
+            onPress={handlePayBill}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator 
+                  size="small" 
+                  color="#fff" 
+                  style={styles.loadingSpinner}
+                />
+                <Text style={styles.loadingText}>Processing...</Text>
+              </View>
+            ) : (
+              <Text style={styles.confirmButtonText}>Pay Bill</Text>
+            )}
           </TouchableOpacity>
-        </ThemedView>
+        </View>
+      </>
+    );
+  };
 
-        {/* Payment History (if bill is paid) */}
-        {billData.status === 'paid' && (
-          <ThemedView style={styles.section}>
-            <ThemedText style={styles.sectionTitle}>Payment History</ThemedText>
-            <ThemedView style={styles.paymentHistoryItem}>
-              <FontAwesome name="check-circle" size={16} color="#4CAF50" />
-              <ThemedView style={styles.paymentHistoryDetails}>
-                <ThemedText style={styles.paymentHistoryText}>Payment Successful</ThemedText>
-                <ThemedText style={styles.paymentHistoryDate}>Paid on: 2024-01-20</ThemedText>
-                <ThemedText style={styles.paymentHistoryAmount}>₹{billData.amount}</ThemedText>
-              </ThemedView>
-            </ThemedView>
-          </ThemedView>
-        )}
+  // Debug logging
+  console.log('BillViewScreen route params processed:', params);
+  console.log('ServiceId type and value processed:', typeof serviceId, serviceId);
 
-        {/* Important Notes */}
-        <ThemedView style={styles.notesSection}>
-          <ThemedText style={styles.notesTitle}>Important Notes</ThemedText>
-          <ThemedView style={styles.noteItem}>
-            <FontAwesome name="info-circle" size={14} color="#000000" />
-            <ThemedText style={styles.noteText}>
-              Payment may take up to 24 hours to reflect in your account
-            </ThemedText>
-          </ThemedView>
-          <ThemedView style={styles.noteItem}>
-            <FontAwesome name="info-circle" size={14} color="#000000" />
-            <ThemedText style={styles.noteText}>
-              Keep this bill for your records and future reference
-            </ThemedText>
-          </ThemedView>
-          <ThemedView style={styles.noteItem}>
-            <FontAwesome name="info-circle" size={14} color="#000000" />
-            <ThemedText style={styles.noteText}>
-              Contact customer care for any billing disputes
-            </ThemedText>
-          </ThemedView>
-        </ThemedView>
-      </ScrollView>
+  // Main render - choose layout based on serviceId
+  const isFasTagService = serviceId === '5' || serviceId === 5 || parseInt(serviceId) === 5;
+  
+  if (isFasTagService) {
+    return renderFasTagLayout();
+  }
 
-      {/* Pay Now Button */}
-      {billData.status !== 'paid' && (
-        <ThemedView style={styles.footer}>
-          <TouchableOpacity style={styles.payButton} onPress={handlePayBill}>
-            <ThemedText style={styles.payButtonText}>Pay Now ₹{billData.amount}</ThemedText>
-          </TouchableOpacity>
-        </ThemedView>
-      )}
-    </ThemedView>
-  );
+  return renderDefaultLayout();
 }
 
 const styles = StyleSheet.create({
-  container: {
+  keyboardContainer: {
     flex: 1,
-    paddingTop: 50,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
-  headerTitle: {
+  container: { 
+    backgroundColor: '#f8f9fa',
+    padding: 16,
     flex: 1,
-    textAlign: 'center',
-    marginHorizontal: 20,
   },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  billHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
-    backgroundColor: '#f8f8f8',
+  
+  // FASTag specific styles
+  fastagCard: {
+    backgroundColor: '#fff',
     borderRadius: 12,
+    padding: 20,
+    marginBottom: 24,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  fastagLogoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  fastagLogo: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#f0f0f0',
+  },
+  fastagLogoPlaceholder: {
+    backgroundColor: '#000000ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fastagInfo: {
+    marginLeft: 16,
+    flex: 1,
+  },
+  fastagTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 4,
+  },
+  fastagId: {
+    fontSize: 16,
+    color: '#666',
+  },
+  detailsSection: {
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    paddingTop: 16,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  detailLabel: {
+    fontSize: 14,
+    color: '#666',
+    flex: 1,
+  },
+  detailValue: {
+    fontSize: 14,
+    color: '#000',
+    fontWeight: '500',
+    flex: 1.5,
+    textAlign: 'right',
+  },
+  balanceText: {
+    color: '#e74c3c',
+  },
+  amountSection: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 24,
+  },
+  amountTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 16,
+  },
+  amountInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#000',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    height: 56,
     marginBottom: 20,
+  },
+  rupeePrefix: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#000',
+    marginRight: 8,
+  },
+  amountInput: {
+    flex: 1,
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#000',
+    padding: 0,
+    backgroundColor: 'transparent',
+  },
+  amountInputDisabled: {
+    color: '#999',
+    backgroundColor: '#f5f5f5',
+  },
+  quickAmountContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  quickAmountButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 24,
+    backgroundColor: '#f0f0f0',
+    alignItems: 'center',
+  },
+  quickAmountButtonActive: {
+    backgroundColor: '#e8f4fd',
+    borderWidth: 1,
+    borderColor: '#1a73e8',
+  },
+  quickAmountText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#666',
+  },
+  quickAmountTextActive: {
+    color: '#1a73e8',
+  },
+  quickAmountButtonDisabled: {
+    backgroundColor: '#f0f0f0',
+    opacity: 0.5,
+  },
+  quickAmountTextDisabled: {
+    color: '#999',
+  },
+  termsText: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 24,
+    paddingHorizontal: 20,
+    lineHeight: 18,
+  },
+  // Default layout styles
+  billerHeaderCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    marginBottom: 16,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  billerHeaderContent: {
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+  },
+  billerInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  billerLogo: {
+    width: 48,
+    height: 48,
+    backgroundColor: '#f6f6f6',
+    marginRight: 16,
   },
   billerInfo: {
     flex: 1,
   },
   billerName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  billNumber: {
-    fontSize: 14,
-    opacity: 0.7,
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    gap: 6,
-  },
-  statusText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  amountSection: {
-    alignItems: 'center',
-    padding: 25,
-    backgroundColor: '#e8f4f8',
-    borderRadius: 12,
-    marginBottom: 20,
-  },
-  amountLabel: {
-    fontSize: 14,
-    opacity: 0.7,
-    marginBottom: 8,
-  },
-  amountValue: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#000000',
-    marginBottom: 8,
-  },
-  lateFeeText: {
-    fontSize: 12,
-    color: '#FF5722',
-    marginBottom: 4,
-  },
-  dueDateText: {
-    fontSize: 14,
-    opacity: 0.8,
-    fontWeight: '500',
-  },
-  section: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    marginBottom: 12,
+    color: '#000',
+    marginBottom: 4,
+  },
+  billerCategory: {
+    fontSize: 14,
+    color: '#666',
+  },
+  amountToPaySection: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 24,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  amountToPayLabel: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  amountToPayValue: {
+    fontSize: 36,
+    fontWeight: '700',
+    color: '#2c3e50',
+    textAlign: 'center',
+  },
+  billDetailsCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    marginBottom: 16,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  billDetailsContent: {
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+  },
+  billDetailsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  billDetailItem: {
+    width: '48%',
+    marginBottom: 24,
+  },
+  billDetailItemLeft: {
+    marginRight: '2%',
+  },
+  billDetailItemRight: {
+    marginLeft: '2%',
+  },
+  billDetailItemLastRow: {
+    marginBottom: 8,
+  },
+  billDetailLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  billDetailValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
+  },
+  amountInputCard: {
+    marginBottom: 16,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    elevation: 0,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  amountFieldLabel: {
+    marginBottom: 8,
+    color: '#000',
+    fontWeight: '600',
+  },
+  amountTextInput: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+    fontSize: 16,
+    height: 56,
+  },
+  viCard: { 
+    backgroundColor: '#ffffff', 
+    borderRadius: 12,
+    marginBottom: 16,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  logo: { 
+    width: 48, 
+    height: 48, 
+    backgroundColor: '#f6f6f6' 
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
+  },
+  cardSubtitle: {
+    fontSize: 14,
+    color: '#666',
+  },
+  billDetailsContainer: {
+    paddingTop: 0,
+    paddingBottom: 0,
+  },
+  accordion: {
+    backgroundColor: 'transparent',
+    paddingHorizontal: 0,
+  },
+  accordionTitle: {
+    fontWeight: 'bold',
+    fontSize: 16,
+    color: '#000',
   },
   detailsContainer: {
-    backgroundColor: '#f8f8f8',
-    borderRadius: 12,
-    padding: 15,
+    paddingTop: 0,
   },
-  detailRow: {
+  infoRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    paddingVertical: 12,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#E8E8E8',
+    minHeight: 44,
   },
-  detailLabel: {
+  firstInfoRow: {
+    paddingTop: 12,
+  },
+  lastInfoRow: {
+    borderBottomWidth: 0,
+    paddingBottom: 12,
+  },
+  infoKey: {
+    flex: 1.2,
     fontSize: 14,
-    opacity: 0.7,
-    flex: 1,
+    fontWeight: '600',
+    color: '#2C2C2C',
+    lineHeight: 20,
+    paddingRight: 16,
   },
-  detailValue: {
+  infoValue: {
+    flex: 1,
     fontSize: 14,
     fontWeight: '500',
-    flex: 1,
+    color: '#000000',
     textAlign: 'right',
+    lineHeight: 20,
   },
-  totalRow: {
-    borderBottomWidth: 0,
-    paddingTop: 12,
-    borderTopWidth: 2,
-    borderTopColor: '#000000',
+  amountContainer: {
+    paddingTop: 8,
+    paddingBottom: 16,
   },
-  totalLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    flex: 1,
-  },
-  totalValue: {
+  amountLabel: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#000000',
-    flex: 1,
-    textAlign: 'right',
+    color: '#000',
+    marginBottom: 16,
+    textAlign: 'center',
   },
-  actionButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 20,
-  },
-  downloadButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 12,
-    backgroundColor: '#e8f4f8',
-    borderRadius: 8,
-    gap: 8,
-  },
-  downloadButtonText: {
-    color: '#000000',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  shareButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 12,
-    backgroundColor: '#e8f4f8',
-    borderRadius: 8,
-    gap: 8,
-  },
-  shareButtonText: {
-    color: '#000000',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  paymentHistoryItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 15,
-    backgroundColor: '#f0f9f0',
-    borderRadius: 8,
-    gap: 12,
-  },
-  paymentHistoryDetails: {
-    flex: 1,
-  },
-  paymentHistoryText: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  paymentHistoryDate: {
-    fontSize: 12,
-    opacity: 0.7,
-  },
-  paymentHistoryAmount: {
+  amountInputDefault: {
+    backgroundColor: '#ffffff',
     fontSize: 16,
+  },
+  amountInputDefaultDisabled: {
+    backgroundColor: '#f5f5f5',
+  },
+  rupeeSymbol: {
+    fontSize: 18,
     fontWeight: 'bold',
-    color: '#4CAF50',
+    color: '#000',
   },
-  notesSection: {
-    backgroundColor: '#fff9e6',
-    padding: 15,
-    borderRadius: 12,
-    marginBottom: 30,
-  },
-  notesTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 12,
-  },
-  noteItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-    gap: 8,
-  },
-  noteText: {
+  exactAmountNote: {
     fontSize: 12,
-    opacity: 0.8,
-    flex: 1,
-    lineHeight: 16,
+    color: '#ff6b6b',
+    marginTop: 8,
+    fontStyle: 'italic',
+    textAlign: 'center',
   },
-  footer: {
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
+  exactAmountNoteFasTag: {
+    fontSize: 12,
+    color: '#ff6b6b',
+    marginTop: 16,
+    fontStyle: 'italic',
+    textAlign: 'center',
   },
-  payButton: {
+  bottomConfirmSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    paddingBottom: 20,
+    backgroundColor: '#f8f9fa',
+  },
+  confirmButton: {
     backgroundColor: '#000000',
-    padding: 16,
-    borderRadius: 8,
+    height: 56,
+    borderRadius: 12,
+    justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  payButtonText: {
+  confirmButtonDisabled: {
+    backgroundColor: '#E5E7EB',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  confirmButtonText: {
     color: '#ffffff',
     fontSize: 18,
+    fontWeight: 'bold',
+  },
+  buttonContent: {
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  buttonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingSpinner: {
+    marginRight: 8,
+  },
+  loadingText: {
+    color: '#ffffff',
+    fontSize: 14,
     fontWeight: '600',
   },
 });

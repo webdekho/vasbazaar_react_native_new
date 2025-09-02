@@ -152,7 +152,7 @@ export default function AllServicesScreen() {
   const loadUsageData = async () => {
     const usage = await loadServiceUsage();
     setServiceUsage(usage);
-    console.log('🔄 AllServices - Loaded service usage:', Object.keys(usage).length, 'services');
+    // console.log('🔄 AllServices - Loaded service usage:', Object.keys(usage).length, 'services');
   };
 
   const getServices = async () => {
@@ -225,7 +225,7 @@ export default function AllServicesScreen() {
     if (services.length > 0 && Object.keys(serviceUsage).length > 0) {
       const resorted = sortServicesByUsage(services, serviceUsage);
       setServices(resorted);
-      console.log('🔄 AllServices - Re-sorted services based on updated usage');
+      // console.log('🔄 AllServices - Re-sorted services based on updated usage');
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serviceUsage]);

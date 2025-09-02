@@ -111,7 +111,7 @@ export default function Sidebar({ visible, onClose, userInfo }) {
   const fetchBalance = async () => {
     try {
       setBalanceLoading(true);
-      console.log('Fetching user balance from sidebar...');
+      // console.log('Fetching user balance from sidebar...');
       
       const sessionToken = await AsyncStorage.getItem('sessionToken');
       if (!sessionToken) {
@@ -127,7 +127,7 @@ export default function Sidebar({ visible, onClose, userInfo }) {
         setCashback(cb);
         setIncentive(inc);
         setReferralBonus(rb);
-        console.log('Balance loaded successfully');
+        // console.log('Balance loaded successfully');
       } else {
         console.log('Failed to fetch balance:', response?.message);
       }

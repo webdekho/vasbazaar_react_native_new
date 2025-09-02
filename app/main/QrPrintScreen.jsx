@@ -982,7 +982,16 @@ export default function QrPrintScreen() {
         showNotification={false}
       />
       
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={{
+          paddingBottom: Platform.select({
+            web: 100,
+            default: 80,
+          })
+        }}
+        showsVerticalScrollIndicator={false}
+      >
         {/* QR Code Section */}
         <View 
           style={styles.qrContainer} 
@@ -1044,32 +1053,6 @@ export default function QrPrintScreen() {
           </View>
         </View>
 
-        {/* Action Buttons - Outside of QR Code card */}
-        <View style={styles.actionButtonsContainer}>
-          <TouchableOpacity 
-            style={styles.actionButton} 
-            onPress={downloadQRCode}
-            disabled={downloading}
-          >
-            {downloading ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <FontAwesome name="download" size={16} color="#fff" />
-            )}
-            <Text style={styles.actionButtonText}>
-              {downloading ? 'Downloading...' : 'Download'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={[styles.actionButton, styles.shareButton]} 
-            onPress={shareQRCode}
-          >
-            <FontAwesome name="share" size={16} color="#fff" />
-            <Text style={styles.actionButtonText}>Share</Text>
-          </TouchableOpacity>
-        </View>
-
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>
@@ -1083,6 +1066,32 @@ export default function QrPrintScreen() {
           </Text>
         </View>
       </ScrollView>
+
+      {/* Fixed Action Buttons at Bottom */}
+      <View style={styles.actionButtonsContainer}>
+        <TouchableOpacity 
+          style={styles.actionButton} 
+          onPress={downloadQRCode}
+          disabled={downloading}
+        >
+          {downloading ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <FontAwesome name="download" size={16} color="#fff" />
+          )}
+          <Text style={styles.actionButtonText}>
+            {downloading ? 'Downloading...' : 'Download'}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.actionButton, styles.shareButton]} 
+          onPress={shareQRCode}
+        >
+          <FontAwesome name="share" size={16} color="#fff" />
+          <Text style={styles.actionButtonText}>Share</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -1188,7 +1197,21 @@ const styles = StyleSheet.create({
     gap: 12,
     flexWrap: 'wrap',
     paddingHorizontal: 16,
-    marginBottom: 16,
+    paddingVertical: 16,
+    paddingBottom: Platform.select({
+      web: 30,
+      default: 16,
+    }),
+    backgroundColor: '#ffffff',
+    ...Platform.select({
+      web: {
+        position: 'sticky',
+        bottom: 0,
+        zIndex: 1000,
+        borderTopWidth: 1,
+        borderTopColor: '#e5e5e5',
+      },
+    }),
   },
   actionButton: {
     flexDirection: 'row',

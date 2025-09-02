@@ -45,7 +45,6 @@ export const checkPinValidationNeeded = async () => {
     // Need PIN validation if we have permanent token but no session token
     return !!permanentToken && !sessionToken;
   } catch (error) {
-    console.error('Error checking PIN validation:', error);
     return false;
   }
 };
@@ -58,7 +57,6 @@ export const checkShouldRedirectToLogin = async () => {
     const permanentToken = await AsyncStorage.getItem('permanentToken');
     return !permanentToken;
   } catch (error) {
-    console.error('Error checking login redirect:', error);
     return true;
   }
 };

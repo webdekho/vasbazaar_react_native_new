@@ -3,12 +3,9 @@
 ## Pre-Deployment Checklist
 
 ### 1. Environment Configuration
-- [ ] Verify PayU production credentials are correct
-  - Merchant Key: `t88vPU`
-  - Base URL: `https://secure.payu.in/_payment`
-  - Callback domain: `https://vasbazaar.webdekho.in`
 - [ ] Verify API base URL is correct: `https://apis.vasbazaar.com`
 - [ ] Ensure all console.log statements are removed (handled by build)
+- [ ] Verify payment gateway configurations are correct (UPI, Wallet)
 
 ### 2. Build Verification
 - [ ] Run production build: `NODE_ENV=production npx expo export --platform web --output-dir dist-production --clear`
@@ -86,9 +83,10 @@ add_header X-XSS-Protection "1; mode=block";
 - [ ] API calls work (check network tab)
 
 #### Payment Tests:
-- [ ] Test PayU integration with small amount
-- [ ] Verify callback URLs work correctly
-- [ ] Check transaction status updates
+- [ ] Test UPI payment flow with small amount
+- [ ] Test Wallet payment functionality
+- [ ] Verify transaction status updates
+- [ ] Check payment callback handling
 
 #### Performance Tests:
 - [ ] Run Google PageSpeed Insights
@@ -127,6 +125,6 @@ mv /var/www/vasbazaar.webdekho.in.backup /var/www/vasbazaar.webdekho.in
 
 1. **404 errors on routes**: Check .htaccess mod_rewrite configuration
 2. **Assets not loading**: Verify file permissions and paths
-3. **PayU callback fails**: Ensure domain matches configured callback URLs
+3. **Payment callback fails**: Ensure payment status handling is working correctly
 4. **Slow loading**: Enable gzip compression and browser caching
 5. **CORS errors**: Check API server CORS configuration

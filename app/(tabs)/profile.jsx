@@ -7,9 +7,9 @@ import {
   Alert, 
   Platform,
   ScrollView,
+  Dimensions,
   Keyboard,
-  StatusBar,
-  Dimensions 
+  StatusBar 
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,7 +21,8 @@ import { ThemedView } from '@/components/ThemedView';
 import Header, { HeaderPresets } from '@/components/Header';
 import SimpleImageCropper from '@/components/SimpleImageCropper';
 import ProfilePhotoViewer from '@/components/ProfilePhotoViewer';
-import AndroidLayoutLock from '@/components/AndroidLayoutLock';
+import { useStableImagePicker } from '@/components/StableImagePicker';
+import { useStableLayout } from '@/components/StableLayoutProvider';
 import { updateProfilePhoto } from '@/services/user/userService';
 import { extendSession } from '@/services/auth/sessionManager';
 
@@ -30,6 +31,7 @@ import { extendSession } from '@/services/auth/sessionManager';
 export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { lockLayout, unlockLayout } = useStableLayout();
   const [profilePhoto, setProfilePhoto] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [userData, setUserData] = useState(null);
@@ -40,6 +42,9 @@ export default function ProfileScreen() {
   const [errorMessage, setErrorMessage] = useState(null);
   const [screenData, setScreenData] = useState(Dimensions.get('window'));
   const [isImagePickerActive, setIsImagePickerActive] = useState(false);
+  
+  // Use stable image picker hook
+  const { showImagePickerOptions } = useStableImagePicker();
 
   // Monitor screen dimension changes on Android
   useEffect(() => {
@@ -164,6 +169,9 @@ export default function ProfileScreen() {
       setSuccessMessage(null);
       setErrorMessage(null);
 
+      // Lock layout to prevent header movement during image picker
+      lockLayout();
+      
       // On Android, dismiss keyboard and stabilize UI completely
       if (Platform.OS === 'android') {
         Keyboard.dismiss();
@@ -262,6 +270,7 @@ export default function ProfileScreen() {
         console.error('Failed to import expo-image-picker:', importError);
         showError('Image picker is not available. Please ensure expo-image-picker is installed.');
         setUploading(false); // Reset uploading state
+        unlockLayout(); // Unlock layout on error
         return;
       }
 
@@ -270,6 +279,7 @@ export default function ProfileScreen() {
       if (!permissionResult.granted) {
         showError('Please allow access to photos to upload your profile picture.');
         setUploading(false); // Reset uploading state
+        unlockLayout(); // Unlock layout on permission denial
         return;
       }
 
@@ -326,23 +336,30 @@ export default function ProfileScreen() {
           // Force UI restoration
           await new Promise(resolve => setTimeout(resolve, 100));
           StatusBar.setHidden(false, 'none');
+          
+          // Unlock layout to restore normal behavior
+          unlockLayout();
         }
       } else {
         // iOS/other platforms: Use normal image picker
         console.log('Launching image picker with options:', imagePickerOptions);
         result = await ImagePicker.launchImageLibraryAsync(imagePickerOptions);
+        // Unlock layout after image picker closes on non-Android platforms
+        unlockLayout();
       }
       console.log('Image picker result:', result);
 
       if (result.canceled) {
         console.log('Image picker was canceled');
         setUploading(false); // Reset uploading state
+        // Note: unlockLayout already called in platform-specific blocks above
         return;
       }
 
       if (!result.assets || result.assets.length === 0) {
         showError('No image selected');
         setUploading(false); // Reset uploading state
+        // Note: unlockLayout already called in platform-specific blocks above
         return;
       }
 
@@ -350,6 +367,7 @@ export default function ProfileScreen() {
       if (!image?.uri) {
         showError('Invalid image selected');
         setUploading(false); // Reset uploading state
+        // Note: unlockLayout already called in platform-specific blocks above
         return;
       }
 
@@ -398,6 +416,7 @@ export default function ProfileScreen() {
       
       if (!sessionToken) {
         showError('Please login again to update your profile photo');
+        unlockLayout(); // Unlock layout on session error
         return;
       }
 
@@ -423,10 +442,12 @@ export default function ProfileScreen() {
         }
         
         showSuccess(uploadResponse.message || 'Profile photo updated successfully!');
+        unlockLayout(); // Unlock layout on success
       } else {
         // Revert on failure
         await loadProfilePhoto();
         showError(uploadResponse.message || 'Failed to update profile photo');
+        unlockLayout(); // Unlock layout on failure
       }
 
     } catch (error) {
@@ -434,6 +455,7 @@ export default function ProfileScreen() {
       showError('Failed to update profile photo. Please try again.');
       // Reset to previous photo on error
       await loadProfilePhoto();
+      unlockLayout(); // Unlock layout on error
     } finally {
       setUploading(false);
     }
@@ -546,7 +568,18 @@ export default function ProfileScreen() {
     if (profilePhoto) {
       setPhotoViewerVisible(true);
     } else {
-      handleProfilePhotoUpdate();
+      // Lock layout during image picker for stability
+      lockLayout();
+      
+      // Use stable image picker options
+      showImagePickerOptions((selectedAsset) => {
+        if (selectedAsset && selectedAsset.uri) {
+          setSelectedImage(selectedAsset.uri);
+          setShowCropper(true);
+        }
+        // Unlock layout after selection
+        unlockLayout();
+      });
     }
   };
 
@@ -558,26 +591,12 @@ export default function ProfileScreen() {
   const currentStyles = Platform.OS === 'android' ? createStyles(screenData) : styles;
 
   return (
-    <AndroidLayoutLock isActive={isImagePickerActive}>
-      <View style={currentStyles.container}>
-        {/* Android: Fixed header to prevent movement */}
-        {Platform.OS === 'android' ? (
-          <View style={currentStyles.androidHeader}>
-            <Header 
-              {...HeaderPresets.tabs}
-              onNotificationPress={handleNotificationPress}
-              onSearchPress={handleSearchPress}
-            />
-          </View>
-        ) : (
-          <View style={currentStyles.headerContainer}>
-            <Header 
-              {...HeaderPresets.tabs}
-              onNotificationPress={handleNotificationPress}
-              onSearchPress={handleSearchPress}
-            />
-          </View>
-        )}
+    <ThemedView style={styles.container}>
+      <Header 
+        {...HeaderPresets.tabs}
+        onNotificationPress={handleNotificationPress}
+        onSearchPress={handleSearchPress}
+      />
 
       <ScrollView 
         style={currentStyles.content} 
@@ -744,8 +763,7 @@ export default function ProfileScreen() {
           <ThemedText style={styles.errorText}>{errorMessage}</ThemedText>
         </View>
       )}
-      </View>
-    </AndroidLayoutLock>
+    </ThemedView>
   );
 }
 
@@ -766,32 +784,8 @@ const createStyles = (screenData) => StyleSheet.create({
       overflow: 'hidden',
     }),
   },
-  androidHeader: {
-    // Android: Stable header that doesn't move
-    height: 70,
-    backgroundColor: '#ffffff',
-    position: 'relative',
-    zIndex: 1000,
-    // Remove border - let the header component handle its own border
-  },
-  headerContainer: {
-    // iOS/Web: Absolute positioned header
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 100,
-    backgroundColor: '#ffffff',
-  },
   content: {
     flex: 1,
-    ...(Platform.OS === 'android' ? {
-      // Android: No margin, container handles spacing
-      marginTop: 0,
-    } : {
-      // iOS/Web: Margin for absolute header
-      marginTop: Platform.OS === 'ios' ? 90 : 70,
-    }),
   },
   scrollContent: {
     flexGrow: 1,

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, TouchableOpacity, StatusBar, Platform, Text, Image } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { ThemedText } from '@/components/ThemedText';
@@ -28,6 +29,7 @@ export default function Header({
   userImage = null // For future profile image support
 }) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [profilePhoto, setProfilePhoto] = useState(null);
   const [photoViewerVisible, setPhotoViewerVisible] = useState(false);
@@ -115,18 +117,34 @@ export default function Header({
 
   const defaultBackgroundColor = backgroundColor || '#ffffff';
 
+  // Calculate proper padding for iOS with safe area
+  const getContainerStyle = () => {
+    const baseStyle = [
+      styles.container, 
+      { backgroundColor: defaultBackgroundColor }
+    ];
+    
+    if (Platform.OS === 'ios') {
+      // Use safe area inset with minimum fallback for older devices
+      const topPadding = Math.max(insets.top, 20) + 10; // Safe area + content padding
+      baseStyle.push({ paddingTop: topPadding });
+    }
+    
+    if (style) {
+      baseStyle.push(style);
+    }
+    
+    return baseStyle;
+  };
+
   return (
     <>
       <StatusBar 
         barStyle="dark-content" 
-        backgroundColor={defaultBackgroundColor}
+        backgroundColor={Platform.OS === 'android' ? defaultBackgroundColor : undefined}
         translucent={false}
       />
-      <ThemedView style={[
-        styles.container, 
-        { backgroundColor: defaultBackgroundColor },
-        style
-      ]}>
+      <ThemedView style={getContainerStyle()}>
         {/* Left Section - User Avatar */}
         <ThemedView style={styles.leftSection}>
           {showBack ? (
@@ -282,7 +300,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'ios' ? 35 : 10,
+    paddingTop: Platform.OS === 'ios' ? 0 : 10, // iOS padding handled dynamically
     paddingBottom: 10,
     backgroundColor: '#ffffff',
     elevation: 1,

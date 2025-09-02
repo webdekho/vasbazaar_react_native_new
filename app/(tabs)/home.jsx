@@ -15,6 +15,7 @@ import {
   setupBiometricAuth,
   checkBiometricSupport
 } from '../../services/auth/biometricService';
+import { postRequest } from '../../services/api/baseApi';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -138,149 +139,296 @@ export default function HomeScreen() {
     router.push('/main/AllServicesScreen');
   });
 
+
+
+
   const handleDuePress = protect(async (due) => {
-    console.log('Due pressed:', JSON.stringify(due, null, 2));
+  console.log('Due pressed:', JSON.stringify(due, null, 2));
+  
+  try {
+    // Navigate to the deepest originalData for most accurate information
+    const deepestData = due.originalData?.originalData || due.originalData || due;
     
-    try {
-      // Safe string conversion with type checking
-      const serviceName = (typeof due.service === 'string' ? due.service.toLowerCase() : 
-                          due.service ? String(due.service).toLowerCase() : '') || '';
-      const providerName = (typeof due.provider === 'string' ? due.provider.toLowerCase() : 
-                           due.provider ? String(due.provider).toLowerCase() : '') || '';
-      const originalData = due.originalData || due;
-      
-      // console.log('Processed names - Service:', serviceName, 'Provider:', providerName);
-      
-      // Determine service type based on service name or provider
-      let serviceType = 'other'; // default
-      
-      if (serviceName.includes('prepaid') || serviceName === 'prepaid' || 
-          providerName.includes('prepaid')) {
-        serviceType = 'prepaid';
-      } else if (serviceName.includes('dth') || serviceName === 'dth' || 
-                 providerName.includes('dth')) {
-        serviceType = 'dth';
-      }
-      
-      // console.log('Determined service type:', serviceType);
-      
-      if (serviceType === 'prepaid') {
-        // Navigate to RechargePlanScreen directly
-        const operatorData = {
-          opCode: originalData.operatorId?.operatorCode || originalData.operatorCode,
-          operatorName: due.provider,
-          operatorLogo: originalData.operatorId?.logo || originalData.logo,
-          serviceId: originalData.operatorId?.serviceId?.id || originalData.serviceId
-        };
-        
-        // Extract phone number safely
-        const phoneNumber = originalData.mobile || 
-                           (typeof due.number === 'string' ? due.number.replace(/x/g, '') : '') ||
-                           '';
-        
-        router.push({
-          pathname: '/main/prepaid/RechargePlanScreen',
-          params: {
-            contactName: due.provider || 'Unknown',
-            phoneNumber: phoneNumber,
-            operatorData: JSON.stringify(operatorData),
-            serviceId: originalData.operatorId?.serviceId?.id || '1',
-            operatorCode: operatorData.opCode || '',
-            fromDues: 'true'
-          }
-        });
-        
-      } else if (serviceType === 'dth') {
-        // For DTH, first fetch DTH info then navigate to DthPlanScreen
-        const sessionToken = await AsyncStorage.getItem('sessionToken');
-        if (!sessionToken) {
-          Alert.alert('Error', 'Session expired. Please login again.');
-          return;
-        }
-        
-        // Use require instead of dynamic import to avoid module resolution issues
-        const { validateDthNumber } = require('../../services');
-        
-        // Extract DTH number safely
-        const dthNumber = originalData.mobile || originalData.dthNumber || 
-                         (typeof due.number === 'string' ? due.number.replace(/x/g, '') : '') ||
-                         '';
-        
-        if (dthNumber) {
-          console.log('Validating DTH number:', dthNumber);
-          const dthResponse = await validateDthNumber(dthNumber, sessionToken);
-          
-          if (dthResponse?.status === 'success' && dthResponse?.data) {
-            const dthInfo = dthResponse.data;
-            const contact = { number: dthNumber, name: due.provider };
-            
-            router.push({
-              pathname: '/main/dth/DthPlanScreen',
-              params: {
-                contact: JSON.stringify(contact),
-                dth_info: JSON.stringify(dthInfo),
-                serviceId: originalData.operatorId?.serviceId?.id || 'NA',
-                operatorCode: originalData.operatorId?.operatorCode || '',
-                operator_id: originalData.operatorId?.id || null,
-                fromDues: 'true'
-              }
-            });
-          } else {
-            Alert.alert('Error', 'Unable to validate DTH number. Please try again.');
-          }
-        } else {
-          Alert.alert('Error', 'DTH number not available');
-        }
-        
-      } else {
-        // For other services, navigate to BillerRechargeScreen with auto-filled data
-        // Extract account number safely  
-        const accountNumber = originalData.mobile || originalData.accountNumber ||
-                             (typeof due.number === 'string' ? due.number.replace(/x/g, '') : '') ||
-                             '';
-        
-        // Extract amount safely
-        const amount = originalData.amount ? String(originalData.amount) : '';
-        
-        const billerData = {
-          id: originalData.operatorId?.id || originalData.id,
-          operatorName: due.provider || 'Unknown Provider',
-          logo: originalData.operatorId?.logo || originalData.logo,
-          inputFields: {
-            field1: {
-              label: 'Account Number',
-              type: 'text',
-              required: true,
-              placeholder: 'Enter account number',
-              value: accountNumber // Pre-fill with available data
-            },
-            field2: {
-              label: 'Amount',
-              type: 'number', 
-              required: true,
-              placeholder: 'Enter amount',
-              value: amount // Pre-fill amount if available
-            }
-          },
-          amountExactness: originalData.amountExactness || 'false',
-          fetchRequirement: originalData.fetchRequirement || 'false'
-        };
-        
-        router.push({
-          pathname: '/main/biller/BillerRechargeScreen',
-          params: {
-            serviceId: originalData.operatorId?.serviceId?.id || originalData.serviceId || '1',
-            biller: JSON.stringify(billerData),
-            fromDues: 'true'
-          }
-        });
-      }
-      
-    } catch (error) {
-      // console.error('Error handling due press:', error);
-      Alert.alert('Error', 'Unable to process payment. Please try again.');
+    // Extract service information - check multiple locations
+    let serviceName = '';
+    let serviceId = '';
+    
+    // Try to get service info from different possible locations
+    if (deepestData.operatorId?.serviceId?.serviceName) {
+      serviceName = String(deepestData.operatorId.serviceId.serviceName).toLowerCase();
+      serviceId = deepestData.operatorId.serviceId.id;
+    } else if (due.service?.name) {
+      serviceName = String(due.service.name).toLowerCase();
+      serviceId = due.service.id;
+    } else if (due.originalData?.service?.name) {
+      serviceName = String(due.originalData.service.name).toLowerCase();
+      serviceId = due.originalData.service.id;
     }
-  });
+    
+    // Extract provider/operator information
+    let providerName = '';
+    let operatorCode = '';
+    let operatorLogo = '';
+    let operatorId = '';
+    
+    if (deepestData.operatorId) {
+      providerName = deepestData.operatorId.operatorName || '';
+      operatorCode = deepestData.operatorId.operatorCode || '';
+      operatorLogo = deepestData.operatorId.logo || '';
+      operatorId = deepestData.operatorId.id || '';
+    } else if (due.originalData?.operator) {
+      providerName = due.originalData.operator.name || '';
+      operatorCode = due.originalData.operator.code || '';
+      operatorLogo = due.originalData.operator.logo || '';
+      operatorId = due.originalData.operator.id || '';
+    } else if (due.provider) {
+      providerName = due.provider || '';
+    }
+    
+    // Convert provider name to lowercase for comparison if needed
+    const providerNameLower = providerName.toLowerCase();
+    
+    // Extract mobile/account number - check multiple locations
+    let contactNumber = '';
+    if (deepestData.mobile) {
+      contactNumber = deepestData.mobile;
+    } else if (due.originalData?.mobile) {
+      contactNumber = due.originalData.mobile;
+    } else if (due.number) {
+      // Remove any masking characters (case-insensitive)
+      contactNumber = due.number.replace(/x/gi, '');
+    }
+    
+    // Extract amount
+    let amount = '';
+    if (deepestData.amount) {
+      amount = String(deepestData.amount);
+    } else if (due.amount) {
+      // Remove currency symbol if present
+      amount = due.amount.replace(/[₹,]/g, '').trim();
+    }
+    
+    console.log('Extracted data:', {
+      serviceName,
+      serviceId,
+      providerName,
+      operatorCode,
+      contactNumber,
+      amount,
+      operatorLogo
+    });
+    
+    // Determine service type and navigate accordingly
+    let serviceType = 'other';
+    
+    // Convert to lowercase for case-insensitive comparison
+    const serviceNameLower = serviceName.toLowerCase();
+    
+    if (serviceNameLower.includes('prepaid') || serviceNameLower === 'prepaid') {
+      serviceType = 'prepaid';
+    } else if (serviceNameLower.includes('dth') || serviceNameLower === 'dth') {
+      serviceType = 'dth';
+    } else if (serviceNameLower.includes('postpaid') || serviceNameLower === 'postpaid') {
+      serviceType = 'postpaid';
+    } else if (serviceNameLower.includes('electricity') || serviceNameLower === 'electricity') {
+      serviceType = 'electricity';
+    } else if (serviceNameLower.includes('gas') || serviceNameLower === 'gas') {
+      serviceType = 'gas';
+    } else if (serviceNameLower.includes('water') || serviceNameLower === 'water') {
+      serviceType = 'water';
+    }
+    
+    console.log('Determined service type:', serviceType);
+    
+    if (serviceType === 'prepaid') {
+      // Navigate to RechargePlanScreen for prepaid
+      const operatorData = {
+        opCode: operatorCode,
+        operatorName: providerName,
+        operatorLogo: operatorLogo,
+        serviceId: serviceId
+      };
+      
+      router.push({
+        pathname: '/main/prepaid/RechargePlanScreen',
+        params: {
+          contactName: providerName || 'Unknown',
+          phoneNumber: contactNumber,
+          operatorData: JSON.stringify(operatorData),
+          serviceId: String(serviceId),
+          operatorCode: operatorCode,
+          fromDues: 'true'
+        }
+      });
+      
+    } else if (serviceType === 'dth') {
+      // For DTH, validate DTH number first
+      const sessionToken = await AsyncStorage.getItem('sessionToken');
+      if (!sessionToken) {
+        Alert.alert('Error', 'Session expired. Please login again.');
+        return;
+      }
+      
+      // const { validateDthNumber } = require('../../services');
+      
+      if (contactNumber) {
+        console.log('Validating DTH number:', contactNumber);
+        
+        try {
+          // const dthResponse = await validateDthNumber(contactNumber, sessionToken);
+          
+          
+                const requestData = {
+                  operatorCode,
+                  dthNumber: contactNumber
+                };
+          
+                // Fetch DTH info
+                const response = await postRequest(
+                  'api/customer/operator/fetch_DTHInfo',
+                  requestData,
+                  sessionToken
+                );
+          
+                // Handle API response
+                if (response?.status !== 'success') {
+                  throw new Error(response?.message || 'Failed to fetch DTH information');
+                }
+                
+                router.push({
+                  pathname: '/main/dth/DthPlanScreen',
+                  params: {
+                    serviceId,
+                    operator_id: operatorId,
+                    contact: JSON.stringify({
+                      number: contactNumber,
+                      name: response.data?.customerName || 'DTH Customer'
+                    }),
+                    circleCode: null,
+                    companyLogo: operatorLogo,
+                    operatorCode,
+                    name: response.data?.customerName || 'Customer',
+                    dth_info: JSON.stringify(response.data),
+                    operator: providerName,
+                    circle: null,
+                    plan: JSON.stringify({
+                      price: `₹0`,
+                      validity: 'Custom',
+                      name: 'Custom Recharge'
+                    })
+                  }
+              });
+
+        } catch (validationError) {
+          console.error('DTH validation error:', validationError);
+          Alert.alert('Error', 'Failed to validate DTH number.');
+        }
+      } else {
+        Alert.alert('Error', 'DTH number not available');
+      }
+      
+    } else if (serviceType === 'postpaid') {
+      // For postpaid, navigate to postpaid bill payment screen
+      const billerData = {
+        id: operatorId,
+        operatorName: providerName,
+        logo: operatorLogo,
+        operatorCode: operatorCode,
+        inputFields: {
+          field1: {
+            label: 'Mobile Number',
+            type: 'text',
+            required: true,
+            placeholder: 'Enter mobile number',
+            value: contactNumber
+          },
+          field2: {
+            label: 'Amount',
+            type: 'number',
+            required: true,
+            placeholder: 'Enter amount',
+            value: amount
+          }
+        },
+        amountExactness: 'false',
+        fetchRequirement: 'true'
+      };
+      
+      router.push({
+        pathname: '/main/postpaid/PostpaidBillScreen',
+        params: {
+          serviceId: String(serviceId),
+          biller: JSON.stringify(billerData),
+          fromDues: 'true'
+        }
+      });
+      
+    } else {
+      // For other services (electricity, gas, water, etc.)
+      // Extract input fields if available
+      let inputFields = {};
+      
+      if (deepestData.operatorId?.inputFields) {
+        inputFields = deepestData.operatorId.inputFields;
+      } else if (due.originalData?.operator?.inputFields) {
+        inputFields = due.originalData.operator.inputFields;
+      } else {
+        // Default input fields for utility bills
+        inputFields = {
+          field1: {
+            label: 'Account Number',
+            type: 'text',
+            required: true,
+            placeholder: 'Enter account number'
+          },
+          field2: {
+            label: 'Amount',
+            type: 'number',
+            required: true,
+            placeholder: 'Enter amount'
+          }
+        };
+      }
+      
+      // Pre-fill values in input fields
+      if (inputFields.field1) {
+        inputFields.field1.value = contactNumber;
+      }
+      if (inputFields.field2) {
+        inputFields.field2.value = amount;
+      }
+      
+      const billerData = {
+        id: operatorId,
+        operatorName: providerName || 'Unknown Provider',
+        logo: operatorLogo,
+        operatorCode: operatorCode,
+        inputFields: inputFields,
+        amountExactness: deepestData.amountExactness || 'false',
+        fetchRequirement: deepestData.fetchRequirement || 'false'
+      };
+      
+      router.push({
+        pathname: '/main/biller/BillerRechargeScreen',
+        params: {
+          serviceId: String(serviceId),
+          biller: JSON.stringify(billerData),
+          fromDues: 'true'
+        }
+      });
+    }
+    
+  } catch (error) {
+    console.error('Error handling due press:', error);
+    console.error('Error stack:', error.stack);
+    Alert.alert('Error', 'Unable to process payment. Please try again.');
+  }
+});
+
+
+
+
+
 
   // User data for the card
   const userData = {

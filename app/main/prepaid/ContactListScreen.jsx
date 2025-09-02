@@ -102,10 +102,8 @@ export default function ContactListScreen({ route }) {
       
       if (storedUserData) {
         const parsed = JSON.parse(storedUserData);
-        console.log('Loaded userData from storage:', parsed);
         setUserData(parsed);
       } else {
-        console.log('No userData found in storage');
       }
       
       // Initialize with fallback images first
@@ -118,7 +116,6 @@ export default function ContactListScreen({ route }) {
         fetchAdvertisements(token);
       }
     } catch (error) {
-      console.error('Error initializing data:', error);
     }
   };
 
@@ -129,7 +126,6 @@ export default function ContactListScreen({ route }) {
     // Add userData.mobile as "My Number" for search functionality
     if (userData?.mobile) {
       const cleanMobile = userData.mobile.replace(/^(\+91)/, '');
-      console.log('Adding My Number to contacts list:', cleanMobile);
       contactList.push({
         id: 'my-number',
         name: 'My Number',
@@ -138,7 +134,6 @@ export default function ContactListScreen({ route }) {
         isMyNumber: true,
       });
     } else {
-      console.log('userData.mobile not available:', userData);
     }
     
     // Add existing contacts with proper IDs
@@ -220,7 +215,6 @@ export default function ContactListScreen({ route }) {
           const contacts = parseContactFile(text, file.name);
           resolve(contacts);
         } catch (error) {
-          console.error('File parsing error:', error);
           reject(error);
         }
       };
@@ -300,13 +294,9 @@ export default function ContactListScreen({ route }) {
   const loadContactsWeb = async () => {
     try {
       setIsLoading(true);
-      console.log('Loading contacts on web...');
-      console.log('User agent:', navigator.userAgent);
-      console.log('iOS Safari detected:', isIOSSafari());
       
       // Check if Contact Picker API is supported
       if ('contacts' in navigator && 'select' in navigator.contacts && !isIOSSafari()) {
-        console.log('Contact Picker API is supported');
         
         try {
           // Request contacts with phone numbers
@@ -321,17 +311,14 @@ export default function ContactListScreen({ route }) {
             phoneNumbers: contact.tel?.map(tel => ({ number: tel })) || []
           })).filter(c => c.phoneNumbers.length > 0);
           
-          console.log('Loaded web contacts:', transformedContacts.length);
           setContacts(transformedContacts);
           setFilteredContacts(contactsWithMyNumber());
           return;
         } catch (apiError) {
-          console.log('Contact Picker API failed, falling back to file import:', apiError);
         }
       }
       
       // iOS Safari or fallback: Use file import
-      console.log('Using file import method...');
       Alert.alert(
         'Import Contacts',
         'Select a contact file (VCF or CSV format) to import your contacts. You can export contacts from your phone\'s contact app.',
@@ -343,7 +330,6 @@ export default function ContactListScreen({ route }) {
               try {
                 const importedContacts = await importContactsFromFile();
                 if (importedContacts.length > 0) {
-                  console.log('Imported contacts:', importedContacts.length);
                   setContacts(importedContacts);
                   setFilteredContacts(contactsWithMyNumber());
                   Alert.alert('Success', `Imported ${importedContacts.length} contacts successfully!`);
@@ -351,7 +337,6 @@ export default function ContactListScreen({ route }) {
                   Alert.alert('No Contacts', 'No contacts were found in the selected file.');
                 }
               } catch (error) {
-                console.error('Contact import error:', error);
                 Alert.alert('Import Failed', 'Unable to import contacts from the selected file.');
               }
             }
@@ -360,7 +345,6 @@ export default function ContactListScreen({ route }) {
       );
       
     } catch (error) {
-      console.error('Web contact loading error:', error);
       Alert.alert(
         'Contact Loading Failed',
         'Unable to load contacts. You can still search by entering phone numbers manually.',
@@ -409,7 +393,6 @@ export default function ContactListScreen({ route }) {
       setContacts(valid);
       setFilteredContacts(contactsWithMyNumber());
     } catch (error) {
-      console.error('Contact loading error:', error);
       Alert.alert('Error', 'Failed to load contacts.');
     } finally {
       setIsLoading(false);
@@ -428,12 +411,10 @@ export default function ContactListScreen({ route }) {
           setUserData(parsed);
         }
       } catch (error) {
-        console.log('Error loading userData in modal:', error);
       }
     }
     
     const contactsWithMyNum = contactsWithMyNumber();
-    console.log('Opening modal with contacts:', contactsWithMyNum.length, 'userData:', userData?.mobile, 'Full userData:', userData);
     setFilteredContacts(contactsWithMyNum);
     setModalVisible(true);
   };
@@ -517,6 +498,8 @@ export default function ContactListScreen({ route }) {
       if (response?.status === 'success') {
         const data = response.data;
         // Navigate to recharge plan screen
+
+        
         router.push({
           pathname: '/main/prepaid/RechargePlanScreen',
           params: {
@@ -568,7 +551,6 @@ export default function ContactListScreen({ route }) {
 
   const renderMyNumber = () => {
     if (!userData?.mobile) {
-      console.log('userData or mobile not available:', userData);
       return null;
     }
 
@@ -581,8 +563,6 @@ export default function ContactListScreen({ route }) {
       ? `+91 ${cleanMobile.slice(-10)}` 
       : cleanMobile;
     
-    console.log('Rendering My Number with:', formattedMobile);
-
     return (
       <TouchableOpacity style={styles.myNumberCard} onPress={() => handleRecharge({
         name: 'My Number',
@@ -661,11 +641,9 @@ export default function ContactListScreen({ route }) {
             style={styles.advertisementImage} 
             resizeMode="cover"
             onError={() => {
-              console.log('Error loading advertisement image');
-            }}
+              }}
             onLoad={() => {
               if (item.isApiImage) {
-                console.log('API advertisement image loaded successfully');
               }
             }}
           />

@@ -10,11 +10,9 @@ import { getRequest, postRequest } from '../api/baseApi';
  */
 export const getWalletTransactions = async (params = {}, sessionToken, endpoint = 'api/customer/wallet_transaction/getAll') => {
   try {
-    console.log('Fetching wallet transactions:', { endpoint, params, hasToken: !!sessionToken });
     
     const response = await getRequest(endpoint, params, sessionToken);
     
-    console.log('Wallet transactions API response:', response);
     
     if (response?.status === "success" || response?.Status === "SUCCESS") {
       const { records = [], totalPages = 1 } = response.data || {};
@@ -65,7 +63,6 @@ export const getWalletTransactions = async (params = {}, sessionToken, endpoint 
     };
     
   } catch (error) {
-    console.error('Wallet transactions API error:', error);
     return {
       status: 'error',
       data: {
@@ -108,7 +105,6 @@ export const getWalletBalance = async (sessionToken) => {
     };
     
   } catch (error) {
-    console.error('Wallet balance API error:', error);
     return {
       status: 'error',
       data: { balance: 0 },
@@ -128,7 +124,6 @@ export const getWalletTransactionDetails = async (txnId, sessionToken) => {
     const endpoint = `api/customer/wallet_transaction/getById`;
     const params = { txnId };
     
-    console.log('Fetching wallet transaction details:', { endpoint, txnId });
     
     const response = await getRequest(endpoint, params, sessionToken);
     
@@ -147,7 +142,6 @@ export const getWalletTransactionDetails = async (txnId, sessionToken) => {
     };
     
   } catch (error) {
-    console.error('Wallet transaction details API error:', error);
     return {
       status: 'error',
       data: null,
@@ -171,7 +165,6 @@ export const addMoneyToWallet = async (amount, paymentMethod, sessionToken) => {
       paymentMethod
     };
     
-    console.log('Adding money to wallet:', { endpoint, amount, paymentMethod });
     
     const response = await postRequest(endpoint, payload, sessionToken);
     
@@ -189,7 +182,6 @@ export const addMoneyToWallet = async (amount, paymentMethod, sessionToken) => {
     };
     
   } catch (error) {
-    console.error('Add money to wallet error:', error);
     return {
       status: 'error',
       message: 'Network error while adding money to wallet'

@@ -79,7 +79,7 @@ const SimpleCardSlider = ({
       if (storedUserData) {
         const parsed = JSON.parse(storedUserData);
         setUserDataFromStorage(parsed);
-        console.log('Loaded user data from localStorage:', parsed.name, parsed.mobile);
+        // console.log('Loaded user data from localStorage:', parsed.name, parsed.mobile);
       }
     } catch (error) {
       console.error('Error loading user data from localStorage:', error);
@@ -89,7 +89,7 @@ const SimpleCardSlider = ({
   // Fetch user balance from API
   const fetchUserBalance = async () => {
     try {
-      console.log('Fetching user balance for card...');
+      // console.log('Fetching user balance for card...');
       
       const sessionToken = await AsyncStorage.getItem('sessionToken');
       if (!sessionToken) {
@@ -100,7 +100,7 @@ const SimpleCardSlider = ({
       const response = await getUserBalance(sessionToken);
       
       if (response?.status === 'success' && response?.data) {
-        console.log('Successfully fetched balance data:', response.data);
+        // console.log('Successfully fetched balance data:', response.data);
         setBalanceData(response.data);
       } else {
         console.log('Failed to fetch balance:', response?.message);
@@ -114,7 +114,7 @@ const SimpleCardSlider = ({
   const fetchAdvertisements = async () => {
     try {
       setLoadingBanners(true);
-      console.log('Fetching home advertisements...');
+      // console.log('Fetching home advertisements...');
       
       // Get user's session token (access_token)
       const sessionToken = await AsyncStorage.getItem('sessionToken');
@@ -129,7 +129,7 @@ const SimpleCardSlider = ({
       const response = await getHomeAdvertisements(sessionToken);
       
       if (response?.status === 'success' && response?.data) {
-        console.log('Successfully fetched advertisements:', response.data.length);
+        // console.log('Successfully fetched advertisements:', response.data.length);
         setApiBanners(response.data);
       } else {
         console.log('Failed to fetch advertisements:', response?.message);
@@ -150,10 +150,10 @@ const SimpleCardSlider = ({
     let sliderBanners = [];
     if (apiBanners.length > 0) {
       sliderBanners = apiBanners;
-      console.log('Using API banners:', apiBanners.length);
+      // console.log('Using API banners:', apiBanners.length);
     } else if (banners.length > 0) {
       sliderBanners = banners;
-      console.log('Using props banners:', banners.length);
+      // console.log('Using props banners:', banners.length);
     } else {
       sliderBanners = createDefaultBanners();
       console.log('Using default banners');

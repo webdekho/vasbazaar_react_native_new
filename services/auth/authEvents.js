@@ -26,7 +26,6 @@ class AuthEventEmitter {
       try {
         callback(data);
       } catch (error) {
-        console.error(`Error in ${event} listener:`, error);
       }
     });
   }

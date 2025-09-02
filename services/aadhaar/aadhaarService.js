@@ -8,15 +8,9 @@ export const sendAadhaarOtp = async (aadhaarNumber, permanentToken) => {
       aadhaarNumber: aadhaarNumber.replace(/\D/g, '') // Remove all non-digits
     };
     
-    console.log('aadhaarService - sendAadhaarOtp request:', { 
-      aadhaarNumber: payload.aadhaarNumber,
-      hasToken: !!permanentToken,
-      endpoint: 'login/send_otp'
-    });
     
     const result = await postRequest('login/send_otp', payload, permanentToken);
     
-    console.log('aadhaarService - sendAadhaarOtp API raw response:', result);
     
     // Handle both SUCCESS and success status formats
     if (result?.status === 'SUCCESS' || result?.Status === 'SUCCESS' || result?.status === 'success') {
@@ -46,7 +40,6 @@ export const sendAadhaarOtp = async (aadhaarNumber, permanentToken) => {
             }
           }
         } catch (parseError) {
-          console.log('Could not parse vendor error message:', parseError);
           errorMessage = 'Invalid Aadhaar number or service temporarily unavailable.';
         }
       } else if (result.message) {
@@ -70,7 +63,6 @@ export const sendAadhaarOtp = async (aadhaarNumber, permanentToken) => {
     };
     
   } catch (error) {
-    console.error('Error sending Aadhaar OTP:', error);
     return {
       status: 'error',
       message: 'Network error while sending OTP'
@@ -85,15 +77,9 @@ export const verifyAadhaarOtp = async (otp, refId, permanentToken) => {
       refId: refId.toString()
     };
     
-    console.log('Verifying Aadhaar OTP request:', { otp: '***', refId });
     
     const result = await postRequest('login/verify_otp', payload, permanentToken);
     
-    console.log('Aadhaar OTP verification response:', {
-      status: result?.Status || result?.status,
-      statusCode: result?.StatusCode,
-      hasData: !!result?.data
-    });
     
     // Handle both SUCCESS and success status formats
     if (result?.Status === 'SUCCESS' || result?.status === 'SUCCESS' || result?.status === 'success') {
@@ -123,7 +109,6 @@ export const verifyAadhaarOtp = async (otp, refId, permanentToken) => {
             }
           }
         } catch (parseError) {
-          console.log('Could not parse vendor error message:', parseError);
           errorMessage = 'OTP verification failed. Please try again.';
         }
       } else if (result.message) {
@@ -147,7 +132,6 @@ export const verifyAadhaarOtp = async (otp, refId, permanentToken) => {
     };
     
   } catch (error) {
-    console.error('Error verifying Aadhaar OTP:', error);
     return {
       status: 'error',
       message: 'Network error while verifying OTP'

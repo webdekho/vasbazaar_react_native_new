@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 export const BASE_URL = 'https://apis.vasbazaar.com';
-// export const BASE_URL = 'http://localhost:8080';
+// export const BASE_URL = 'http://192.168.1.8:8081';
 // Create headers for API requests
 const createHeaders = (sessionToken = null) => ({
   'Content-Type': 'application/json',
@@ -19,9 +19,9 @@ const handleResponse = (response) => {
   const responseData = response.data;
   const { Status, STATUS, status, message, data, RDATA, ERROR, ref_id, StatusCode } = responseData;
   
-  console.log('baseApi - handleResponse input:', {
-    Status, STATUS, status, message, hasData: !!data, hasRDATA: !!RDATA, ERROR, ref_id, StatusCode
-  });
+  // console.log('baseApi - handleResponse input:', {
+  //   Status, STATUS, status, message, hasData: !!data, hasRDATA: !!RDATA, ERROR, ref_id, StatusCode
+  // });
   
   if (Status === 'SUCCESS' || STATUS === 'SUCCESS' || status === 'SUCCESS' || status === 'success' || (STATUS === '1' && ERROR === '0') || RDATA) {
     const result = {
@@ -35,7 +35,7 @@ const handleResponse = (response) => {
       result.ref_id = ref_id;
     }
     
-    console.log('baseApi - handleResponse SUCCESS result:', result);
+    // console.log('baseApi - handleResponse SUCCESS result:', result);
     return result;
   }
   
@@ -67,19 +67,19 @@ export const postRequest = async (endpoint, payload, sessionToken = null) => {
     const headers = createHeaders(sessionToken);
     const fullUrl = `${BASE_URL}/${endpoint}`;
     
-    console.log('baseApi - postRequest:', {
-      url: fullUrl,
-      payload: endpoint.includes('send_otp') ? { aadhaarNumber: payload.aadhaarNumber } : payload,
-      hasSessionToken: !!sessionToken,
-      headers
-    });
+    // console.log('baseApi - postRequest:', {
+    //   url: fullUrl,
+    //   payload: endpoint.includes('send_otp') ? { aadhaarNumber: payload.aadhaarNumber } : payload,
+    //   hasSessionToken: !!sessionToken,
+    //   headers
+    // });
     
     const response = await axios.post(fullUrl, payload, { headers });
     
-    console.log('baseApi - postRequest response:', {
-      status: response.status,
-      data: response.data
-    });
+    // console.log('baseApi - postRequest response:', {
+    //   status: response.status,
+    //   data: response.data
+    // });
     
     return handleResponse(response);
   } catch (error) {
@@ -96,9 +96,34 @@ export const postRequest = async (endpoint, payload, sessionToken = null) => {
 export const getRequest = async (endpoint, params = {}, sessionToken = null) => {
   try {
     const headers = createHeaders(sessionToken);
-    const response = await axios.get(`${BASE_URL}/${endpoint}`, { headers, params });
+    const fullUrl = `${BASE_URL}/${endpoint}`;
+    
+    // Log request details for biometric endpoints
+    if (endpoint.includes('biometric') || endpoint.includes('login')) {
+      console.log('🌐 BaseAPI GET Request:');
+      console.log('🌐 URL:', fullUrl);
+      console.log('🌐 Headers:', JSON.stringify(headers, null, 2));
+      console.log('🌐 Params:', JSON.stringify(params, null, 2));
+    }
+    
+    const response = await axios.get(fullUrl, { headers, params });
+    
+    // Log response for biometric endpoints
+    if (endpoint.includes('biometric') || endpoint.includes('login')) {
+      console.log('🌐 BaseAPI Raw Response:');
+      console.log('🌐 Status:', response.status);
+      console.log('🌐 Response Data:', JSON.stringify(response.data, null, 2));
+    }
+    
     return handleResponse(response);
   } catch (error) {
+    // Log errors for biometric endpoints
+    if (endpoint.includes('biometric') || endpoint.includes('login')) {
+      console.log('🌐 BaseAPI Error:');
+      console.log('🌐 Error Message:', error.message);
+      console.log('🌐 Error Response:', error.response?.data);
+      console.log('🌐 Error Status:', error.response?.status);
+    }
     return handleError(error);
   }
 };

@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useRouter, useSegments } from 'expo-router';
 import { getSessionToken } from '../services/auth/sessionManager';
+import { startSessionTimeout, stopSessionTimeout, isSessionTimeoutActive } from '../services/auth/sessionTimeoutService';
 
 /**
  * Global session interceptor that monitors navigation and user interactions
@@ -11,36 +12,50 @@ export const GlobalSessionInterceptor = ({ children }) => {
   const segments = useSegments();
 
   useEffect(() => {
-    let intervalId;
-
-    const checkSessionPeriodically = async () => {
+    const initializeSessionManagement = async () => {
       try {
-        // Skip check if user is already in auth screens
+        // Skip if user is in auth screens
         const isInAuthScreens = segments[0] === 'auth';
-        if (isInAuthScreens) return;
+        if (isInAuthScreens) {
+          // Stop session timeout if in auth screens
+          stopSessionTimeout();
+          return;
+        }
 
+        // Check if user has a valid session
         const sessionToken = await getSessionToken();
         
         if (!sessionToken) {
-          console.log('GlobalSessionInterceptor: Session expired, redirecting to PIN validation');
+          console.log('GlobalSessionInterceptor: No valid session, redirecting to PIN validation');
+          stopSessionTimeout();
           router.replace('/auth/PinValidateScreen');
+          return;
         }
+
+        // Check if session timeout is already active
+        const timeoutActive = await isSessionTimeoutActive();
+        
+        if (!timeoutActive) {
+          // Start session timeout monitoring with redirect callback
+          startSessionTimeout(() => {
+            console.log('Session expired callback - redirecting to PIN validation');
+            router.replace('/auth/PinValidateScreen');
+          });
+        }
+
       } catch (error) {
-        console.error('GlobalSessionInterceptor: Error checking session:', error);
+        console.error('GlobalSessionInterceptor: Error initializing session management:', error);
         // Don't redirect on error to avoid loops
       }
     };
 
-    // Check session every 30 seconds
-    intervalId = setInterval(checkSessionPeriodically, 30000);
+    // Initialize session management
+    initializeSessionManagement();
 
-    // Initial check
-    checkSessionPeriodically();
-
+    // Cleanup function
     return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
+      // Don't stop timeout here as it should persist across component re-renders
+      // stopSessionTimeout();
     };
   }, [router, segments]);
 

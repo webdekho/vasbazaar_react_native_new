@@ -321,7 +321,12 @@ export default function BillerRechargeScreen() {
       >
         <ScrollView 
           style={styles.container}
-          contentContainerStyle={{ paddingBottom: 80 }}
+          contentContainerStyle={{ 
+            paddingBottom: Platform.select({
+              web: 120,
+              default: 80,
+            })
+          }}
           keyboardShouldPersistTaps="handled"
         >
 
@@ -518,8 +523,20 @@ const styles = StyleSheet.create({
   bottomConfirmSection: {
     paddingHorizontal: 16,
     paddingVertical: 16,
-    paddingBottom: 20,
+    paddingBottom: Platform.select({
+      web: 30,
+      default: 20,
+    }),
     backgroundColor: '#f7f7f7',
+    ...Platform.select({
+      web: {
+        position: 'sticky',
+        bottom: 0,
+        zIndex: 1000,
+        borderTopWidth: 1,
+        borderTopColor: '#e5e5e5',
+      },
+    }),
   },
   confirmButton: {
     backgroundColor: '#000000',

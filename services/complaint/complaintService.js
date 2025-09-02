@@ -10,11 +10,9 @@ import { getRequest, postRequest } from '../api/baseApi';
 export const getUserComplaints = async (pageNumber = 0, pageSize = 10, sessionToken) => {
   try {
     const endpoint = `api/customer/complaint/getAllUserId?pageNumber=${pageNumber}&pageSize=${pageSize}`;
-    console.log('Fetching user complaints:', { endpoint, pageNumber, pageSize, hasToken: !!sessionToken });
     
     const response = await getRequest(endpoint, {}, sessionToken);
     
-    console.log('Complaints API response:', response);
     
     if (response?.status === 'success' && response?.data) {
       return {
@@ -35,7 +33,6 @@ export const getUserComplaints = async (pageNumber = 0, pageSize = 10, sessionTo
     };
     
   } catch (error) {
-    console.error('Complaints API error:', error);
     return {
       status: 'error',
       data: {
@@ -57,16 +54,13 @@ export const getUserComplaints = async (pageNumber = 0, pageSize = 10, sessionTo
 export const createComplaint = async (complaintData, sessionToken) => {
   try {
     const endpoint = 'api/customer/complaint/create';
-    console.log('Submitting complaint:', { complaintData, hasToken: !!sessionToken });
     
     const response = await postRequest(endpoint, complaintData, sessionToken);
     
-    console.log('Submit complaint response:', response);
     
     return response;
     
   } catch (error) {
-    console.error('Submit complaint error:', error);
     return {
       status: 'error',
       message: 'Network error while submitting complaint'

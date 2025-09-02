@@ -14,14 +14,12 @@ export const useSessionCheck = (checkOnMount = false) => {
       const sessionToken = await getSessionToken();
       
       if (!sessionToken) {
-        console.log('useSessionCheck: No valid session token, redirecting to PIN validation');
         router.replace('/auth/PinValidateScreen');
         return false;
       }
       
       return true;
     } catch (error) {
-      console.error('useSessionCheck: Error checking session:', error);
       router.replace('/auth/PinValidateScreen');
       return false;
     }

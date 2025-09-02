@@ -429,7 +429,6 @@ const styles = StyleSheet.create({
     color: '#111827',
     backgroundColor: 'transparent',
     borderWidth: 0,
-    outline: 'none',
     letterSpacing: 1,
   },
   inputError: {

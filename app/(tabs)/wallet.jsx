@@ -147,9 +147,9 @@ export default function WalletScreen() {
 
   // Initial data fetch
   useEffect(() => {
-    console.log('Wallet useEffect triggered:', { isAuthenticated, hasToken: !!contextUserToken });
+    // console.log('Wallet useEffect triggered:', { isAuthenticated, hasToken: !!contextUserToken });
     if (isAuthenticated && contextUserToken) {
-      console.log('Calling wallet API functions...');
+      // console.log('Calling wallet API functions...');
       fetchTransactions(1, false);
       fetchWalletBalance();
     } else {
