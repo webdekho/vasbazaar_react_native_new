@@ -12,13 +12,13 @@ const UpcomingDues = ({ dues = [], onDuePress = () => {} }) => {
   const fetchUpcomingDues = async () => {
     try {
       setLoadingDues(true);
-      console.log('Fetching upcoming dues...');
+      // console.log('Fetching upcoming dues...');
       
       // Get user's session token (access_token)
       const sessionToken = await AsyncStorage.getItem('sessionToken');
       
       if (!sessionToken) {
-        console.log('No session token found, using default dues');
+        // console.log('No session token found, using default dues');
         setApiDues([]);
         setLoadingDues(false);
         return;
@@ -27,7 +27,7 @@ const UpcomingDues = ({ dues = [], onDuePress = () => {} }) => {
       const response = await getUpcomingDues(sessionToken);
       
       if (response?.status === 'success' && response?.data) {
-        console.log('Successfully fetched upcoming dues:', response.data.length);
+        // console.log('Successfully fetched upcoming dues:', response.data.length);
         
         // Transform API dues to match component format
         const transformedDues = response.data.map((due) => {
@@ -60,7 +60,7 @@ const UpcomingDues = ({ dues = [], onDuePress = () => {} }) => {
         
         setApiDues(transformedDues);
       } else {
-        console.log('Failed to fetch upcoming dues:', response?.message);
+        // console.log('Failed to fetch upcoming dues:', response?.message);
         setApiDues([]);
       }
     } catch (error) {
@@ -132,19 +132,19 @@ const UpcomingDues = ({ dues = [], onDuePress = () => {} }) => {
     console.log('Using API dues:', apiDues.length);
   } else if (!loadingDues && apiDues.length === 0) {
     // API call completed but returned no dues - hide component completely
-    console.log('API call completed with no dues - hiding component');
+    // console.log('API call completed with no dues - hiding component');
     displayDues = [];
   } else if (dues && dues.length > 0) {
     displayDues = dues;
-    console.log('Using props dues:', dues.length);
+    // console.log('Using props dues:', dues.length);
   } else {
     displayDues = defaultDues;
-    console.log('Using default dues');
+    // console.log('Using default dues');
   }
 
-  const renderDueItem = (due) => (
+  const renderDueItem = (due, index) => (
     <TouchableOpacity
-      key={due.id}
+      key={`due-${due.id}-${index}`}
       style={styles.dueItem}
       onPress={() => onDuePress(due)}
       activeOpacity={0.7}
@@ -203,7 +203,7 @@ const UpcomingDues = ({ dues = [], onDuePress = () => {} }) => {
 
       {/* Dues List */}
       <View style={styles.duesList}>
-        {displayDues.map(renderDueItem)}
+        {displayDues.map((due, index) => renderDueItem(due, index))}
       </View>
     </ThemedView>
   );

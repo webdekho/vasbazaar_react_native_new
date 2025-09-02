@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { StyleSheet, ScrollView, TouchableOpacity, Animated, Alert, Platform, Modal, View, ActivityIndicator } from 'react-native';
+import { StyleSheet, ScrollView, TouchableOpacity, Animated, Alert, Platform, Modal, View, ActivityIndicator, StatusBar } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { ThemedText } from '@/components/ThemedText';
@@ -9,10 +9,13 @@ import { getSessionToken } from '../../../services/auth/sessionManager';
 import { postRequest } from '../../../services/api/baseApi';
 import { checkTransactionStatus as checkTransactionStatusAPI } from '../../../services/transaction/transactionService';
 import { WebView } from 'react-native-webview';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Linking } from 'react-native';
 
 export default function PendingScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
   const [rotateAnim] = useState(new Animated.Value(0));
   const [countdown, setCountdown] = useState(30);
   const [isChecking, setIsChecking] = useState(false);
@@ -21,22 +24,54 @@ export default function PendingScreen() {
   const [savedPayload, setSavedPayload] = useState(null);
   const [showWebView, setShowWebView] = useState(false);
   const [paymentUrl, setPaymentUrl] = useState('');
+  const [webViewLoading, setWebViewLoading] = useState(true);
+  
+  // Function to navigate to home - can be called from WebView JavaScript
+  const goToHome = () => {
+    console.log('PendingScreen goToHome called - navigating to home screen');
+    setShowWebView(false);
+    router.replace('/(tabs)/home');
+  };
+
+  // Parse API response if available
+  let apiResponse = null;
+  try {
+    if (params.response) {
+      apiResponse = JSON.parse(params.response);
+    }
+  } catch (error) {
+    console.warn('Could not parse API response:', error);
+  }
+
+  // Parse plan data if available
+  let planData = {};
+  try {
+    if (params.plan) {
+      planData = typeof params.plan === 'string' ? JSON.parse(params.plan) : params.plan;
+    }
+  } catch (error) {
+    console.warn('Could not parse plan data:', error);
+  }
 
   // Extract transaction ID from params - supports both txn_id and transactionId
-  const txnId = params.txn_id || params.transactionId || 'TXN' + Date.now();
+  const txnId = params.requestId || params.transactionId || params.txn_id || apiResponse?.data?.requestId || 'TXN' + Date.now();
 
   const transactionData = {
-    type: params.type || 'recharge',
-    amount: parseFloat(params.finalAmount) || parseFloat(params.amount) || 0,
-    phoneNumber: params.phoneNumber || '',
+    // Service type based on serviceId
+    type: params.serviceId === '1' ? 'prepaid' : params.serviceId === '2' ? 'dth' : 'bill',
+    amount: parseFloat(planData?.price?.replace(/[₹,\s]/g, '')) || parseFloat(params.finalAmount) || parseFloat(params.amount) || 0,
+    phoneNumber: params.mobile || params.phoneNumber || '',
     subscriberId: params.subscriberId || '',
     accountNumber: params.accountNumber || '',
     operator: params.operator || '',
     billerName: params.billerName || '',
-    customerName: params.customerName || '',
-    contactName: params.contactName || '',
-    paymentMethod: params.paymentMethod || '',
+    customerName: params.name || params.customerName || '',
+    contactName: params.name || params.contactName || '',
+    paymentMethod: params.paymentType || params.paymentMethod || '',
     transactionId: txnId,
+    referenceId: params.referenceId || apiResponse?.data?.referenceId || 'N/A',
+    vendorRefId: params.vendorRefId || apiResponse?.data?.vendorRefId || 'N/A',
+    commission: apiResponse?.data?.commission || '0',
     timestamp: new Date().toLocaleString(),
     upiToken: params.upiToken || ''
   };
@@ -56,6 +91,17 @@ export default function PendingScreen() {
     }
     return null;
   };
+
+  // Handle status bar changes for WebView modal
+  useEffect(() => {
+    if (Platform.OS === 'ios') {
+      if (showWebView) {
+        StatusBar.setBarStyle('dark-content', true);
+      } else {
+        StatusBar.setBarStyle('dark-content', true);
+      }
+    }
+  }, [showWebView]);
 
   useEffect(() => {
     // Load saved payload first
@@ -117,7 +163,10 @@ export default function PendingScreen() {
         return;
       }
 
-      console.log('Checking status for transaction:', transactionData.transactionId);
+      console.log('==============start===============');
+      console.log('STATUS CHECK REQUEST INITIATED');
+      console.log('Transaction ID:', transactionData.transactionId);
+      console.log('Session Token (first 20 chars):', sessionToken.substring(0, 20) + '...');
 
       // Get the latest saved payload or use current savedPayload state
       const currentPayload = savedPayload || await loadSavedPayload();
@@ -130,17 +179,43 @@ export default function PendingScreen() {
           viewBillResponse: currentPayload.viewBillResponse,
           validity: currentPayload.validity
         };
-        console.log('Using saved payload for status check:', additionalPayload);
+        console.log('USING SAVED PAYLOAD FOR STATUS CHECK:');
+        console.log('Field1:', currentPayload.field1);
+        console.log('ViewBillResponse:', JSON.stringify(currentPayload.viewBillResponse, null, 2));
+        console.log('Validity:', currentPayload.validity);
       } else {
-        console.log('No saved payload found, using basic status check');
+        console.log('NO SAVED PAYLOAD FOUND - USING BASIC STATUS CHECK');
       }
       
+      console.log('FINAL REQUEST PAYLOAD TO API:');
+      const finalRequestPayload = {
+        txnId: transactionData.transactionId,
+        ...additionalPayload
+      };
+      console.log('API Endpoint: api/customer/plan_recharge/check-status');
+      console.log('Request Method: POST');
+      console.log('Complete Payload:', JSON.stringify(finalRequestPayload, null, 2));
+      console.log('TxnId:', transactionData.transactionId);
+      console.log('AdditionalPayload:', JSON.stringify(additionalPayload, null, 2));
+      console.log('==============end===============');
+      
       const response = await checkTransactionStatusAPI(transactionData.transactionId, sessionToken, additionalPayload);
+      
+      console.log('==============start===============');
+      console.log('STATUS CHECK RESPONSE RECEIVED');
+      console.log('Response Status:', response?.status);
+      console.log('Full Response:', JSON.stringify(response, null, 2));
       
       if (response?.status === 'success' && response?.data) {
         const { transactionStatus, message, requestId, referenceId, commission } = response.data;
         
-        console.log('Status check result:', { transactionStatus, message, requestId, referenceId, commission });
+        console.log('STATUS CHECK SUCCESS - PARSED DATA:');
+        console.log('Transaction Status:', transactionStatus);
+        console.log('Message:', message);
+        console.log('Request ID:', requestId);
+        console.log('Reference ID:', referenceId);
+        console.log('Commission:', commission);
+        console.log('==============end===============');
         
         if (transactionStatus === 'SUCCESS') {
           // Transaction successful - redirect to success screen
@@ -186,6 +261,13 @@ export default function PendingScreen() {
         }
       } else {
         // API error or invalid response
+        console.log('==============start===============');
+        console.log('STATUS CHECK FAILED - INVALID RESPONSE');
+        console.log('Response Status:', response?.status);
+        console.log('Response Message:', response?.message);
+        console.log('Full Response:', JSON.stringify(response, null, 2));
+        console.log('==============end===============');
+        
         setCountdown(30);
         Alert.alert(
           'Status Check Failed',
@@ -194,7 +276,14 @@ export default function PendingScreen() {
         );
       }
     } catch (error) {
-      console.error('Status check error:', error);
+      console.log('==============start===============');
+      console.log('STATUS CHECK ERROR - NETWORK/EXCEPTION');
+      console.log('Error Type:', error.name || 'Unknown');
+      console.log('Error Message:', error.message || 'Unknown error');
+      console.log('Error Stack:', error.stack || 'No stack trace');
+      console.log('Full Error Object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+      console.log('==============end===============');
+      
       setCountdown(30);
       Alert.alert(
         'Network Error',
@@ -258,7 +347,7 @@ export default function PendingScreen() {
     try {
       // Make API call to get payment URL
       const response = await postRequest(`pay?upiToken=${upiToken}`, {}, sessionToken);
-
+      console.log("fetch url to redirect",response);
       if (response.status === 'success' && response.data) {
         // Store payment URL for potential manual access
         if (Platform.OS === 'web' && typeof window !== 'undefined') {
@@ -361,6 +450,13 @@ export default function PendingScreen() {
               <ThemedText style={styles.detailLabel}>Transaction ID:</ThemedText>
               <ThemedText style={styles.detailValue}>{transactionData.transactionId}</ThemedText>
             </ThemedView>
+            
+            {transactionData.referenceId && transactionData.referenceId !== 'N/A' && (
+              <ThemedView style={styles.detailRow}>
+                <ThemedText style={styles.detailLabel}>Reference ID:</ThemedText>
+                <ThemedText style={styles.detailValue}>{transactionData.referenceId}</ThemedText>
+              </ThemedView>
+            )}
             
             {transactionData.type && (
               <ThemedView style={styles.detailRow}>
@@ -466,10 +562,14 @@ export default function PendingScreen() {
 
       {/* WebView Modal for Android/iOS UPI Payment */}
       <Modal visible={showWebView} animationType="slide" presentationStyle="fullScreen">
+        <StatusBar barStyle="dark-content" backgroundColor="#000000" />
         <View style={styles.webviewContainer}>
-          <View style={styles.webviewHeader}>
-            <TouchableOpacity onPress={() => setShowWebView(false)} style={styles.webviewCloseButton}>
-              <ThemedText style={styles.webviewCloseButtonText}>✕ Close</ThemedText>
+          <View style={[styles.webviewHeader, { paddingTop: Platform.OS === 'ios' ? insets.top + 12 : 40 }]}>
+            <TouchableOpacity onPress={() => {
+              setShowWebView(false);
+              router.replace('/(tabs)/home');
+            }} style={styles.webviewCloseButton}>
+              <ThemedText style={styles.webviewCloseButtonText}>🏠 Go to Home</ThemedText>
             </TouchableOpacity>
             <ThemedText style={styles.webviewTitle}>UPI Payment</ThemedText>
             <View style={styles.webviewSpacer} />
@@ -481,45 +581,342 @@ export default function PendingScreen() {
             domStorageEnabled={true}
             startInLoadingState={true}
             scalesPageToFit={true}
+            originWhitelist={['https://*', 'http://*', 'file://*', 'data:*', 'about:*']}
+            userAgent={Platform.select({
+              ios: 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
+              android: 'Mozilla/5.0 (Linux; Android 12; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+              default: 'Mozilla/5.0 (Mobile; rv:89.0) Gecko/89.0 Firefox/89.0'
+            })}
+            setSupportMultipleWindows={true}
+            allowsProtectedMedia={true}
+            onMessage={(event) => {
+              console.log('PendingScreen WebView Message:', event.nativeEvent.data);
+              
+              try {
+                const message = JSON.parse(event.nativeEvent.data);
+                
+                // Handle go to home request from WebView JavaScript
+                if (message.type === 'goto-home') {
+                  console.log('PendingScreen received goto-home message from WebView');
+                  goToHome();
+                  return;
+                }
+                
+                // Handle UPI link messages
+                if (message.type === 'upi-link' && message.url) {
+                  console.log('PendingScreen intercepted UPI link via message:', message.url);
+                  
+                  Linking.canOpenURL(message.url)
+                    .then((supported) => {
+                      if (supported) {
+                        console.log('PendingScreen opening UPI app via message...');
+                        Linking.openURL(message.url);
+                      } else {
+                        console.log('PendingScreen no UPI app found via message:', message.url);
+                        Alert.alert(
+                          'UPI App Required',
+                          'Please install a UPI app like PhonePe, Google Pay, or Paytm to complete the payment.',
+                          [{ text: 'OK' }]
+                        );
+                      }
+                    })
+                    .catch((err) => {
+                      console.error('PendingScreen error opening UPI app via message:', err);
+                    });
+                }
+              } catch (error) {
+                // Not a JSON message, check for simple string commands
+                const messageStr = event.nativeEvent.data;
+                if (messageStr === 'goto-home' || messageStr === 'goToHome') {
+                  console.log('PendingScreen received string goto-home message from WebView');
+                  goToHome();
+                }
+              }
+            }}
+            injectedJavaScript={`
+              (function() {
+                console.log('PendingScreen injected JavaScript running');
+                
+                // Override window.open to catch UPI links
+                const originalOpen = window.open;
+                window.open = function(url, target, features) {
+                  console.log('PendingScreen window.open called with:', url);
+                  if (url && (url.startsWith('upi://') || url.startsWith('phonepe://') || 
+                             url.startsWith('paytm://') || url.startsWith('gpay://') || 
+                             url.startsWith('bhim://'))) {
+                    console.log('PendingScreen detected UPI link in window.open:', url);
+                    window.ReactNativeWebView.postMessage(JSON.stringify({
+                      type: 'upi-link',
+                      url: url
+                    }));
+                    return null;
+                  }
+                  return originalOpen.call(this, url, target, features);
+                };
+                
+                // Override location.href assignments
+                let originalLocation = window.location.href;
+                Object.defineProperty(window.location, 'href', {
+                  get: function() { return originalLocation; },
+                  set: function(url) {
+                    console.log('PendingScreen location.href set to:', url);
+                    if (url && (url.startsWith('upi://') || url.startsWith('phonepe://') || 
+                               url.startsWith('paytm://') || url.startsWith('gpay://') || 
+                               url.startsWith('bhim://'))) {
+                      console.log('PendingScreen detected UPI link in location.href:', url);
+                      window.ReactNativeWebView.postMessage(JSON.stringify({
+                        type: 'upi-link',
+                        url: url
+                      }));
+                      return;
+                    }
+                    originalLocation = url;
+                  }
+                });
+                
+                // Monitor for all attempts to navigate to UPI links
+                const originalNavigate = window.location.assign;
+                window.location.assign = function(url) {
+                  console.log('PendingScreen location.assign called with:', url);
+                  if (url && (url.includes('phonepe://') || url.includes('upi://') || 
+                             url.includes('paytm://') || url.includes('gpay://') || 
+                             url.includes('bhim://'))) {
+                    console.log('PendingScreen detected UPI link in location.assign:', url);
+                    window.ReactNativeWebView.postMessage(JSON.stringify({
+                      type: 'upi-link',
+                      url: url
+                    }));
+                    return;
+                  }
+                  originalNavigate.call(this, url);
+                };
+                
+                // Monitor for links being clicked
+                document.addEventListener('click', function(e) {
+                  const target = e.target.closest('a');
+                  if (target && target.href) {
+                    console.log('PendingScreen link clicked:', target.href);
+                    if (target.href.includes('phonepe://') || target.href.includes('upi://') || 
+                        target.href.includes('paytm://') || target.href.includes('gpay://') || 
+                        target.href.includes('bhim://')) {
+                      console.log('PendingScreen detected UPI link in click:', target.href);
+                      e.preventDefault();
+                      e.stopPropagation();
+                      window.ReactNativeWebView.postMessage(JSON.stringify({
+                        type: 'upi-link',
+                        url: target.href
+                      }));
+                    }
+                  }
+                });
+                
+                // Monitor for any navigation attempts
+                const originalReplace = window.location.replace;
+                window.location.replace = function(url) {
+                  console.log('PendingScreen location.replace called with:', url);
+                  if (url && (url.includes('phonepe://') || url.includes('upi://') || 
+                             url.includes('paytm://') || url.includes('gpay://') || 
+                             url.includes('bhim://'))) {
+                    console.log('PendingScreen detected UPI link in location.replace:', url);
+                    window.ReactNativeWebView.postMessage(JSON.stringify({
+                      type: 'upi-link',
+                      url: url
+                    }));
+                    return;
+                  }
+                  originalReplace.call(this, url);
+                };
+                
+                // Override document.write to catch any UPI links
+                const originalWrite = document.write;
+                document.write = function(html) {
+                  if (html && (html.includes('phonepe://') || html.includes('upi://'))) {
+                    console.log('PendingScreen detected UPI link in document.write:', html);
+                    const matches = html.match(/(phonepe:\/\/[^"'\s<>]+|upi:\/\/[^"'\s<>]+)/g);
+                    if (matches) {
+                      window.ReactNativeWebView.postMessage(JSON.stringify({
+                        type: 'upi-link',
+                        url: matches[0]
+                      }));
+                    }
+                  }
+                  originalWrite.call(this, html);
+                };
+                
+                // Expose goToHome function to WebView JavaScript
+                window.goToHome = function() {
+                  console.log('PendingScreen WebView JavaScript called goToHome()');
+                  window.ReactNativeWebView.postMessage(JSON.stringify({
+                    type: 'goto-home'
+                  }));
+                };
+                
+                // Also expose as simple string message (alternative method)
+                window.navigateToHome = function() {
+                  console.log('PendingScreen WebView JavaScript called navigateToHome()');
+                  window.ReactNativeWebView.postMessage('goto-home');
+                };
+                
+                console.log('PendingScreen WebView JavaScript bridge initialized. Available functions:');
+                console.log('- window.goToHome() - Navigate to home screen');
+                console.log('- window.navigateToHome() - Alternative method to navigate to home');
+                console.log('Usage example: window.goToHome();');
+              })();
+            `}
+            onLoadStart={() => setWebViewLoading(true)}
+            onLoadEnd={() => setWebViewLoading(false)}
+            onShouldStartLoadWithRequest={(request) => {
+              console.log('PendingScreen WebView attempting to load:', request.url);
+              
+              // Handle Android intent URLs specifically
+              if (request.url.startsWith('intent://')) {
+                console.log('PendingScreen detected Android intent URL:', request.url);
+                
+                // Parse intent URL to extract actual UPI URL
+                try {
+                  // Intent format: intent://upi/pay?pa=...&pn=...#Intent;scheme=upi;package=com.phonepe.app;end
+                  const intentMatch = request.url.match(/intent:\/\/(.+?)#Intent;scheme=([^;]+);package=([^;]+);/);
+                  if (intentMatch) {
+                    const [, path, scheme, packageName] = intentMatch;
+                    const upiUrl = `${scheme}://${path}`;
+                    console.log('PendingScreen parsed UPI URL from intent:', upiUrl);
+                    console.log('PendingScreen target package:', packageName);
+                    
+                    // Try to open the UPI URL
+                    Linking.openURL(upiUrl).catch((err) => {
+                      console.error('PendingScreen failed to open UPI URL from intent:', err);
+                      // Try alternative UPI apps
+                      const alternativeApps = [
+                        'phonepe://upi/pay?' + path.split('?')[1],
+                        'gpay://upi/pay?' + path.split('?')[1],
+                        'paytm://upi/pay?' + path.split('?')[1],
+                        'upi://pay?' + path.split('?')[1]
+                      ];
+                      
+                      alternativeApps.forEach(app => {
+                        Linking.openURL(app).catch(() => {});
+                      });
+                    });
+                  } else {
+                    // Fallback for malformed intent URLs
+                    console.log('PendingScreen could not parse intent URL, trying generic UPI apps');
+                    const fallbackApps = ['phonepe://', 'gpay://', 'paytm://', 'upi://'];
+                    fallbackApps.forEach(app => {
+                      Linking.openURL(app).catch(() => {});
+                    });
+                  }
+                } catch (error) {
+                  console.error('PendingScreen error parsing intent URL:', error);
+                }
+                
+                return false; // Don't load intent URLs in WebView
+              }
+              
+              // Handle direct UPI schemes
+              if (request.url.startsWith('upi:') || 
+                  request.url.startsWith('phonepe:') || 
+                  request.url.startsWith('paytm:') || 
+                  request.url.startsWith('gpay:') || 
+                  request.url.startsWith('googlepay:') ||
+                  request.url.startsWith('bhim:') ||
+                  request.url.startsWith('whatsapp:') ||
+                  request.url.startsWith('tez:')) {
+                
+                console.log('PendingScreen BLOCKED direct UPI scheme, opening externally:', request.url);
+                
+                // Open UPI app immediately
+                Linking.openURL(request.url).catch((err) => {
+                  console.error('PendingScreen failed to open UPI app:', err);
+                  // Try generic UPI apps as fallback
+                  const fallbackApps = ['phonepe://', 'gpay://', 'paytm://'];
+                  fallbackApps.forEach(app => {
+                    Linking.openURL(app).catch(() => {});
+                  });
+                });
+                
+                return false; // Never load UPI schemes in WebView
+              }
+              
+              // Allow web URLs and other safe schemes
+              return request.url.startsWith('https:') || request.url.startsWith('http:') || request.url.startsWith('data:') || request.url.startsWith('about:') || request.url.startsWith('file:');
+            }}
             onNavigationStateChange={(navState) => {
               console.log('PendingScreen WebView navigation:', navState.url);
+              
+              // Handle UPI deep links in navigation state change
+              const isUpiLink = navState.url && (
+                navState.url.includes('phonepe://') || 
+                navState.url.includes('upi://') || 
+                navState.url.includes('paytm://') || 
+                navState.url.includes('gpay://') || 
+                navState.url.includes('googlepay://') ||
+                navState.url.includes('bhim://') ||
+                navState.url.includes('whatsapp://') ||
+                navState.url.includes('tez://') ||
+                navState.url.includes('intent://')
+              );
+              
+              if (isUpiLink) {
+                console.log('PendingScreen navigation intercepted UPI deep link:', navState.url);
+                
+                // Try to open the UPI app
+                Linking.openURL(navState.url)
+                  .then(() => {
+                    console.log('PendingScreen successfully opened UPI app via navigation');
+                  })
+                  .catch((err) => {
+                    console.error('PendingScreen error opening UPI app via navigation:', err);
+                    
+                    // Try alternative UPI apps
+                    const alternativeApps = ['phonepe://upi/pay', 'gpay://upi/pay', 'paytm://upi/pay'];
+                    let appOpened = false;
+                    
+                    alternativeApps.forEach((appUrl) => {
+                      if (!appOpened) {
+                        Linking.openURL(appUrl)
+                          .then(() => {
+                            appOpened = true;
+                            console.log('PendingScreen opened alternative UPI app:', appUrl);
+                          })
+                          .catch(() => {});
+                      }
+                    });
+                  });
+                
+                return; // Don't process further
+              }
               
               // Check if payment is completed based on URL patterns
               if (navState.url.includes('success') || navState.url.includes('completed')) {
                 setShowWebView(false);
-                router.replace({
-                  pathname: '/main/common/SuccessScreen',
-                  params: {
-                    ...params,
-                    status: 'SUCCESS',
-                    response: JSON.stringify({ status: 'success', message: 'Payment completed successfully' }),
-                  }
-                });
+                // Go directly to home instead of success screen
+                router.replace('/(tabs)/home');
               } else if (navState.url.includes('failed') || navState.url.includes('cancel')) {
                 setShowWebView(false);
-                router.replace({
-                  pathname: '/main/common/FailedScreen',
-                  params: {
-                    ...params,
-                    status: 'FAILED',
-                    reason: 'Payment was cancelled or failed',
-                  }
-                });
+                // Go directly to home instead of failure screen
+                router.replace('/(tabs)/home');
               }
             }}
             onError={(syntheticEvent) => {
               const { nativeEvent } = syntheticEvent;
               console.warn('PendingScreen WebView error: ', nativeEvent);
               setShowWebView(false);
-              Alert.alert('Error', 'Failed to load payment gateway');
+              // Go directly to home instead of showing error alert
+              router.replace('/(tabs)/home');
             }}
             renderLoading={() => (
               <View style={styles.webviewLoading}>
-                <ActivityIndicator size="large" color="#FF9800" />
+                <ActivityIndicator size="large" color="#000000" />
                 <ThemedText style={styles.webviewLoadingText}>Loading payment gateway...</ThemedText>
               </View>
             )}
           />
+          {webViewLoading && (
+            <View style={styles.webviewLoadingOverlay}>
+              <ActivityIndicator size="large" color="#000000" />
+              <ThemedText style={styles.webviewLoadingOverlayText}>Loading payment gateway...</ThemedText>
+            </View>
+          )}
         </View>
       </Modal>
     </ThemedView>
@@ -804,10 +1201,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    paddingTop: Platform.OS === 'android' ? 40 : 12,
-    backgroundColor: '#FF9800',
+    backgroundColor: '#000000',
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: '#333',
   },
   webviewCloseButton: {
     padding: 8,
@@ -844,5 +1240,22 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     color: '#666',
+  },
+  webviewLoadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999,
+  },
+  webviewLoadingOverlayText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '500',
   },
 });

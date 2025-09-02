@@ -5,6 +5,7 @@ import {
   Modal,
   Platform,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -14,21 +15,44 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Avatar, Button, Card, List } from 'react-native-paper';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { WebView } from 'react-native-webview';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Linking } from 'react-native';
 
 import { getSessionToken } from '../../../services/auth/sessionManager';
 import { getRequest, postRequest } from '../../../services/api/baseApi';
 import MainHeader from '../../../components/MainHeader';
-import { initiatePayUPayment } from '../../../services/payment/payuService';
 
 export default function PaymentScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
+  
+  // State variables
   const [showFailurePopup, setShowFailurePopup] = useState(false);
   const [status, setStatus] = useState('Pending');
   const [errorMessage, setErrorMessage] = useState("Something went wrong");
   const [errorDetails, setErrorDetails] = useState(null);
   const [walletBalance, setWalletBalance] = useState('0');
+  const [userEmail, setUserEmail] = useState('customer@vasbazaar.com');
+  const [userName, setUserName] = useState('Customer');
+  const [expanded, setExpanded] = useState(false);
+  const [showPopup, setShowPopup] = useState(false);
+  const [stepCount, setStepCount] = useState(2);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [clickedPaymentMethod, setClickedPaymentMethod] = useState(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('upi');
+  const [showWebView, setShowWebView] = useState(false);
+  const [paymentUrl, setPaymentUrl] = useState('');
+  const [webViewLoading, setWebViewLoading] = useState(true);
   
+  // Function to navigate to home - can be called from WebView JavaScript
+  const goToHome = () => {
+    console.log('goToHome called - navigating to home screen');
+    setShowWebView(false);
+    router.replace('/(tabs)/home');
+  };
+  
+  // Extract parameters
   const {
     plan = null,
     serviceId = null,
@@ -47,15 +71,6 @@ export default function PaymentScreen() {
     couponName = null
   } = params || {};
 
-  const [expanded, setExpanded] = useState(false);
-  const [showPopup, setShowPopup] = useState(false);
-  const [stepCount, setStepCount] = useState(2);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [clickedPaymentMethod, setClickedPaymentMethod] = useState(null);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('upi'); // UPI selected by default
-  const [showWebView, setShowWebView] = useState(false);
-  const [paymentUrl, setPaymentUrl] = useState('');
-  
   // Parse plan data
   const planData = typeof plan === 'string' ? JSON.parse(plan || '{}') : (plan || {});
   const amount = parseFloat((planData?.price || '0').replace(/[₹,\s]/g, ''));
@@ -63,14 +78,11 @@ export default function PaymentScreen() {
   const paymentIcons = {
     upi: require('../../../assets/icons/upi.png'),
     wallet: require('../../../assets/icons/wallet.png'),
-    payu: require('../../../assets/icons/upi.png'), // Using UPI icon as placeholder for PayU
   };
 
-
   const handlePayment = async (paymentType) => {
-    if (isProcessing) return; // Prevent multiple clicks
+    if (isProcessing) return;
     
-    // Payment initiated
     setIsProcessing(true);
     setClickedPaymentMethod(paymentType);
     setShowPopup(true);
@@ -79,183 +91,86 @@ export default function PaymentScreen() {
       const result = await recharge(paymentType);
       console.log('Payment result:', JSON.stringify(result, null, 2));
       
-      // Check if outer API call was successful
       const apiSuccess = result?.Status?.toLowerCase() === 'success' || 
                         result?.status?.toLowerCase() === 'success';
       
       if (apiSuccess && result?.data) {
-        // API call successful, now check inner data status
         const innerStatus = result.data.status?.toLowerCase();
         
-        console.log('🔍 Payment Analysis:');
-        console.log('  - Payment Type:', paymentType);
-        console.log('  - Outer Status:', result?.Status || result?.status);
-        console.log('  - Inner Status (raw):', result.data.status);
-        console.log('  - Inner Status (processed):', innerStatus);
-        console.log('  - Full data object:', result.data);
+        console.log('Payment Analysis:');
+        console.log('- Payment Type:', paymentType);
+        console.log('- Outer Status:', result?.Status || result?.status);
+        console.log('- Inner Status:', innerStatus);
         
         if (paymentType === 'wallet') {
-          // Wallet payment logic
-          console.log('Wallet payment - checking inner status:', innerStatus);
-          console.log('Raw data.status:', result.data.status);
-          
           if (innerStatus === 'success') {
-            // Wallet payment successful - redirect to SuccessScreen
-            console.log('✅ Wallet payment successful, redirecting to SuccessScreen');
-            Redirect(paymentType, result);
+            console.log('Wallet payment successful');
+            redirectToSuccess(paymentType, result);
           } else {
-            // Wallet payment failed - show failure popup
-            console.log('❌ Wallet payment failed. Status:', innerStatus, 'Message:', result.data.message);
-            setShowFailurePopup(true);
-            setIsProcessing(false);
-            setStatus("Failed");
-            setErrorMessage(result.data.message || 'Wallet payment failed');
-            setErrorDetails(result);
+            console.log('Wallet payment failed:', result.data.message);
+            showPaymentError(result.data.message || 'Wallet payment failed');
           }
         } else if (paymentType === 'upi') {
-          // UPI payment logic
           if (innerStatus === 'pending') {
-            // UPI payment pending - redirect to PendingScreen
-            console.log('UPI payment pending, redirecting to PendingScreen');
-            RedirectToPending(paymentType, result);
+            console.log('UPI payment pending');
+            redirectToPending(paymentType, result);
           } else if (innerStatus === 'success') {
-            // UPI payment successful - redirect to SuccessScreen
-            console.log('UPI payment successful, redirecting to SuccessScreen');
-            Redirect(paymentType, result);
+            console.log('UPI payment successful');
+            redirectToSuccess(paymentType, result);
           } else {
-            // UPI payment failed - show failure popup
             console.log('UPI payment failed:', result.data.message);
-            setShowFailurePopup(true);
-            setIsProcessing(false);
-            setStatus("Failed");
-            setErrorMessage(result.data.message || 'UPI payment failed');
-            setErrorDetails(result);
-          }
-        } else if (paymentType === 'payu') {
-          // PayU payment logic
-          console.log('PayU payment initiated, handling PayU flow...');
-          
-          // For PayU, we need to redirect to PayU gateway
-          const paymentData = {
-            amount: amount,
-            productInfo: `${serviceId === '1' ? 'Mobile Recharge' : serviceId === '2' ? 'DTH Recharge' : 'Bill Payment'} - ${operator || name}`,
-            firstName: name || 'Customer',
-            email: 'customer@vasbazaar.com', // You might want to get this from user data
-            phone: mobile || '',
-            transactionId: result.data.requestId || result.data.txnId || `TXN${Date.now()}`,
-            udf1: serviceId || '',
-            udf2: operator_id || '',
-            udf3: mobile || '',
-            udf4: circleCode || '',
-            udf5: '',
-          };
-          
-          // Save transaction data for later use
-          const savedData = {
-            ...paymentData,
-            apiResponse: result.data,
-            planData: planData,
-            params: params,
-            couponName: couponName,
-          };
-          console.log('Saving PayU transaction data to AsyncStorage:', savedData);
-          await AsyncStorage.setItem('pendingPayUTransaction', JSON.stringify(savedData));
-          
-          // Initiate PayU payment
-          const payuResult = await initiatePayUPayment(paymentData);
-          
-          if (payuResult.status === 'success') {
-            console.log('PayU payment initiated successfully');
-            // PayU will redirect back to callback URL
-            setIsProcessing(false);
-          } else {
-            console.log('PayU payment initiation failed:', payuResult.message);
-            setShowFailurePopup(true);
-            setIsProcessing(false);
-            setStatus("Failed");
-            setErrorMessage(payuResult.message || 'Failed to initiate PayU payment');
+            showPaymentError(result.data.message || 'UPI payment failed');
           }
         }
       } else {
-        // API call failed
-        setShowFailurePopup(true);
-        setIsProcessing(false);
-        
-        const errorStatus = result?.Status || result?.status || "Failed";
         const errorMessage = result?.message || 'API call failed';
-        
-        setStatus(errorStatus);
-        setErrorMessage(errorMessage);
-        setErrorDetails(result);
+        console.log('API call failed:', errorMessage);
+        showPaymentError(errorMessage);
       }
     } catch (error) {
       console.error('Payment exception:', error);
-      setShowFailurePopup(true);
-      setStatus("Error");
-      setErrorMessage('Payment processing failed: ' + error.message);
+      showPaymentError('Payment processing failed: ' + error.message);
     } finally {
       setShowPopup(false);
     }
   };
 
-  
+  const showPaymentError = (message) => {
+    setShowFailurePopup(true);
+    setIsProcessing(false);
+    setStatus("Failed");
+    setErrorMessage(message);
+  };
+
   const fetchPaymentUrl = async (upiToken) => {
-        if (!upiToken) {
-          return;
-        }
-  
-        const sessionToken = await getSessionToken();
-        if (!sessionToken) {
-          return;
-        }
-  
-        try {
-          // Fetching payment URL with upiToken
-          
-          // Make API call to get payment URL
-          const response = await postRequest(`pay?upiToken=${upiToken}`, {}, sessionToken);
+    if (!upiToken) return;
 
-          // Payment API response processed
-          if (response.status === 'success' && response.data) {
-            // Payment URL set
-            
-            // Store payment URL for potential manual access
-            if (Platform.OS === 'web' && typeof window !== 'undefined') {
-              window.sessionStorage.setItem('lastPaymentUrl', response.data);
-            }
-            
-            openPaymentWindow(response.data);
-          } else {
-            throw new Error(response.message || 'Failed to generate payment link');
-          }
-        } catch (error) {
-          // Error fetching payment URL
-          setShowFailurePopup(true);
-          setStatus("Failed");
-          setErrorMessage('Failed to generate payment link. Please try again.');
-        }
-      };
+    const sessionToken = await getSessionToken();
+    if (!sessionToken) return;
 
-  const Redirect = async (paymentType, data) => {
-    // Save last used serviceId to AsyncStorage for prioritization in Home.js
-    if (serviceId) {
-      try {
-        await AsyncStorage.setItem('lastUsedServiceId', serviceId.toString());
-        console.log('Saved lastUsedServiceId to AsyncStorage');
-      } catch (error) {
-        console.error('Error saving lastUsedServiceId to AsyncStorage:', error);
+    try {
+      const response = await postRequest(`pay?upiToken=${upiToken}`, {}, sessionToken);
+
+      if (response.status === 'success' && response.data) {
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          window.sessionStorage.setItem('lastPaymentUrl', response.data);
+        }
+        openPaymentWindow(response.data);
+      } else {
+        throw new Error(response.message || 'Failed to generate payment link');
       }
+    } catch (error) {
+      showPaymentError('Failed to generate payment link. Please try again.');
     }
+  };
+
+  const redirectToSuccess = async (paymentType, data) => {
+    await saveServiceId();
 
     if (paymentType === 'upi' && data?.data?.upiToken) {
-      // For UPI payments with token, fetch the payment URL
       fetchPaymentUrl(data.data.upiToken);
     } else {
-      // For wallet payments or UPI without token, navigate directly to success
-      console.log('Navigating to SuccessScreen with data:', {
-        paymentType,
-        responseData: data?.data
-      });
+      console.log('Navigating to SuccessScreen');
       
       router.push({
         pathname: '/main/common/SuccessScreen',
@@ -284,21 +199,10 @@ export default function PaymentScreen() {
     }
   };
 
-  const RedirectToPending = async (paymentType, data) => {
-    // Save last used serviceId to AsyncStorage for prioritization in Home.js
-    if (serviceId) {
-      try {
-        await AsyncStorage.setItem('lastUsedServiceId', serviceId.toString());
-        console.log('Saved lastUsedServiceId to AsyncStorage');
-      } catch (error) {
-        console.error('Error saving lastUsedServiceId to AsyncStorage:', error);
-      }
-    }
+  const redirectToPending = async (paymentType, data) => {
+    await saveServiceId();
 
-    console.log('Navigating to PendingScreen with data:', {
-      paymentType,
-      responseData: data?.data
-    });
+    console.log('Navigating to PendingScreen');
 
     router.push({
       pathname: '/main/common/PendingScreen',
@@ -326,18 +230,28 @@ export default function PaymentScreen() {
     });
   };
 
+  const saveServiceId = async () => {
+    if (serviceId) {
+      try {
+        await AsyncStorage.setItem('lastUsedServiceId', serviceId.toString());
+        console.log('Saved lastUsedServiceId to AsyncStorage');
+      } catch (error) {
+        console.error('Error saving lastUsedServiceId to AsyncStorage:', error);
+      }
+    }
+  };
+
   const openPaymentWindow = async(paymentUrl) => {
     console.log('openPaymentWindow called with Platform.OS:', Platform.OS);
     console.log('Payment URL:', paymentUrl);
     
     if (Platform.OS === 'android' || Platform.OS === 'ios') {
-      // For Android and iOS, use WebView
       console.log('Using WebView for mobile platform');
+      setWebViewLoading(true);
       setPaymentUrl(paymentUrl);
       setShowWebView(true);
     } else if (Platform.OS === 'web' && typeof window !== 'undefined') {
       try {
-        // Show warning about potential security message
         const userConfirmed = window.confirm(
           'You will be redirected to the payment gateway.\n\n' +
           'Note: If you see a security warning from your browser, it\'s because the payment gateway uses test/staging URLs. ' +
@@ -345,10 +259,7 @@ export default function PaymentScreen() {
           'Click OK to continue to payment.'
         );
         
-        if (!userConfirmed) {
-          // User cancelled payment redirect
-          return;
-        }
+        if (!userConfirmed) return;
         
         const paymentWindow = window.open(
           paymentUrl, 
@@ -357,15 +268,10 @@ export default function PaymentScreen() {
         );
 
         if (paymentWindow) {
-          // Payment window opened successfully
-          
-          // Monitor the payment window
           const checkClosed = setInterval(() => {
             if (paymentWindow.closed) {
               clearInterval(checkClosed);
-              // Payment window closed
               
-              // Show completion message with enhanced instructions
               setTimeout(() => {
                 const result = window.confirm(
                   'Payment window has been closed.\n\n' +
@@ -377,11 +283,6 @@ export default function PaymentScreen() {
                 );
                 
                 if (result) {
-                  // User confirms payment was successful
-                  // User confirmed payment success
-                  // Navigate to success page
-                  // Do not reset isProcessing or clickedPaymentMethod
-                  // Buttons remain permanently disabled
                   router.push({
                     pathname: '/main/common/SuccessScreen',
                     params: {
@@ -402,8 +303,6 @@ export default function PaymentScreen() {
                     }
                   });
                 } else {
-                  // User indicated payment was not completed
-                  // Show helpful message about the security warning
                   alert(
                     'Payment was not completed.\n\n' +
                     'If you encountered a browser security warning:\n' +
@@ -416,29 +315,23 @@ export default function PaymentScreen() {
             }
           }, 1000);
 
-          // Focus the payment window
           paymentWindow.focus();
-          
         } else {
-          // Popup was blocked
           alert(
             'Payment window was blocked by your browser.\n\n' +
             'Please allow popups for this site and try again.\n' +
             'Alternatively, you can copy this URL and open it manually:\n\n' + 
             paymentUrl
           );
-          // Payment window was blocked
         }
       } catch (error) {
-        // Error opening payment window
         alert('Failed to open payment window: ' + error.message);
       }
     } else {
-      // For unknown platforms, show message
       console.log('Unknown platform, showing alert');
       alert('Payment functionality is available on Android, iOS and Web platforms.');
     }
-  }
+  };
 
   const getBalance = async () => {
     try {
@@ -447,13 +340,23 @@ export default function PaymentScreen() {
 
       const response = await getRequest('api/customer/user/getByUserId', {}, sessionToken);
       if (response?.status === 'success') {
-        const { balance } = response.data;
+        const { balance, email, name, firstName, fullName } = response.data;
         setWalletBalance(balance.toFixed(2));
+        
+        if (email && email.includes('@')) {
+          setUserEmail(email);
+        }
+        
+        if (firstName) {
+          setUserName(firstName);
+        } else if (name) {
+          setUserName(name);
+        } else if (fullName) {
+          setUserName(fullName.split(' ')[0]);
+        }
       }
     } catch (error) {
-      if (Platform.OS === "web") {
-        // Balance fetch error
-      }
+      console.error('Balance fetch error:', error);
     }
   };
 
@@ -463,6 +366,58 @@ export default function PaymentScreen() {
       const validityString = planData?.validity || '';
       const validity = parseInt(validityString.replace(/[^\d]/g, ''), 10) || null;
 
+      // Parse bill_details safely
+      let parsedBillDetails = {};
+      try {
+        if (typeof bill_details === 'string') {
+          parsedBillDetails = JSON.parse(bill_details);
+        } else if (bill_details && typeof bill_details === 'object') {
+          parsedBillDetails = bill_details;
+        }
+      } catch (e) {
+        console.error('Error parsing bill_details:', e);
+        parsedBillDetails = {};
+      }
+
+      // Extract and parse the data array
+      let parsedData = [];
+      if (parsedBillDetails?.data && Array.isArray(parsedBillDetails.data)) {
+        parsedData = parsedBillDetails.data.map(item => {
+          try {
+            return typeof item === "string" ? JSON.parse(item) : item;
+          } catch (e) {
+            return item;
+          }
+        });
+      } else if (parsedBillDetails && Object.keys(parsedBillDetails).length > 0) {
+        parsedData = [parsedBillDetails];
+      }
+
+      // Determine success status
+      let isSuccess = true;
+
+      if (parsedBillDetails?.statusMessage) {
+        const directStatusMsg = parsedBillDetails.statusMessage.toLowerCase();
+        if (directStatusMsg.includes("failed") || directStatusMsg.includes("failure") || directStatusMsg.includes("error")) {
+          isSuccess = false;
+        }
+      }
+
+      if (
+        parsedData.some(
+          d => {
+            const statusMsg = d?.statusMessage?.toLowerCase() || '';
+            return statusMsg.includes("failed") || statusMsg.includes("failure") || statusMsg.includes("error");
+          }
+        )
+      ) {
+        isSuccess = false;
+      }
+
+      if (parsedData.length === 0 && isSuccess) {
+        isSuccess = false;
+      }
+
       const payload = {
         amount: amount,
         operatorId: parseInt(operator_id),
@@ -470,15 +425,21 @@ export default function PaymentScreen() {
         validity: validity,
         couponId1: parseInt(coupon) || null,
         couponId2: selectedCoupon2 || null,
-        payType: paymentType === 'payu' ? 'upi' : (paymentType || 'wallet'),
+        payType: paymentType || "wallet",
         mobile: mobile,
         couponDisc: couponDesc,
-        viewBillResponse: {"data": [bill_details], "success": "true"}
+        platform: Platform.OS,
+        viewBillResponse: {
+          data: parsedData,
+          success: isSuccess.toString()
+        }
       };
 
-      // Save recharge payload to AsyncStorage for PendingScreen status checks
+      console.log('Recharge payload:', payload);
+
+      // Save recharge payload for status checks
       const rechargePayloadForStatusCheck = {
-        field1: mobile, // Using mobile number as field1
+        field1: mobile,
         viewBillResponse: payload.viewBillResponse,
         validity: validity,
         operatorId: payload.operatorId,
@@ -486,19 +447,15 @@ export default function PaymentScreen() {
         amount: payload.amount,
         paymentType: paymentType,
         timestamp: new Date().toISOString(),
-        originalParams: params // Save original params for context
+        originalParams: params
       };
       
       try {
         await AsyncStorage.setItem('pendingRechargePayload', JSON.stringify(rechargePayloadForStatusCheck));
-        console.log('Saved recharge payload for status check:', rechargePayloadForStatusCheck);
+        console.log('Saved recharge payload for status check');
       } catch (storageError) {
         console.error('Error saving recharge payload to AsyncStorage:', storageError);
-        // Continue with API call even if storage fails
       }
-      
-      // Log the request payload
-      // Recharge API request prepared
       
       const sessionToken = await getSessionToken();
       if (!sessionToken) {
@@ -511,21 +468,10 @@ export default function PaymentScreen() {
         sessionToken
       );
       
-      // Log the complete API response
-      // Recharge API response received
-      
-      // Also log individual fields for clarity
-      if (response) {
-        // Response details processed
-      }
-      
-      // Always return the complete response structure for proper handling
       console.log('Recharge API complete response:', JSON.stringify(response, null, 2));
       return response;
     } catch (error) {
-      setShowFailurePopup(true);
-      setStatus("Error");
-      setErrorMessage('An error occurred during payment');
+      showPaymentError('An error occurred during payment');
       throw error;
     }
   };
@@ -533,6 +479,17 @@ export default function PaymentScreen() {
   useEffect(() => {
     getBalance();
   }, []);
+
+  // Handle status bar changes for WebView modal
+  useEffect(() => {
+    if (Platform.OS === 'ios') {
+      if (showWebView) {
+        StatusBar.setBarStyle('dark-content', true);
+      } else {
+        StatusBar.setBarStyle('dark-content', true);
+      }
+    }
+  }, [showWebView]);
 
   useEffect(() => {
     let interval;
@@ -660,8 +617,6 @@ export default function PaymentScreen() {
           )}
         </TouchableOpacity>
 
-
-
         {/* UPI Payment Method */}
         <TouchableOpacity 
           style={[
@@ -695,41 +650,6 @@ export default function PaymentScreen() {
           )}
         </TouchableOpacity>
 
-        {/* PayU Payment Method - Hidden as requested */}
-        {false && (
-          <TouchableOpacity 
-            style={[
-              styles.paymentMethodCard,
-              selectedPaymentMethod === 'payu' && styles.selectedPaymentMethod,
-              isProcessing && styles.disabledPaymentMethod
-            ]}
-            onPress={() => {
-              if (!isProcessing) {
-                setSelectedPaymentMethod('payu');
-              }
-            }}
-            disabled={isProcessing}
-          >
-            <View style={styles.paymentMethodIcon}>
-              <Image source={paymentIcons.payu} style={styles.paymentIcon} />
-            </View>
-            <View style={styles.paymentMethodInfo}>
-              <View style={styles.paymentMethodHeader}>
-                <Text style={styles.paymentMethodName}>PayU Gateway</Text>
-                <View style={styles.secureBadge}>
-                  <Text style={styles.secureText}>Secure</Text>
-                </View>
-              </View>
-              <Text style={styles.paymentMethodDescription}>Pay using Credit/Debit Card, Net Banking, UPI</Text>
-            </View>
-            {selectedPaymentMethod === 'payu' && (
-              <View style={styles.checkIcon}>
-                <Text style={styles.checkMark}>✓</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        )}
-
       </ScrollView>
 
       {/* Fixed Pay Button at Bottom */}
@@ -737,7 +657,7 @@ export default function PaymentScreen() {
         <TouchableOpacity 
           style={[
             styles.payNowButton,
-            isProcessing
+            isProcessing && styles.payNowButtonDisabled
           ]}
           onPress={() => {
             if (selectedPaymentMethod && !isProcessing) {
@@ -782,13 +702,10 @@ export default function PaymentScreen() {
             <Text style={[styles.popupText, { color: 'red' }]}>Transaction {status}</Text>
             <Text style={styles.errorMessage}>{errorMessage}</Text>
             
-            
             <TouchableOpacity
               onPress={() => {
                 setShowFailurePopup(false);
                 setErrorDetails(null);
-                // Do not reset isProcessing or clickedPaymentMethod
-                // Buttons remain permanently disabled
               }}
               style={styles.closeButton}
             >
@@ -798,12 +715,16 @@ export default function PaymentScreen() {
         </View>
       </Modal>
 
-      {/* WebView Modal for Android UPI Payment */}
+      {/* WebView Modal for Mobile UPI Payment */}
       <Modal visible={showWebView} animationType="slide" presentationStyle="fullScreen">
+        <StatusBar barStyle="dark-content" backgroundColor="#000000" />
         <View style={styles.webviewContainer}>
-          <View style={styles.webviewHeader}>
-            <TouchableOpacity onPress={() => setShowWebView(false)} style={styles.webviewCloseButton}>
-              <Text style={styles.webviewCloseButtonText}>✕ Close</Text>
+          <View style={[styles.webviewHeader, { paddingTop: Platform.OS === 'ios' ? insets.top + 12 : 40 }]}>
+            <TouchableOpacity onPress={() => {
+              setShowWebView(false);
+              router.replace('/(tabs)/home');
+            }} style={styles.webviewCloseButton}>
+              <Text style={styles.webviewCloseButtonText}>🏠 Go to Home</Text>
             </TouchableOpacity>
             <Text style={styles.webviewTitle}>UPI Payment</Text>
             <View style={styles.webviewSpacer} />
@@ -815,53 +736,374 @@ export default function PaymentScreen() {
             domStorageEnabled={true}
             startInLoadingState={true}
             scalesPageToFit={true}
+            originWhitelist={['https://*', 'http://*', 'file://*', 'data:*', 'about:*']}
+            mixedContentMode="compatibility"
+            allowsInlineMediaPlayback={true}
+            mediaPlaybackRequiresUserAction={false}
+            sharedCookiesEnabled={true}
+            thirdPartyCookiesEnabled={true}
+            cacheEnabled={true}
+            allowFileAccess={true}
+            userAgent={Platform.select({
+              ios: 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
+              android: 'Mozilla/5.0 (Linux; Android 12; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+              default: 'Mozilla/5.0 (Mobile; rv:89.0) Gecko/89.0 Firefox/89.0'
+            })}
+            setSupportMultipleWindows={true}
+            allowsProtectedMedia={true}
+            onMessage={(event) => {
+              console.log('WebView Message:', event.nativeEvent.data);
+              
+              try {
+                const message = JSON.parse(event.nativeEvent.data);
+                
+                // Handle go to home request from WebView JavaScript
+                if (message.type === 'goto-home') {
+                  console.log('Received goto-home message from WebView');
+                  goToHome();
+                  return;
+                }
+                
+                // Handle UPI link messages
+                if (message.type === 'upi-link' && message.url) {
+                  console.log('Intercepted UPI link via message:', message.url);
+                  
+                  Linking.canOpenURL(message.url)
+                    .then((supported) => {
+                      if (supported) {
+                        console.log('Opening UPI app via message...');
+                        Linking.openURL(message.url);
+                      } else {
+                        console.log('No UPI app found via message:', message.url);
+                        Alert.alert(
+                          'UPI App Required',
+                          'Please install a UPI app like PhonePe, Google Pay, or Paytm to complete the payment.',
+                          [{ text: 'OK' }]
+                        );
+                      }
+                    })
+                    .catch((err) => {
+                      console.error('Error opening UPI app via message:', err);
+                    });
+                }
+              } catch (error) {
+                // Not a JSON message, check for simple string commands
+                const messageStr = event.nativeEvent.data;
+                if (messageStr === 'goto-home' || messageStr === 'goToHome') {
+                  console.log('Received string goto-home message from WebView');
+                  goToHome();
+                }
+              }
+            }}
+            injectedJavaScript={`
+              (function() {
+                console.log('Injected JavaScript running');
+                
+                // Override window.open to catch UPI links
+                const originalOpen = window.open;
+                window.open = function(url, target, features) {
+                  console.log('window.open called with:', url);
+                  if (url && (url.startsWith('upi://') || url.startsWith('phonepe://') || 
+                             url.startsWith('paytm://') || url.startsWith('gpay://') || 
+                             url.startsWith('bhim://'))) {
+                    console.log('Detected UPI link in window.open:', url);
+                    window.ReactNativeWebView.postMessage(JSON.stringify({
+                      type: 'upi-link',
+                      url: url
+                    }));
+                    return null;
+                  }
+                  return originalOpen.call(this, url, target, features);
+                };
+                
+                // Override location.href assignments
+                let originalLocation = window.location.href;
+                Object.defineProperty(window.location, 'href', {
+                  get: function() { return originalLocation; },
+                  set: function(url) {
+                    console.log('location.href set to:', url);
+                    if (url && (url.startsWith('upi://') || url.startsWith('phonepe://') || 
+                               url.startsWith('paytm://') || url.startsWith('gpay://') || 
+                               url.startsWith('bhim://'))) {
+                      console.log('Detected UPI link in location.href:', url);
+                      window.ReactNativeWebView.postMessage(JSON.stringify({
+                        type: 'upi-link',
+                        url: url
+                      }));
+                      return;
+                    }
+                    originalLocation = url;
+                  }
+                });
+                
+                // Monitor for all attempts to navigate to UPI links
+                const originalNavigate = window.location.assign;
+                window.location.assign = function(url) {
+                  console.log('location.assign called with:', url);
+                  if (url && (url.includes('phonepe://') || url.includes('upi://') || 
+                             url.includes('paytm://') || url.includes('gpay://') || 
+                             url.includes('bhim://'))) {
+                    console.log('Detected UPI link in location.assign:', url);
+                    window.ReactNativeWebView.postMessage(JSON.stringify({
+                      type: 'upi-link',
+                      url: url
+                    }));
+                    return;
+                  }
+                  originalNavigate.call(this, url);
+                };
+                
+                // Monitor for links being clicked
+                document.addEventListener('click', function(e) {
+                  const target = e.target.closest('a');
+                  if (target && target.href) {
+                    console.log('Link clicked:', target.href);
+                    if (target.href.includes('phonepe://') || target.href.includes('upi://') || 
+                        target.href.includes('paytm://') || target.href.includes('gpay://') || 
+                        target.href.includes('bhim://')) {
+                      console.log('Detected UPI link in click:', target.href);
+                      e.preventDefault();
+                      e.stopPropagation();
+                      window.ReactNativeWebView.postMessage(JSON.stringify({
+                        type: 'upi-link',
+                        url: target.href
+                      }));
+                    }
+                  }
+                });
+                
+                // Monitor for any navigation attempts
+                const originalReplace = window.location.replace;
+                window.location.replace = function(url) {
+                  console.log('location.replace called with:', url);
+                  if (url && (url.includes('phonepe://') || url.includes('upi://') || 
+                             url.includes('paytm://') || url.includes('gpay://') || 
+                             url.includes('bhim://'))) {
+                    console.log('Detected UPI link in location.replace:', url);
+                    window.ReactNativeWebView.postMessage(JSON.stringify({
+                      type: 'upi-link',
+                      url: url
+                    }));
+                    return;
+                  }
+                  originalReplace.call(this, url);
+                };
+                
+                // Override document.write to catch any UPI links
+                const originalWrite = document.write;
+                document.write = function(html) {
+                  if (html && (html.includes('phonepe://') || html.includes('upi://'))) {
+                    console.log('Detected UPI link in document.write:', html);
+                    const matches = html.match(/(phonepe:\/\/[^"'\s<>]+|upi:\/\/[^"'\s<>]+)/g);
+                    if (matches) {
+                      window.ReactNativeWebView.postMessage(JSON.stringify({
+                        type: 'upi-link',
+                        url: matches[0]
+                      }));
+                    }
+                  }
+                  originalWrite.call(this, html);
+                };
+                
+                // Expose goToHome function to WebView JavaScript
+                window.goToHome = function() {
+                  console.log('WebView JavaScript called goToHome()');
+                  window.ReactNativeWebView.postMessage(JSON.stringify({
+                    type: 'goto-home'
+                  }));
+                };
+                
+                // Also expose as simple string message (alternative method)
+                window.navigateToHome = function() {
+                  console.log('WebView JavaScript called navigateToHome()');
+                  window.ReactNativeWebView.postMessage('goto-home');
+                };
+                
+                // Monitor form submissions
+                const originalSubmit = HTMLFormElement.prototype.submit;
+                HTMLFormElement.prototype.submit = function() {
+                  console.log('Form is being submitted to:', this.action);
+                  if (this.action && (this.action.includes('phonepe://') || this.action.includes('upi://'))) {
+                    console.log('Detected UPI link in form action:', this.action);
+                    window.ReactNativeWebView.postMessage(JSON.stringify({
+                      type: 'upi-link',
+                      url: this.action
+                    }));
+                    return;
+                  }
+                  window.ReactNativeWebView.postMessage(JSON.stringify({
+                    type: 'form-submit',
+                    action: this.action,
+                    method: this.method
+                  }));
+                  originalSubmit.call(this);
+                };
+                
+                console.log('PaymentScreen WebView JavaScript bridge initialized. Available functions:');
+                console.log('- window.goToHome() - Navigate to home screen');
+                console.log('- window.navigateToHome() - Alternative method to navigate to home');
+                console.log('Usage example: window.goToHome();');
+              })();
+            `}
+            onShouldStartLoadWithRequest={(request) => {
+              console.log('WebView attempting to load:', request.url);
+              
+              // Handle Android intent URLs specifically
+              if (request.url.startsWith('intent://')) {
+                console.log('Detected Android intent URL:', request.url);
+                
+                // Parse intent URL to extract actual UPI URL
+                try {
+                  // Intent format: intent://upi/pay?pa=...&pn=...#Intent;scheme=upi;package=com.phonepe.app;end
+                  const intentMatch = request.url.match(/intent:\/\/(.+?)#Intent;scheme=([^;]+);package=([^;]+);/);
+                  if (intentMatch) {
+                    const [, path, scheme, packageName] = intentMatch;
+                    const upiUrl = `${scheme}://${path}`;
+                    console.log('Parsed UPI URL from intent:', upiUrl);
+                    console.log('Target package:', packageName);
+                    
+                    // Try to open the UPI URL
+                    Linking.openURL(upiUrl).catch((err) => {
+                      console.error('Failed to open UPI URL from intent:', err);
+                      // Try alternative UPI apps
+                      const alternativeApps = [
+                        'phonepe://upi/pay?' + path.split('?')[1],
+                        'gpay://upi/pay?' + path.split('?')[1],
+                        'paytm://upi/pay?' + path.split('?')[1],
+                        'upi://pay?' + path.split('?')[1]
+                      ];
+                      
+                      alternativeApps.forEach(app => {
+                        Linking.openURL(app).catch(() => {});
+                      });
+                    });
+                  } else {
+                    // Fallback for malformed intent URLs
+                    console.log('Could not parse intent URL, trying generic UPI apps');
+                    const fallbackApps = ['phonepe://', 'gpay://', 'paytm://', 'upi://'];
+                    fallbackApps.forEach(app => {
+                      Linking.openURL(app).catch(() => {});
+                    });
+                  }
+                } catch (error) {
+                  console.error('Error parsing intent URL:', error);
+                }
+                
+                return false; // Don't load intent URLs in WebView
+              }
+              
+              // Handle direct UPI schemes
+              if (request.url.startsWith('upi:') || 
+                  request.url.startsWith('phonepe:') || 
+                  request.url.startsWith('paytm:') || 
+                  request.url.startsWith('gpay:') || 
+                  request.url.startsWith('googlepay:') ||
+                  request.url.startsWith('bhim:') ||
+                  request.url.startsWith('whatsapp:') ||
+                  request.url.startsWith('tez:')) {
+                
+                console.log('BLOCKED direct UPI scheme, opening externally:', request.url);
+                
+                // Open UPI app immediately
+                Linking.openURL(request.url).catch((err) => {
+                  console.error('Failed to open UPI app:', err);
+                  // Try generic UPI apps as fallback
+                  const fallbackApps = ['phonepe://', 'gpay://', 'paytm://'];
+                  fallbackApps.forEach(app => {
+                    Linking.openURL(app).catch(() => {});
+                  });
+                });
+                
+                return false; // Never load UPI schemes in WebView
+              }
+              
+              // Allow web URLs and other safe schemes
+              return request.url.startsWith('https:') || request.url.startsWith('http:') || request.url.startsWith('data:') || request.url.startsWith('about:') || request.url.startsWith('file:');
+            }}
             onNavigationStateChange={(navState) => {
               console.log('WebView navigation:', navState.url);
               
-              // Check if payment is completed based on URL patterns
-              if (navState.url.includes('success') || navState.url.includes('completed')) {
+              // Handle UPI deep links in navigation state change as well
+              const isUpiLink = navState.url && (
+                navState.url.includes('phonepe://') || 
+                navState.url.includes('upi://') || 
+                navState.url.includes('paytm://') || 
+                navState.url.includes('gpay://') || 
+                navState.url.includes('googlepay://') ||
+                navState.url.includes('bhim://') ||
+                navState.url.includes('whatsapp://') ||
+                navState.url.includes('tez://') ||
+                navState.url.includes('intent://')
+              );
+              
+              if (isUpiLink) {
+                console.log('Navigation intercepted UPI deep link:', navState.url);
+                
+                // Try to open the UPI app
+                Linking.openURL(navState.url)
+                  .then(() => {
+                    console.log('Successfully opened UPI app via navigation');
+                  })
+                  .catch((err) => {
+                    console.error('Error opening UPI app via navigation:', err);
+                    
+                    // Try alternative UPI apps
+                    const alternativeApps = ['phonepe://upi/pay', 'gpay://upi/pay', 'paytm://upi/pay'];
+                    let appOpened = false;
+                    
+                    alternativeApps.forEach((appUrl) => {
+                      if (!appOpened) {
+                        Linking.openURL(appUrl)
+                          .then(() => {
+                            appOpened = true;
+                            console.log('Opened alternative UPI app:', appUrl);
+                          })
+                          .catch(() => {});
+                      }
+                    });
+                  });
+                
+                return; // Don't process further
+              }
+              
+              // Check for generic success/failure patterns
+              if (navState.url.includes('/success') || navState.url.includes('payment-success')) {
                 setShowWebView(false);
-                router.push({
-                  pathname: '/main/common/SuccessScreen',
-                  params: {
-                    serviceId,
-                    operator_id,
-                    plan: typeof planData === 'object' ? JSON.stringify(planData) : plan,
-                    circleCode,
-                    companyLogo,
-                    name,
-                    mobile,
-                    operator,
-                    circle,
-                    coupon,
-                    coupon2,
-                    paymentType: 'upi',
-                    selectedCoupon2,
-                    response: JSON.stringify({ status: 'success', message: 'Payment completed successfully' }),
-                  }
-                });
-              } else if (navState.url.includes('failed') || navState.url.includes('cancel')) {
+                setWebViewLoading(false);
+                // Go directly to home instead of success screen
+                router.replace('/(tabs)/home');
+              } else if (navState.url.includes('/fail') || navState.url.includes('/cancel') || 
+                         navState.url.includes('payment-failed') || navState.url.includes('payment-cancelled')) {
                 setShowWebView(false);
-                setShowFailurePopup(true);
-                setStatus("Failed");
-                setErrorMessage('Payment was cancelled or failed');
+                setWebViewLoading(false);
+                // Go directly to home instead of failure screen
+                router.replace('/(tabs)/home');
               }
             }}
             onError={(syntheticEvent) => {
               const { nativeEvent } = syntheticEvent;
               console.warn('WebView error: ', nativeEvent);
               setShowWebView(false);
-              setShowFailurePopup(true);
-              setStatus("Error");
-              setErrorMessage('Failed to load payment gateway');
+              setWebViewLoading(false);
+              // Go directly to home instead of showing error popup
+              router.replace('/(tabs)/home');
             }}
+            onLoadStart={() => setWebViewLoading(true)}
+            onLoadEnd={() => setWebViewLoading(false)}
             renderLoading={() => (
               <View style={styles.webviewLoading}>
-                <ActivityIndicator size="large" color="#000" />
+                <ActivityIndicator size="large" color="#000000" />
                 <Text style={styles.webviewLoadingText}>Loading payment gateway...</Text>
               </View>
             )}
           />
+          {/* Loading overlay for WebView */}
+          {webViewLoading && (
+            <View style={styles.webviewLoadingOverlay}>
+              <ActivityIndicator size="large" color="#000000" />
+              <Text style={styles.webviewLoadingOverlayText}>Loading UPI Payment...</Text>
+            </View>
+          )}
         </View>
       </Modal>
     </>
@@ -1020,17 +1262,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
   },
-  secureBadge: {
-    backgroundColor: '#2196F3',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-  },
-  secureText: {
-    color: '#ffffff',
-    fontSize: 10,
-    fontWeight: '600',
-  },
   insufficientBadge: {
     backgroundColor: '#FEE2E2',
     paddingHorizontal: 8,
@@ -1044,27 +1275,6 @@ const styles = StyleSheet.create({
   },
   disabledText: {
     color: '#9CA3AF',
-  },
-  walletInfoCard: {
-    backgroundColor: '#FEF3C7',
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: '#F59E0B',
-  },
-  walletInfoHeader: {
-    marginBottom: 8,
-  },
-  walletInfoTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#92400E',
-  },
-  walletInfoDescription: {
-    fontSize: 12,
-    color: '#92400E',
-    lineHeight: 16,
   },
   paymentMethodDescription: {
     fontSize: 14,
@@ -1168,10 +1378,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    paddingTop: Platform.OS === 'android' ? 40 : 12,
-    backgroundColor: '#000',
+    backgroundColor: '#000000',
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: '#333',
   },
   webviewCloseButton: {
     padding: 8,
@@ -1208,5 +1417,22 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     color: '#666',
+  },
+  webviewLoadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    zIndex: 1000,
+  },
+  webviewLoadingOverlayText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#000',
+    fontWeight: '600',
   },
 });

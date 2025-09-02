@@ -100,14 +100,27 @@ export default function MainHeader({
           </View>
           
           <View style={styles.centerSection} pointerEvents="none">
-            <ThemedText 
-              style={[styles.headerTitle, { color: textColor }]} 
-              numberOfLines={1} 
-              ellipsizeMode="tail" 
-              selectable={false}
-            >
-              {title}
-            </ThemedText>
+            {Platform.OS === 'ios' ? (
+              <View style={styles.iosTitleContainer}>
+                <ThemedText 
+                  style={[styles.headerTitle, styles.iosHeaderTitle, { color: textColor }]} 
+                  numberOfLines={1} 
+                  ellipsizeMode="tail" 
+                  selectable={false}
+                >
+                  {title}
+                </ThemedText>
+              </View>
+            ) : (
+              <ThemedText 
+                style={[styles.headerTitle, { color: textColor }]} 
+                numberOfLines={1} 
+                ellipsizeMode="tail" 
+                selectable={false}
+              >
+                {title}
+              </ThemedText>
+            )}
           </View>
           
           <View style={styles.rightSection}>
@@ -192,6 +205,13 @@ const styles = StyleSheet.create({
       android: 12,
       default: 16,
     }),
+    ...Platform.select({
+      ios: {
+        // iOS-specific center alignment
+        height: 44, // Explicit height matching headerContent
+        flexDirection: 'row', // Change to row for better alignment
+      },
+    }),
   },
   rightSection: {
     flexDirection: 'row',
@@ -235,26 +255,53 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   headerTitle: {
-    flex: 1,
     textAlign: 'center',
-    marginHorizontal: Platform.select({
-      ios: 10,
-      android: 8,
-      default: 10,
-    }),
     fontSize: Platform.select({
-      ios: 18,
+      ios: 17,
       android: 18,
       default: 18,
     }),
-    lineHeight: Platform.select({
-      ios: 22,
-      android: 24,
-      default: 22,
-    }),
     fontWeight: '600',
     color: '#FFFFFF',
+    ...Platform.select({
+      ios: {
+        // iOS-specific fixes for proper center alignment
+        lineHeight: 44, // Match header content height
+        textAlignVertical: undefined, // Remove this property on iOS
+        includeFontPadding: false,
+        height: 44,
+        paddingTop: 0,
+        paddingBottom: 0,
+        marginTop: 0,
+        marginBottom: 0,
+      },
+      android: {
+        lineHeight: 24,
+        textAlignVertical: 'center',
+        includeFontPadding: false,
+      },
+      default: {
+        lineHeight: 22,
+        textAlignVertical: 'center',
+        includeFontPadding: false,
+      },
+    }),
+  },
+  iosTitleContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  iosHeaderTitle: {
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: '600',
+    textAlign: 'center',
     includeFontPadding: false,
-    textAlignVertical: 'center',
+    textAlignVertical: undefined,
   },
 });
