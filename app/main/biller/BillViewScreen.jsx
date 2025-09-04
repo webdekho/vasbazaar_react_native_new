@@ -116,7 +116,7 @@ export default function BillViewScreen() {
 
       // Prepare all required params
       router.push({
-        pathname: '/main/common/PaymentScreen',
+        pathname: '/main/common/OfferScreen',
         params: {
           plan: JSON.stringify({ price: "₹" + amount.toString() }),
           serviceId,
@@ -144,9 +144,9 @@ export default function BillViewScreen() {
     // Use data from route params and bill_details
     const fastagData = {
       customerName: billDetailsData?.customername || name || 'Customer Name',
-      fastagBalance: billDetailsData?.fastagBalance || billDetailsData?.billAmount || '-59.5',
-      vehicleModel: billDetailsData?.vehicleModel || '8 seater Maruti Omni',
-      tagId: billDetailsData?.tagId || mobile || 'MH11Y4381'
+      fastagBalance: billDetailsData?.fastagBalance || billDetailsData?.billAmount || '0',
+      vehicleModel: billDetailsData?.vehicleModel || 'No Record Found',
+      tagId: billDetailsData?.tagId || mobile || ''
     };
 
     return (
@@ -268,23 +268,30 @@ export default function BillViewScreen() {
           By proceeding further, you allow vasbazaar to fetch your current and future bills and remind you
         </Text>
         
-        </ScrollView>
-        </KeyboardAvoidingView>
-
-        {/* Fixed Button at Bottom */}
-        <View style={styles.bottomConfirmSection}>
+        {/* Bottom Button */}
+        <View style={styles.bottomPaySection}>
           <TouchableOpacity
             style={[styles.confirmButton, isSubmitting && styles.confirmButtonDisabled]}
             onPress={handlePayBill}
             disabled={isSubmitting}
           >
             {isSubmitting ? (
-              <ActivityIndicator size="small" color="#fff" />
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator 
+                  size="small" 
+                  color="#fff" 
+                  style={styles.loadingSpinner}
+                />
+                <Text style={styles.loadingText}>Processing...</Text>
+              </View>
             ) : (
               <Text style={styles.confirmButtonText}>Proceed to Pay</Text>
             )}
           </TouchableOpacity>
         </View>
+        
+        </ScrollView>
+        </KeyboardAvoidingView>
       </>
     );
   };
@@ -400,30 +407,30 @@ export default function BillViewScreen() {
             </Card>
           )}
 
+          {/* Bottom Button */}
+          <View style={styles.bottomPaySection}>
+            <TouchableOpacity
+              style={[styles.confirmButton, isSubmitting && styles.confirmButtonDisabled]}
+              onPress={handlePayBill}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator 
+                    size="small" 
+                    color="#fff" 
+                    style={styles.loadingSpinner}
+                  />
+                  <Text style={styles.loadingText}>Processing...</Text>
+                </View>
+              ) : (
+                <Text style={styles.confirmButtonText}>Pay Bill</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+
           </ScrollView>
         </KeyboardAvoidingView>
-
-        {/* Fixed Button at Bottom */}
-        <View style={styles.bottomConfirmSection}>
-          <TouchableOpacity
-            style={[styles.confirmButton, isSubmitting && styles.confirmButtonDisabled]}
-            onPress={handlePayBill}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator 
-                  size="small" 
-                  color="#fff" 
-                  style={styles.loadingSpinner}
-                />
-                <Text style={styles.loadingText}>Processing...</Text>
-              </View>
-            ) : (
-              <Text style={styles.confirmButtonText}>Pay Bill</Text>
-            )}
-          </TouchableOpacity>
-        </View>
       </>
     );
   };
@@ -642,7 +649,7 @@ const styles = StyleSheet.create({
   amountToPaySection: {
     backgroundColor: '#f8f9fa',
     borderRadius: 12,
-    padding: 24,
+    paddingVertical: 2,
     marginBottom: 16,
     alignItems: 'center',
   },
@@ -828,31 +835,27 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     textAlign: 'center',
   },
-  bottomConfirmSection: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    paddingBottom: 20,
+  bottomPaySection: {
+    paddingVertical: 0,
+    paddingBottom: Platform.select({
+      web: 30,
+      default: 20,
+    }),
     backgroundColor: '#f8f9fa',
+    borderTopWidth: 1,
+    borderTopColor: '#e5e5e5',
   },
   confirmButton: {
     backgroundColor: '#000000',
-    height: 56,
-    borderRadius: 12,
-    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 10,
     alignItems: 'center',
-    shadowColor: '#000000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
+    marginHorizontal: 0,
+    marginVertical: 10,
   },
   confirmButtonDisabled: {
-    backgroundColor: '#E5E7EB',
-    shadowOpacity: 0,
-    elevation: 0,
+    backgroundColor: '#000000',
+    opacity: 0.5,
   },
   confirmButtonText: {
     color: '#ffffff',

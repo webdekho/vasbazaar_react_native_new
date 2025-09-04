@@ -392,24 +392,33 @@ export default function BillerRechargeScreen() {
           </Card.Content>
         </Card>
 
+        {/* Bottom Button */}
+        <View style={styles.bottomPaySection}>
+          <TouchableOpacity 
+            style={[
+              styles.confirmButton,
+              isButtonDisabled && styles.confirmButtonDisabled
+            ]}
+            onPress={handleSubmit}
+            disabled={isButtonDisabled}
+          >
+            {isSubmitting ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator 
+                  size="small" 
+                  color="#fff" 
+                  style={styles.loadingSpinner}
+                />
+                <Text style={styles.loadingText}>Processing...</Text>
+              </View>
+            ) : (
+              <Text style={styles.confirmButtonText}>Confirm</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+
       </ScrollView>
       </KeyboardAvoidingView>
-
-      {/* Fixed Confirm Button at Bottom */}
-      <View style={styles.bottomConfirmSection}>
-        <TouchableOpacity 
-          style={[
-            styles.confirmButton,
-            isButtonDisabled && styles.confirmButtonDisabled
-          ]}
-          onPress={handleSubmit}
-          disabled={isButtonDisabled}
-        >
-          <Text style={styles.confirmButtonText}>
-            {isSubmitting ? 'Processing...' : 'CONFIRM'}
-          </Text>
-        </TouchableOpacity>
-      </View>
 
       {/* Modal */}
       <Modal visible={modalVisible} animationType="slide" onRequestClose={() => setModalVisible(false)}>
@@ -520,48 +529,45 @@ const styles = StyleSheet.create({
     color: '#555',
     flex: 1,
   },
-  bottomConfirmSection: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+  bottomPaySection: {
+    paddingVertical: 0,
     paddingBottom: Platform.select({
       web: 30,
       default: 20,
     }),
     backgroundColor: '#f7f7f7',
-    ...Platform.select({
-      web: {
-        position: 'sticky',
-        bottom: 0,
-        zIndex: 1000,
-        borderTopWidth: 1,
-        borderTopColor: '#e5e5e5',
-      },
-    }),
+    borderTopWidth: 1,
+    borderTopColor: '#e5e5e5',
   },
   confirmButton: {
     backgroundColor: '#000000',
-    height: 56,
-    borderRadius: 12,
-    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 10,
     alignItems: 'center',
-    shadowColor: '#000000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
+    marginHorizontal: 0,
+    marginVertical: 10,
   },
   confirmButtonDisabled: {
-    backgroundColor: '#E5E7EB',
-    shadowOpacity: 0,
-    elevation: 0,
+    backgroundColor: '#000000',
+    opacity: 0.5,
   },
   confirmButtonText: {
     color: '#ffffff',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingSpinner: {
+    marginRight: 8,
+  },
+  loadingText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   searchBar: {
     marginBottom: 16,
