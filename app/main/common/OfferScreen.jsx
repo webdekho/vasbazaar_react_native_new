@@ -16,6 +16,8 @@ import {
 import { Avatar, Button, Card, List } from 'react-native-paper';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useOrientation } from '../../../hooks/useOrientation';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -28,6 +30,32 @@ const Icons = {
 export default function OfferScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
+  const { isLandscape, isIPhone16Pro, hasNotch } = useOrientation();
+
+  // Calculate dynamic tab bar height
+  const getTabBarHeight = () => {
+    let baseHeight = isLandscape ? 50 : 60;
+    
+    if (Platform.OS === 'web') {
+      baseHeight = isLandscape ? 60 : 70;
+    }
+    
+    if (isIPhone16Pro) {
+      baseHeight = isLandscape ? 55 : 65;
+      if (Platform.OS === 'web') {
+        baseHeight = isLandscape ? 70 : 80;
+      }
+    } else if (hasNotch) {
+      baseHeight = isLandscape ? 52 : 62;
+      if (Platform.OS === 'web') {
+        baseHeight = isLandscape ? 65 : 75;
+      }
+    }
+    
+    const bottomSafeArea = insets.bottom;
+    return baseHeight + bottomSafeArea;
+  };
   
   const {
     serviceId = null,
@@ -147,6 +175,40 @@ export default function OfferScreen() {
 
   useEffect(() => {
     fetchCoupon(true);
+
+    // Add iPhone Safari specific CSS for button visibility
+    if (Platform.OS === 'web') {
+      const style = document.createElement('style');
+      style.innerHTML = `
+        /* iPhone Safari specific styles for bottom button */
+        @supports (-webkit-touch-callout: none) {
+          @media screen and (max-width: 768px) {
+            /* Ensure bottom button is above mobile browser UI */
+            [data-bottom-pay] {
+              padding-bottom: calc(env(safe-area-inset-bottom) + 15px) !important;
+              min-height: 60px !important;
+            }
+          }
+        }
+        
+        /* Additional iPhone viewport fixes */
+        @media screen and (max-device-width: 480px) {
+          [data-bottom-pay] {
+            padding-bottom: 20px !important;
+            position: fixed !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            z-index: 9999 !important;
+          }
+        }
+      `;
+      document.head.appendChild(style);
+
+      return () => {
+        document.head.removeChild(style);
+      };
+    }
   }, []);
 
   const filteredCoupons = jsonData2.filter(coupon =>
@@ -164,7 +226,14 @@ export default function OfferScreen() {
       >
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={styles.container}
+          contentContainerStyle={[
+            styles.container,
+            { 
+              paddingBottom: Platform.OS === 'web' 
+                ? getTabBarHeight() + 20   // Further reduced padding
+                : getTabBarHeight() + 10   // Minimal padding for native apps
+            }
+          ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -308,7 +377,15 @@ export default function OfferScreen() {
         </ScrollView>
 
         {/* Fixed Proceed to Pay Button at Bottom */}
-        <View style={styles.bottomPaySection}>
+        <View 
+          style={[
+            styles.bottomPaySection,
+            Platform.OS === 'web' && {
+              paddingBottom: isLandscape ? 15 : 20, // Even lower positioning
+            }
+          ]}
+          {...(Platform.OS === 'web' && { 'data-bottom-pay': true })}
+        >
           <Button
             mode="contained"
             loading={isLoading}
@@ -439,10 +516,6 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     paddingHorizontal: 16,
-    paddingBottom: Platform.select({
-      web: 120,
-      default: 90,
-    }),
     backgroundColor: '#f7f7f7',
   },
   viCard: {
@@ -561,27 +634,48 @@ const styles = StyleSheet.create({
   bottomPaySection: {
     paddingHorizontal: 16,
     paddingVertical: 16,
-    paddingBottom: Platform.select({
-      web: 30,
-      default: 20,
-    }),
     backgroundColor: '#f7f7f7',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
     ...Platform.select({
       web: {
-        position: 'sticky',
+        position: 'fixed',
         bottom: 0,
+        left: 0,
+        right: 0,
         zIndex: 1000,
+        paddingBottom: 10,
+      },
+      default: {
+        paddingBottom: 20,
       },
     }),
+    // Enhanced shadow for better visibility
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: -2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 8,
   },
   payButton: {
     backgroundColor: '#000000ff',
-    height: 50,
+    height: 54,
     justifyContent: 'center',
     borderRadius: 12,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
   },
   payButtonContent: {
-    height: 50,
+    height: 54,
     justifyContent: 'center',
   },
   payButtonLabel: {

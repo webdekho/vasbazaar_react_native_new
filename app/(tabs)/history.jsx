@@ -9,10 +9,37 @@ import { ThemedView } from '@/components/ThemedView';
 import Header, { HeaderPresets } from '@/components/Header';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getTransactionHistory, submitComplaint } from '../../services';
+import { useOrientation } from '../../hooks/useOrientation';
+import * as Clipboard from 'expo-clipboard';
 
 export default function HistoryScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { isLandscape, isIPhone16Pro, hasNotch } = useOrientation();
+
+  // Calculate dynamic tab bar height - same logic as in other screens
+  const getTabBarHeight = () => {
+    let baseHeight = isLandscape ? 50 : 60;
+    
+    if (Platform.OS === 'web') {
+      baseHeight = isLandscape ? 60 : 70;
+    }
+    
+    if (isIPhone16Pro) {
+      baseHeight = isLandscape ? 55 : 65;
+      if (Platform.OS === 'web') {
+        baseHeight = isLandscape ? 70 : 80;
+      }
+    } else if (hasNotch) {
+      baseHeight = isLandscape ? 52 : 62;
+      if (Platform.OS === 'web') {
+        baseHeight = isLandscape ? 65 : 75;
+      }
+    }
+    
+    const bottomSafeArea = insets.bottom;
+    return baseHeight + bottomSafeArea;
+  };
   
   // State management
   const [transactions, setTransactions] = useState([]);
@@ -22,6 +49,7 @@ export default function HistoryScreen() {
   const [totalPages, setTotalPages] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   
   // Complaint modal states
   const [modalVisible, setModalVisible] = useState(false);
@@ -322,13 +350,57 @@ export default function HistoryScreen() {
     }
   };
 
+  // State for copied coupons
+  const [copiedCoupons, setCopiedCoupons] = useState({});
+
   // Copy coupon code
-  const copyCouponCode = (couponCode) => {
-    Alert.alert(
-      'Coupon Code', 
-      `${couponCode}\n\nCoupon code is displayed above. You can manually copy it.`,
-      [{ text: 'OK', style: 'default' }]
-    );
+  const copyCouponCode = async (couponCode) => {
+    try {
+      if (Platform.OS === 'web') {
+        // Web platform - use navigator.clipboard API
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(couponCode);
+        } else {
+          // Fallback for non-secure contexts
+          const textArea = document.createElement('textarea');
+          textArea.value = couponCode;
+          textArea.style.position = 'fixed';
+          textArea.style.left = '-999999px';
+          document.body.appendChild(textArea);
+          textArea.select();
+          try {
+            document.execCommand('copy');
+          } catch (err) {
+            console.error('Copy failed:', err);
+          } finally {
+            document.body.removeChild(textArea);
+          }
+        }
+      } else {
+        // Mobile platforms - use expo-clipboard
+        await Clipboard.setStringAsync(couponCode);
+      }
+      
+      // Update copy state
+      setCopiedCoupons(prev => ({ ...prev, [couponCode]: true }));
+      
+      // Reset after 2 seconds
+      setTimeout(() => {
+        setCopiedCoupons(prev => {
+          const updated = { ...prev };
+          delete updated[couponCode];
+          return updated;
+        });
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Copy failed:', error);
+      Alert.alert(
+        'Coupon Code', 
+        `${couponCode}\n\nCoupon code is displayed above. You can manually copy it.`,
+        [{ text: 'OK', style: 'default' }]
+      );
+    }
   };
 
   // Format date and time
@@ -364,12 +436,30 @@ export default function HistoryScreen() {
       if (item.customerName) {
         description += ` - ${item.customerName}`;
       }
+      let remark = '';  
+
+      console.log('Remark:', item);
+
+      if (item.originalData.remark) {
+        remark += ` - ${item.originalData.remark}`;
+      }
+
+      let expiry_coupon = '10 Jun 2025';  
+
+      // console.log('Remark:', item);
+
+      if (item.originalData.expiry_coupon) {
+        expiry_coupon += ` - ${item.originalData.expiry_coupon}`;
+      }
+      
 
       grouped[monthYear].push({
         id: item.txnId,
         uniqueKey: `${item.txnId}-${item.date}-${item.time}`, // Add unique key
         name: item.operatorId?.name || item.serviceType,
         desc: description,
+        remark,
+        expiry_coupon,
         amount: item.txnAmt,
         date: formatDate(item.date),
         time: formatTime(item.time),
@@ -637,14 +727,24 @@ export default function HistoryScreen() {
       </Modal>
 
       {/* Search Bar */}
-      <View style={styles.searchContainer}>
+      <View style={[
+        styles.searchContainer,
+        isSearchFocused && styles.searchContainerFocused
+      ]}>
         <FontAwesome name="search" size={20} color="#999" style={styles.searchIcon} />
         <TextInput
-          placeholder="Search transactions..."
+          placeholder="Search using Mobile & Txn id"
           placeholderTextColor="#999"
-          style={styles.searchInput}
+          style={[
+            styles.searchInput,
+            Platform.OS === 'web' && { outlineStyle: 'none' }
+          ]}
           value={searchQuery}
           onChangeText={setSearchQuery}
+          onFocus={() => setIsSearchFocused(true)}
+          onBlur={() => setIsSearchFocused(false)}
+          selectionColor="#000000"
+          underlineColorAndroid="transparent"
         />
         <TouchableOpacity onPress={() => fetchTransactions(true)} disabled={refreshing}>
           <FontAwesome 
@@ -687,6 +787,7 @@ export default function HistoryScreen() {
                       <Text style={styles.name} numberOfLines={1}>{txn.name}</Text>
                       <Text style={styles.desc} numberOfLines={1}>{txn.desc}</Text>
                       <Text style={styles.txnId}>ID: {txn.id} • {txn.serviceType}</Text>
+                      <Text style={styles.txnId}>Remark: {txn.remark} </Text>
                       {txn.status === 'pending' && !txn.originalData.hasComplaint && (
                         <TouchableOpacity
                           style={styles.complaintBtn}
@@ -710,11 +811,17 @@ export default function HistoryScreen() {
                       <Text style={styles.time}>{txn.date} {txn.time}</Text>
                       <View style={[
                         styles.statusBadge, 
-                        { backgroundColor: txn.status === 'success' ? '#E8F5E8' : '#FFF3E0' }
+                        { backgroundColor: 
+                          txn.status === 'success' ? '#E8F5E8' : 
+                          txn.status === 'failed' ? '#FFEBEE' : '#FFF3E0' 
+                        }
                       ]}>
                         <Text style={[
                           styles.status, 
-                          { color: txn.status === 'success' ? '#4CAF50' : '#FF9800' }
+                          { color: 
+                            txn.status === 'success' ? '#4CAF50' : 
+                            txn.status === 'failed' ? '#F44336' : '#FF9800' 
+                          }
                         ]}>
                           {txn.status.toUpperCase()}
                         </Text>
@@ -729,13 +836,22 @@ export default function HistoryScreen() {
                           {txn.couponDescription && (
                             <Text style={styles.couponDesc}>{txn.couponDescription}</Text>
                           )}
+                          {txn.expiry_coupon && (
+                            <Text style={styles.couponExpiry}>Expires: {txn.expiry_coupon}</Text>
+                          )}
                         </View>
                         <TouchableOpacity 
                           style={styles.copyButton}
                           onPress={() => copyCouponCode(txn.couponCode)}
                         >
-                          <FontAwesome name="copy" size={14} color="#2E7D32" />
-                          <Text style={styles.copyText}>Copy</Text>
+                          <FontAwesome 
+                            name={copiedCoupons[txn.couponCode] ? "check" : "copy"} 
+                            size={14} 
+                            color="#2E7D32" 
+                          />
+                          <Text style={styles.copyText}>
+                            {copiedCoupons[txn.couponCode] ? 'Copied' : 'Copy'}
+                          </Text>
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -748,7 +864,11 @@ export default function HistoryScreen() {
           onEndReachedThreshold={0.3}
           contentContainerStyle={[
             styles.listContainer,
-            { paddingBottom: Math.max(insets.bottom + 80, 100) } // Tab bar height + safe area + extra padding
+            { 
+              paddingBottom: Platform.OS === 'web' 
+                ? getTabBarHeight() + 80  // Much more padding for iPhone browser
+                : getTabBarHeight() + 10  // Normal padding for native apps
+            }
           ]}
           refreshControl={
             <RefreshControl
@@ -797,6 +917,12 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+  },
+  searchContainerFocused: {
+    borderColor: '#000000',
+    borderWidth: 2,
   },
   searchIcon: {
     marginRight: 10,
@@ -809,6 +935,9 @@ const styles = StyleSheet.create({
     WebkitTapHighlightColor: 'transparent',
     WebkitTouchCallout: 'none',
     WebkitUserSelect: 'none',
+    ...(Platform.OS === 'web' && {
+      outline: 'none',
+    }),
   },
   // Loading States
   loadingContainer: {
@@ -1027,6 +1156,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#4CAF50',
     lineHeight: 16,
+  },
+  couponExpiry: {
+    fontSize: 11,
+    color: '#FF9800',
+    fontWeight: '500',
+    marginTop: 2,
   },
   // Modal Styles
   centeredView: {

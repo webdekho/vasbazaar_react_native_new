@@ -21,11 +21,37 @@ import { Linking } from 'react-native';
 import { getSessionToken } from '../../../services/auth/sessionManager';
 import { getRequest, postRequest } from '../../../services/api/baseApi';
 import MainHeader from '../../../components/MainHeader';
+import { useOrientation } from '../../../hooks/useOrientation';
 
 export default function PaymentScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
+  const { isLandscape, isIPhone16Pro, hasNotch } = useOrientation();
+
+  // Calculate dynamic tab bar height
+  const getTabBarHeight = () => {
+    let baseHeight = isLandscape ? 50 : 60;
+    
+    if (Platform.OS === 'web') {
+      baseHeight = isLandscape ? 60 : 70;
+    }
+    
+    if (isIPhone16Pro) {
+      baseHeight = isLandscape ? 55 : 65;
+      if (Platform.OS === 'web') {
+        baseHeight = isLandscape ? 70 : 80;
+      }
+    } else if (hasNotch) {
+      baseHeight = isLandscape ? 52 : 62;
+      if (Platform.OS === 'web') {
+        baseHeight = isLandscape ? 65 : 75;
+      }
+    }
+    
+    const bottomSafeArea = insets.bottom;
+    return baseHeight + bottomSafeArea;
+  };
   
   // State variables
   const [showFailurePopup, setShowFailurePopup] = useState(false);
@@ -40,7 +66,7 @@ export default function PaymentScreen() {
   const [stepCount, setStepCount] = useState(2);
   const [isProcessing, setIsProcessing] = useState(false);
   const [clickedPaymentMethod, setClickedPaymentMethod] = useState(null);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('upi');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
   const [showWebView, setShowWebView] = useState(false);
   const [paymentUrl, setPaymentUrl] = useState('');
   const [webViewLoading, setWebViewLoading] = useState(true);
@@ -106,6 +132,9 @@ export default function PaymentScreen() {
           if (innerStatus === 'success') {
             console.log('Wallet payment successful');
             redirectToSuccess(paymentType, result);
+          } else if (innerStatus === 'pending') {
+            console.log('Wallet payment pending');
+            showPaymentError('Transaction in progress. It may take a few minutes to complete.', 'Pending');
           } else {
             console.log('Wallet payment failed:', result.data.message);
             showPaymentError(result.data.message || 'Wallet payment failed');
@@ -135,10 +164,10 @@ export default function PaymentScreen() {
     }
   };
 
-  const showPaymentError = (message) => {
+  const showPaymentError = (message,status='Failed') => {
     setShowFailurePopup(true);
     setIsProcessing(false);
-    setStatus("Failed");
+    setStatus(status);
     setErrorMessage(message);
   };
 
@@ -193,7 +222,8 @@ export default function PaymentScreen() {
           referenceId: data?.data?.referenceId || '',
           vendorRefId: data?.data?.vendorRefId || '',
           commission: data?.data?.commission || 0,
-          couponName
+          couponName,
+          couponDesc,
         }
       });
     }
@@ -478,6 +508,40 @@ export default function PaymentScreen() {
 
   useEffect(() => {
     getBalance();
+
+    // Add iPhone Safari specific CSS for button visibility
+    if (Platform.OS === 'web') {
+      const style = document.createElement('style');
+      style.innerHTML = `
+        /* iPhone Safari specific styles for bottom button */
+        @supports (-webkit-touch-callout: none) {
+          @media screen and (max-width: 768px) {
+            /* Ensure bottom button is above mobile browser UI */
+            [data-bottom-pay] {
+              padding-bottom: calc(env(safe-area-inset-bottom) + 15px) !important;
+              min-height: 60px !important;
+            }
+          }
+        }
+        
+        /* Additional iPhone viewport fixes */
+        @media screen and (max-device-width: 480px) {
+          [data-bottom-pay] {
+            padding-bottom: 20px !important;
+            position: fixed !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            z-index: 9999 !important;
+          }
+        }
+      `;
+      document.head.appendChild(style);
+
+      return () => {
+        document.head.removeChild(style);
+      };
+    }
   }, []);
 
   // Handle status bar changes for WebView modal
@@ -507,12 +571,11 @@ export default function PaymentScreen() {
       <MainHeader title="Payment" />
       <ScrollView 
         style={styles.container} 
-        contentContainerStyle={{ 
-          paddingBottom: Platform.select({
-            web: 120,
-            default: 80,
-          })
-        }}
+        contentContainerStyle={[
+          {
+            paddingBottom: 20   // Standard padding since no fixed bottom button
+          }
+        ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -577,19 +640,22 @@ export default function PaymentScreen() {
         {/* Payment Options */}
         <Text style={styles.paymentSectionTitle}>Select Payment Method</Text>
         
+        {/* Debug/Test Button - Only show in development */}
+        {/* {__DEV__ && (
+          <TouchableOpacity 
+            style={styles.debugButton}
+            onPress={() => router.push('/main/PayUUpiTestScreen')}
+          >
+            <Text style={styles.debugButtonText}>🧪 PayU UPI SDK Test</Text>
+          </TouchableOpacity>
+        )} */}
+        
         {/* Wallet Payment Method */}
-        <TouchableOpacity 
+        <View 
           style={[
             styles.paymentMethodCard,
-            selectedPaymentMethod === 'wallet' && styles.selectedPaymentMethod,
             (parseFloat(walletBalance) < amount || isProcessing) && styles.disabledPaymentMethod
           ]}
-          onPress={() => {
-            if (!(parseFloat(walletBalance) < amount || isProcessing)) {
-              setSelectedPaymentMethod('wallet');
-            }
-          }}
-          disabled={parseFloat(walletBalance) < amount || isProcessing}
         >
           <View style={styles.paymentMethodIcon}>
             <Image source={paymentIcons.wallet} style={styles.paymentIcon} />
@@ -615,26 +681,33 @@ export default function PaymentScreen() {
               Available: ₹{walletBalance}
             </Text>
           </View>
-          {selectedPaymentMethod === 'wallet' && !parseFloat(walletBalance) < amount && (
-            <View style={styles.checkIcon}>
-              <Text style={styles.checkMark}>✓</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+          <TouchableOpacity 
+            style={[
+              styles.payButton,
+              (parseFloat(walletBalance) < amount || isProcessing) && styles.payButtonDisabled
+            ]}
+            onPress={() => {
+              if (!(parseFloat(walletBalance) < amount || isProcessing)) {
+                handlePayment('wallet');
+              }
+            }}
+            disabled={parseFloat(walletBalance) < amount || isProcessing}
+          >
+            <Text style={[
+              styles.payButtonText,
+              (parseFloat(walletBalance) < amount || isProcessing) && styles.payButtonTextDisabled
+            ]}>
+              {isProcessing && clickedPaymentMethod === 'wallet' ? 'Processing...' : 'Pay'}
+            </Text>
+          </TouchableOpacity>
+        </View>
 
         {/* UPI Payment Method */}
-        <TouchableOpacity 
+        <View 
           style={[
             styles.paymentMethodCard,
-            selectedPaymentMethod === 'upi' && styles.selectedPaymentMethod,
             isProcessing && styles.disabledPaymentMethod
           ]}
-          onPress={() => {
-            if (!isProcessing) {
-              setSelectedPaymentMethod('upi');
-            }
-          }}
-          disabled={isProcessing}
         >
           <View style={styles.paymentMethodIcon}>
             <Image source={paymentIcons.upi} style={styles.paymentIcon} />
@@ -648,34 +721,29 @@ export default function PaymentScreen() {
             </View>
             <Text style={styles.paymentMethodDescription}>Pay using UPI ID or QR code</Text>
           </View>
-          {selectedPaymentMethod === 'upi' && (
-            <View style={styles.checkIcon}>
-              <Text style={styles.checkMark}>✓</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+          <TouchableOpacity 
+            style={[
+              styles.payButton,
+              isProcessing && styles.payButtonDisabled
+            ]}
+            onPress={() => {
+              if (!isProcessing) {
+                handlePayment('upi');
+              }
+            }}
+            disabled={isProcessing}
+          >
+            <Text style={[
+              styles.payButtonText,
+              isProcessing && styles.payButtonTextDisabled
+            ]}>
+              {isProcessing && clickedPaymentMethod === 'upi' ? 'Processing...' : 'Pay'}
+            </Text>
+          </TouchableOpacity>
+        </View>
 
       </ScrollView>
 
-      {/* Fixed Pay Button at Bottom */}
-      <View style={styles.bottomPaySection}>
-        <TouchableOpacity 
-          style={[
-            styles.payNowButton,
-            isProcessing && styles.payNowButtonDisabled
-          ]}
-          onPress={() => {
-            if (selectedPaymentMethod && !isProcessing) {
-              handlePayment(selectedPaymentMethod);
-            }
-          }}
-          disabled={isProcessing}
-        >
-          <Text style={styles.payNowButtonText}>
-            {isProcessing ? 'Processing...' : `Pay ₹${amount.toFixed(2)}`}
-          </Text>
-        </TouchableOpacity>
-      </View>
 
       {/* Processing Modal */}
       <Modal visible={showPopup} transparent animationType="fade">
@@ -697,28 +765,52 @@ export default function PaymentScreen() {
 
       {/* Failure Modal */}
       <Modal visible={showFailurePopup} transparent animationType="fade">
-        <View style={styles.modalContainer}>
-          <View style={[styles.popupBox, { maxWidth: 350 }]}>
-            <Image
-              source={require('../../../assets/icons/failure.png')}
-              style={styles.popupImage}
-              resizeMode="contain"
-            />
-            <Text style={[styles.popupText, { color: 'red' }]}>Transaction {status}</Text>
-            <Text style={styles.errorMessage}>{errorMessage}</Text>
-            
-            <TouchableOpacity
-              onPress={() => {
-                setShowFailurePopup(false);
-                setErrorDetails(null);
-              }}
-              style={styles.closeButton}
-            >
-              <Text style={styles.closeButtonText}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+  <View style={styles.modalContainer}>
+    <View style={[styles.popupBox, { maxWidth: 350 }]}>
+
+      {/* Dynamically choose icon and color */}
+      <Image
+        source={
+          status === 'Failed'
+            ? require('../../../assets/icons/failure.png')
+            : status === 'Pending'
+            ? require('../../../assets/icons/pending.png')
+            : require('../../../assets/icons/success.png')
+        }
+        style={styles.popupImage}
+        resizeMode="contain"
+      />
+
+      <Text
+        style={[
+          styles.popupText,
+          {
+            color:
+              status === 'Failed'
+                ? 'red'
+                : status === 'Pending'
+                ? 'orange'
+                : 'green',
+          },
+        ]}
+      >
+        Transaction {status}
+      </Text>
+
+      <Text style={styles.errorMessage}>{errorMessage}</Text>
+
+      <TouchableOpacity
+        onPress={() => {
+          setShowFailurePopup(false);
+          setErrorDetails(null);
+        }}
+        style={styles.closeButton}
+      >
+        <Text style={styles.closeButtonText}>Close</Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+</Modal>
 
       {/* WebView Modal for Mobile UPI Payment */}
       <Modal visible={showWebView} animationType="slide" presentationStyle="fullScreen">
@@ -1301,20 +1393,31 @@ const styles = StyleSheet.create({
   bottomPaySection: {
     paddingHorizontal: 16,
     paddingVertical: 16,
-    paddingBottom: Platform.select({
-      web: 30,
-      default: 20,
-    }),
     backgroundColor: '#ffffff',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
     ...Platform.select({
       web: {
-        position: 'sticky',
+        position: 'fixed',
         bottom: 0,
+        left: 0,
+        right: 0,
         zIndex: 1000,
-        borderTopWidth: 1,
-        borderTopColor: '#e5e5e5',
+        paddingBottom: 10,
+      },
+      default: {
+        paddingBottom: 20,
       },
     }),
+    // Enhanced shadow for better visibility
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: -2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 8,
   },
   payNowButton: {
     backgroundColor: '#000000',
@@ -1451,6 +1554,42 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     color: '#000',
+    fontWeight: '600',
+  },
+  payButton: {
+    backgroundColor: '#000000',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    minWidth: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  payButtonDisabled: {
+    backgroundColor: '#ccc',
+  },
+  payButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  payButtonTextDisabled: {
+    color: '#999',
+  },
+  debugButton: {
+    backgroundColor: '#FF9800',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#F57C00',
+    borderStyle: 'dashed',
+  },
+  debugButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
     fontWeight: '600',
   },
 });

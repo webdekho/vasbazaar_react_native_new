@@ -16,6 +16,9 @@ export default function PinSetScreen() {
   const [step, setStep] = useState('set'); // 'set' or 'confirm'
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  // Check if this is a pin change flow
+  const isChangePinFlow = params.changePin === 'true';
 
   const handleNumberPress = (number) => {
     if (loading) return; // Prevent input during loading
@@ -73,30 +76,46 @@ export default function PinSetScreen() {
       console.log('Set PIN API Response:', response);
       
       if (response?.status === 'success') {
-        console.log('PIN set successfully, redirecting to home');
+        console.log(isChangePinFlow ? 'PIN changed successfully' : 'PIN set successfully');
         
-        // Set flag to bypass AuthGuard temporarily
-        await AsyncStorage.setItem('pinSetSuccess', 'true');
-        
-        // Use setTimeout to ensure all async operations complete
-        setTimeout(async () => {
-          try {
-            // Refresh auth state first
-            console.log('PIN Set - Calling refreshAuth');
-            await refreshAuth();
-            console.log('PIN Set - Auth refreshed, navigating to home');
-            
-            // Clear the bypass flag after a delay
-            setTimeout(() => {
-              AsyncStorage.removeItem('pinSetSuccess');
-            }, 1000);
-            
-            // Navigate to home
-            router.replace('/(tabs)/home');
-          } catch (error) {
-            console.error('PIN Set - Error during refresh/navigation:', error);
-          }
-        }, 500);
+        if (isChangePinFlow) {
+          // For pin change flow, redirect back to PinValidateScreen
+          console.log('PIN change completed, redirecting to PinValidateScreen');
+          
+          // Show success message and redirect
+          setError('PIN changed successfully! Please login with your new PIN.');
+          
+          setTimeout(() => {
+            router.replace('/auth/PinValidateScreen');
+          }, 2000);
+          
+        } else {
+          // Original flow for new PIN setup
+          console.log('PIN set successfully, redirecting to home');
+          
+          // Set flag to bypass AuthGuard temporarily
+          await AsyncStorage.setItem('pinSetSuccess', 'true');
+          
+          // Use setTimeout to ensure all async operations complete
+          setTimeout(async () => {
+            try {
+              // Refresh auth state first
+              console.log('PIN Set - Calling refreshAuth');
+              await refreshAuth();
+              console.log('PIN Set - Auth refreshed, navigating to home');
+              
+              // Clear the bypass flag after a delay
+              setTimeout(() => {
+                AsyncStorage.removeItem('pinSetSuccess');
+              }, 1000);
+              
+              // Navigate to home
+              router.replace('/(tabs)/home');
+            } catch (error) {
+              console.error('PIN Set - Error during refresh/navigation:', error);
+            }
+          }, 500);
+        }
       } else {
         setError(response?.message || 'Failed to set PIN. Please try again.');
       }
@@ -188,12 +207,19 @@ export default function PinSetScreen() {
         <ThemedView style={styles.content}>
           <ThemedView style={styles.header}>
             <ThemedText type="title" style={styles.title}>
-              {step === 'set' ? 'Set Your PIN' : 'Confirm Your PIN'}
+              {isChangePinFlow 
+                ? (step === 'set' ? 'Change Your PIN' : 'Confirm New PIN')
+                : (step === 'set' ? 'Set Your PIN' : 'Confirm Your PIN')
+              }
             </ThemedText>
             <ThemedText style={styles.subtitle}>
-              {step === 'set' 
-                ? 'Create a 4-digit PIN for secure access' 
-                : 'Re-enter your PIN to confirm'
+              {isChangePinFlow
+                ? (step === 'set' 
+                    ? 'Create a new 4-digit PIN for your account' 
+                    : 'Re-enter your new PIN to confirm')
+                : (step === 'set' 
+                    ? 'Create a 4-digit PIN for secure access' 
+                    : 'Re-enter your PIN to confirm')
               }
             </ThemedText>
           </ThemedView>
@@ -201,11 +227,15 @@ export default function PinSetScreen() {
           {renderPinDisplay()}
 
           {error ? (
-            <ThemedText style={styles.errorText}>{error}</ThemedText>
+            <ThemedText style={
+              error.includes('successfully') ? styles.successText : styles.errorText
+            }>{error}</ThemedText>
           ) : null}
 
           {loading && (
-            <ThemedText style={styles.loadingText}>Setting up your PIN...</ThemedText>
+            <ThemedText style={styles.loadingText}>
+              {isChangePinFlow ? 'Changing your PIN...' : 'Setting up your PIN...'}
+            </ThemedText>
           )}
 
           {renderNumberPad()}
@@ -292,6 +322,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     marginBottom: 20,
+  },
+  successText: {
+    color: '#4CAF50',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 20,
+    fontWeight: '600',
   },
   loadingText: {
     color: '#666',

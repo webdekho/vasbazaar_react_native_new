@@ -281,7 +281,7 @@ const SimpleCardSlider = ({
         </View>
       )}
       
-      <ScrollView
+      {/* <ScrollView
         ref={scrollViewRef}
         horizontal
         pagingEnabled={false}
@@ -293,9 +293,28 @@ const SimpleCardSlider = ({
         snapToInterval={(screenWidth - 40) + 10} // Card width + gap
         snapToAlignment="start"
         decelerationRate="fast"
-        autoplayInterval={5000} // 7 seconds
+        autoplayInterval={30000} // 30 seconds
         loop={true}
-      >
+      > */}
+
+      <ScrollView
+  ref={scrollViewRef}
+  horizontal
+  pagingEnabled={false}
+  showsHorizontalScrollIndicator={false}
+  onMomentumScrollEnd={handleScroll}
+  scrollEventThrottle={16}
+  contentContainerStyle={styles.scrollContent}
+  style={styles.scrollView}
+  snapToInterval={(screenWidth - 40) + 10}
+  snapToAlignment="start"
+  decelerationRate="slow"
+  // Remove these invalid props:
+  // autoplayInterval={30000}
+  // loop={true}
+>
+
+
         {data.map((item, index) => (
           <View key={item.id} style={[styles.slideContainer, index === data.length - 1 ? styles.lastSlide : null]}>
             {item.type === "card" ? renderCard(item) : renderImage(item)}
@@ -364,6 +383,7 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'transparent',
   },
   scrollView: {
     width: screenWidth,

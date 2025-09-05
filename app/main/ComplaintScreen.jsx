@@ -91,6 +91,44 @@ export default function ComplaintScreen() {
   // Initial load
   useEffect(() => {
     fetchComplaints(1);
+    
+    // Add iPhone Safari specific CSS for bottom content visibility
+    if (Platform.OS === 'web') {
+      const style = document.createElement('style');
+      style.innerHTML = `
+        /* iPhone Safari specific styles for bottom content */
+        @supports (-webkit-touch-callout: none) {
+          @media screen and (max-width: 768px) {
+            /* Ensure bottom content is visible */
+            .complaint-list-container {
+              padding-bottom: 150px !important;
+              margin-bottom: 50px !important;
+            }
+          }
+        }
+        
+        /* Additional iPhone viewport fixes */
+        @media screen and (max-device-width: 480px) {
+          .complaint-list-container {
+            padding-bottom: 150px !important;
+            margin-bottom: 50px !important;
+          }
+        }
+        
+        /* Specific pagination fixes */
+        .complaint-pagination {
+          margin-bottom: 80px !important;
+          padding-bottom: 40px !important;
+        }
+      `;
+      document.head.appendChild(style);
+
+      return () => {
+        if (document.head.contains(style)) {
+          document.head.removeChild(style);
+        }
+      };
+    }
   }, []);
 
   // Pull to refresh handler
@@ -274,7 +312,7 @@ export default function ComplaintScreen() {
     }
 
     return (
-      <View style={styles.paginationContainer}>
+      <View style={styles.paginationContainer} className={Platform.OS === 'web' ? 'complaint-pagination' : undefined}>
         <TouchableOpacity
           style={[styles.pageButton, currentPage === 1 && styles.pageButtonDisabled]}
           onPress={() => handlePageChange(1)}
@@ -480,7 +518,10 @@ export default function ComplaintScreen() {
               <span style={{ marginTop: '12px', color: '#666' }}>Loading complaints...</span>
             </div>
           ) : (
-            <div style={{ padding: '8px' }}>
+            <div 
+              className="complaint-list-container" 
+              style={{ padding: '8px', paddingBottom: '150px' }}
+            >
               {contentToRender}
             </div>
           )}
@@ -601,7 +642,7 @@ const styles = StyleSheet.create({
   listContainer: {
     paddingVertical: 8,
     paddingHorizontal: 16,
-    paddingBottom: 20,
+    paddingBottom: Platform.OS === 'web' ? 100 : 50,
   },
   emptyListContainer: {
     flexGrow: 1,

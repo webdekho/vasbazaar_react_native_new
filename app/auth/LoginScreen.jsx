@@ -128,7 +128,7 @@ export default function LoginScreen() {
         </ThemedView>
         
         <ThemedView style={styles.welcomeSection}>
-          <ThemedText style={styles.welcomeSubtitle}>Login to your account</ThemedText>
+          <ThemedText style={styles.welcomeSubtitle}>Login / Register to your account</ThemedText>
         </ThemedView>
 
         <ThemedView style={styles.form}>
@@ -143,7 +143,10 @@ export default function LoginScreen() {
               <Text style={styles.prefixText}>+91 </Text>
               <TextInput
                 ref={inputRef}
-                style={styles.mobileInput}
+                style={[
+                  styles.mobileInput,
+                  Platform.OS === 'web' && { outlineStyle: 'none' }
+                ]}
                 value={mobileNumber}
                 onChangeText={setMobileNumber}
                 onFocus={() => setIsMobileFocused(true)}
@@ -155,6 +158,8 @@ export default function LoginScreen() {
                 placeholderTextColor="#9CA3AF"
                 selectionColor="#000000"
                 underlineColorAndroid="transparent"
+                autoCapitalize="none"
+                autoCorrect={false}
               />
             </View>
             <View style={styles.errorContainer}>
@@ -168,7 +173,10 @@ export default function LoginScreen() {
           {showReferralField && (
             <ThemedView style={styles.inputGroup}>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  Platform.OS === 'web' && { outlineStyle: 'none' }
+                ]}
                 placeholder="Referral Code (Optional)"
                 placeholderTextColor="#9CA3AF"
                 value={referralCode}
@@ -231,21 +239,31 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
 
-  // Header Section with Background Image
+  // Header Section with Background Image - Safari compatible
   header: {
-    height: 180,
+    height: Platform.OS === 'web' ? 220 : 180, // Increased height for web/Safari
     position: 'relative',
     justifyContent: 'center',
     alignItems: 'center',
+    // Add safe area handling for web
+    ...(Platform.OS === 'web' && {
+      paddingTop: 'env(safe-area-inset-top)',
+      minHeight: 220,
+    }),
   },
   backgroundImage: {
     position: 'absolute',
-    top: 0,
+    top: Platform.OS === 'web' ? 0 : 0,
     left: 0,
     right: 0,
     bottom: 0,
     width: '100%',
     height: '100%',
+    // Ensure image covers the entire area on web
+    ...(Platform.OS === 'web' && {
+      objectFit: 'cover',
+      minHeight: '100%',
+    }),
   },
   overlay: {
     position: 'absolute',
@@ -329,23 +347,30 @@ const styles = StyleSheet.create({
     height: 56,
     paddingHorizontal: 16,
     paddingVertical: 8, // Add some vertical padding for better cursor visibility
+    ...(Platform.OS === 'web' && {
+      outline: 'none',
+      boxShadow: 'none',
+    }),
   },
   mobileInputContainerFocused: {
     borderColor: '#000000',
     borderWidth: 2,
   },
   prefixText: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     color: '#374151',
     marginRight: 8,
   },
   mobileInput: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 18,
     color: '#111827',
     paddingVertical: 0, // Remove default padding to align with container
     textAlign: 'left',
+    ...(Platform.OS === 'web' && {
+      outline: 'none',
+    }),
   },
   input: {
     height: 56,
@@ -353,9 +378,12 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
     borderRadius: 12,
     paddingHorizontal: 16,
-    fontSize: 16,
+    fontSize: 18,
     backgroundColor: '#F9FAFB',
     color: '#111827',
+    ...(Platform.OS === 'web' && {
+      outline: 'none',
+    }),
   },
   inputError: {
     borderColor: '#EF4444',

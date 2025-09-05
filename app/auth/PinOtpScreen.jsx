@@ -4,6 +4,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import Logo from '@/components/Logo';
+import OTPInput from '@/components/OTPInput';
 import { verifyPinOtp } from '../../services';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { saveSessionToken } from '../../services/auth/sessionManager';
@@ -13,10 +14,19 @@ export default function PinOtpScreen() {
   const params = useLocalSearchParams();
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [timer, setTimer] = useState(30);
-  const [focusedIndex, setFocusedIndex] = useState(-1);
-  const inputRefs = useRef([]);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  
+  // Check if this is a pin change request
+  const isChangePinFlow = params.changePin === 'true';
+  
+  // Debug logging for parameters
+  useEffect(() => {
+    console.log('📋 PinOtpScreen params:', params);
+    console.log('📋 permanentToken exists:', !!params.permanentToken);
+    console.log('📋 tempToken exists:', !!params.temptoken);
+    console.log('📋 isChangePinFlow:', isChangePinFlow);
+  }, [params]);
 
   useEffect(() => {
     if (timer > 0) {
@@ -27,29 +37,27 @@ export default function PinOtpScreen() {
     }
   }, [timer]);
 
-  const handleOtpChange = (text, index) => {
-    if (text.length <= 1) {
-      const newOtp = [...otp];
-      newOtp[index] = text;
-      setOtp(newOtp);
-
-      // Move to next input
-      if (text && index < 5) {
-        inputRefs.current[index + 1].focus();
-      }
+  const handleOtpChange = (newOtp) => {
+    setOtp(newOtp);
+    // Clear error message when user starts typing
+    if (errorMessage) {
+      setErrorMessage('');
     }
   };
 
-  const handleKeyPress = (e, index) => {
-    if (e.nativeEvent.key === 'Backspace' && !otp[index] && index > 0) {
-      inputRefs.current[index - 1].focus();
+  // Handle OTP completion
+  const handleOtpComplete = (otpString) => {
+    console.log('PIN OTP Complete:', otpString);
+    // Auto-verify when OTP is complete
+    if (otpString.length === 6 && !loading) {
+      handleVerifyOtp(otpString);
     }
   };
 
   // Verify PIN OTP API call
-  const handleVerifyOtp = async () => {
-    const otpString = otp.join('');
-    if (otpString.length !== 6) {
+  const handleVerifyOtp = async (otpString = null) => {
+    const otpValue = otpString || otp.join('');
+    if (otpValue.length !== 6) {
       setErrorMessage('Please enter complete OTP');
       return;
     }
@@ -58,11 +66,20 @@ export default function PinOtpScreen() {
     setErrorMessage('');
 
     try {
+      console.log('🔐 Calling verifyPinOtp with:');
+      console.log('  OTP:', otpValue);
+      console.log('  permanentToken exists:', !!params.permanentToken);
+      console.log('  permanentToken preview:', params.permanentToken?.substring(0, 20) + '...');
+      console.log('  tempToken exists:', !!params.temptoken);
+      console.log('  tempToken preview:', params.tempToken?.substring(0, 20) + '...');
+      
       const apiResponse = await verifyPinOtp(
-        otpString,
+        otpValue,
         params.permanentToken,
-        params.tempToken
+        params.temptoken
       );
+      
+      console.log('🔐 verifyPinOtp response:', apiResponse);
 
       if (apiResponse?.status === 'success') {
         console.log('PIN OTP Verification successful:', apiResponse.data);
@@ -97,6 +114,7 @@ export default function PinOtpScreen() {
           params: {
             permanentToken: params.permanentToken,
             sessionToken: sessionToken,
+            changePin: isChangePinFlow ? 'true' : undefined,
           }
         });
         
@@ -185,40 +203,28 @@ export default function PinOtpScreen() {
           </ThemedView>
           
           <ThemedView style={styles.welcomeSection}>
-            <ThemedText style={styles.welcomeTitle}>Enter OTP</ThemedText>
+            <ThemedText style={styles.welcomeTitle}>
+              {isChangePinFlow ? 'Change PIN - Verify OTP' : 'Enter OTP'}
+            </ThemedText>
             <ThemedText style={styles.welcomeSubtitle}>
-              We&apos;ve sent a 6-digit OTP for PIN validation
+              {isChangePinFlow 
+                ? "We've sent a 6-digit OTP to verify your identity for PIN change"
+                : "We've sent a 6-digit OTP for PIN validation"
+              }
             </ThemedText>
           </ThemedView>
 
           <ThemedView style={styles.form}>
             <ThemedView style={styles.otpContainer}>
-              <View style={styles.otpInputs}>
-                {otp.map((digit, index) => (
-                  <View
-                    key={index}
-                    style={[
-                      styles.otpInputWrapper,
-                      focusedIndex === index && styles.otpInputWrapperFocused
-                    ]}
-                  >
-                    <TextInput
-                      ref={ref => inputRefs.current[index] = ref}
-                      style={styles.otpInputField}
-                      value={digit}
-                      onChangeText={text => handleOtpChange(text, index)}
-                      onKeyPress={e => handleKeyPress(e, index)}
-                      onFocus={() => setFocusedIndex(index)}
-                      onBlur={() => setFocusedIndex(-1)}
-                      keyboardType="number-pad"
-                      maxLength={1}
-                      selectionColor="#000000"
-                      underlineColorAndroid="transparent"
-                      textContentType="oneTimeCode"
-                    />
-                  </View>
-                ))}
-              </View>
+              <OTPInput
+                length={6}
+                value={otp}
+                onChange={handleOtpChange}
+                onComplete={handleOtpComplete}
+                disabled={loading}
+                autoFocus={true}
+                containerStyle={styles.otpInputs}
+              />
 
               <ThemedView style={styles.timerContainer}>
                 {timer > 0 ? (
@@ -275,21 +281,31 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
 
-  // Header Section with Background Image
+  // Header Section with Background Image - Safari compatible
   header: {
-    height: 180,
+    height: Platform.OS === 'web' ? 220 : 180, // Increased height for web/Safari
     position: 'relative',
     justifyContent: 'center',
     alignItems: 'center',
+    // Add safe area handling for web
+    ...(Platform.OS === 'web' && {
+      paddingTop: 'env(safe-area-inset-top)',
+      minHeight: 220,
+    }),
   },
   backgroundImage: {
     position: 'absolute',
-    top: 0,
+    top: Platform.OS === 'web' ? 0 : 0,
     left: 0,
     right: 0,
     bottom: 0,
     width: '100%',
     height: '100%',
+    // Ensure image covers the entire area on web
+    ...(Platform.OS === 'web' && {
+      objectFit: 'cover',
+      minHeight: '100%',
+    }),
   },
   overlay: {
     position: 'absolute',

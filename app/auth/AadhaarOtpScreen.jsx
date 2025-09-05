@@ -4,6 +4,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import Logo from '@/components/Logo';
+import OTPInput from '@/components/OTPInput';
 import ErrorMessage from '@/components/ErrorMessage';
 import SuccessMessage from '@/components/SuccessMessage';
 import { verifyAadhaarOtp, sendAadhaarOtp } from '../../services/aadhaar/aadhaarService';
@@ -16,12 +17,10 @@ export default function AadhaarOtpScreen() {
   const params = useLocalSearchParams();
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [timer, setTimer] = useState(30);
-  const [focusedIndex, setFocusedIndex] = useState(-1);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
-  const inputRefs = useRef([]);
 
   useEffect(() => {
     if (timer > 0) {
@@ -37,36 +36,30 @@ export default function AadhaarOtpScreen() {
     return `XXXX-XXXX-${aadhaarNumber.slice(-4)}`;
   };
 
-  const handleOtpChange = (text, index) => {
-    if (text.length <= 1) {
-      const newOtp = [...otp];
-      newOtp[index] = text;
-      setOtp(newOtp);
-
-      // Clear error and success messages when user starts typing
-      if (errorMessage) {
-        setErrorMessage('');
-      }
-      if (successMessage) {
-        setSuccessMessage('');
-      }
-
-      // Move to next input
-      if (text && index < 5) {
-        inputRefs.current[index + 1].focus();
-      }
+  const handleOtpChange = (newOtp) => {
+    setOtp(newOtp);
+    
+    // Clear error and success messages when user starts typing
+    if (errorMessage) {
+      setErrorMessage('');
+    }
+    if (successMessage) {
+      setSuccessMessage('');
     }
   };
 
-  const handleKeyPress = (e, index) => {
-    if (e.nativeEvent.key === 'Backspace' && !otp[index] && index > 0) {
-      inputRefs.current[index - 1].focus();
+  // Handle OTP completion
+  const handleOtpComplete = (otpString) => {
+    console.log('Aadhaar OTP Complete:', otpString);
+    // Auto-verify when OTP is complete
+    if (otpString.length === 6 && !isVerifying) {
+      handleVerifyOtp(otpString);
     }
   };
 
-  const handleVerifyOtp = async () => {
-    const otpString = otp.join('');
-    if (otpString.length !== 6) {
+  const handleVerifyOtp = async (otpString = null) => {
+    const otpValue = otpString || otp.join('');
+    if (otpValue.length !== 6) {
       setErrorMessage('Please enter a valid 6-digit OTP');
       return;
     }
@@ -93,9 +86,9 @@ export default function AadhaarOtpScreen() {
         return;
       }
 
-      console.log('Verifying Aadhaar OTP:', { otpLength: otpString.length, refId });
+      console.log('Verifying Aadhaar OTP:', { otpLength: otpValue.length, refId });
 
-      const response = await verifyAadhaarOtp(otpString, refId, sessionToken);
+      const response = await verifyAadhaarOtp(otpValue, refId, sessionToken);
 
       console.log('Aadhaar OTP Verification Response:', response);
 
@@ -156,7 +149,6 @@ export default function AadhaarOtpScreen() {
         
         // Clear OTP for retry
         setOtp(['', '', '', '', '', '']);
-        inputRefs.current[0]?.focus();
       }
     } catch (error) {
       console.error('Error verifying Aadhaar OTP:', error);
@@ -281,32 +273,15 @@ export default function AadhaarOtpScreen() {
             
 
             <ThemedView style={styles.otpContainer}>
-              <View style={styles.otpInputs}>
-                {otp.map((digit, index) => (
-                  <View
-                    key={index}
-                    style={[
-                      styles.otpInputWrapper,
-                      focusedIndex === index && styles.otpInputWrapperFocused
-                    ]}
-                  >
-                    <TextInput
-                      ref={ref => inputRefs.current[index] = ref}
-                      style={styles.otpInputField}
-                      value={digit}
-                      onChangeText={text => handleOtpChange(text, index)}
-                      onKeyPress={e => handleKeyPress(e, index)}
-                      onFocus={() => setFocusedIndex(index)}
-                      onBlur={() => setFocusedIndex(-1)}
-                      keyboardType="number-pad"
-                      maxLength={1}
-                      selectionColor="#000000"
-                      underlineColorAndroid="transparent"
-                      textContentType="oneTimeCode"
-                    />
-                  </View>
-                ))}
-              </View>
+              <OTPInput
+                length={6}
+                value={otp}
+                onChange={handleOtpChange}
+                onComplete={handleOtpComplete}
+                disabled={isVerifying}
+                autoFocus={true}
+                containerStyle={styles.otpInputs}
+              />
 
               <ErrorMessage message={errorMessage} visible={!!errorMessage} />
             
@@ -374,21 +349,31 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
 
-  // Header Section with Background Image
+  // Header Section with Background Image - Safari compatible
   header: {
-    height: 180,
+    height: Platform.OS === 'web' ? 220 : 180, // Increased height for web/Safari
     position: 'relative',
     justifyContent: 'center',
     alignItems: 'center',
+    // Add safe area handling for web
+    ...(Platform.OS === 'web' && {
+      paddingTop: 'env(safe-area-inset-top)',
+      minHeight: 220,
+    }),
   },
   backgroundImage: {
     position: 'absolute',
-    top: 0,
+    top: Platform.OS === 'web' ? 0 : 0,
     left: 0,
     right: 0,
     bottom: 0,
     width: '100%',
     height: '100%',
+    // Ensure image covers the entire area on web
+    ...(Platform.OS === 'web' && {
+      objectFit: 'cover',
+      minHeight: '100%',
+    }),
   },
   overlay: {
     position: 'absolute',

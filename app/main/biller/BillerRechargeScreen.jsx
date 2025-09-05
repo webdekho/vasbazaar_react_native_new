@@ -2,7 +2,7 @@ import MainHeader from '../../../components/MainHeader';
 import { getSessionToken } from '../../../services/auth/sessionManager';
 import { getRequest, postRequest } from '../../../services/api/baseApi';
 import * as Contacts from 'expo-contacts';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -16,8 +16,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
+  TextInput,
 } from 'react-native';
-import { Button, Card, IconButton, Text, TextInput } from 'react-native-paper';
+import { Button, Card, IconButton, Text } from 'react-native-paper';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
 export default function BillerRechargeScreen() {
@@ -73,6 +75,7 @@ export default function BillerRechargeScreen() {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [focusedField, setFocusedField] = useState(null);
 
   const handleChange = (key, value) => {
     setFormValues((prev) => ({ ...prev, [key]: value }));
@@ -336,35 +339,45 @@ export default function BillerRechargeScreen() {
               <Text variant="labelLarge">{field.label}</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 {field.type === 'select' ? (
-                  <Pressable onPress={() => openDropdownModal(key)} style={{ flex: 1 }}>
+                  <Pressable onPress={() => openDropdownModal(key)} style={styles.inputContainer}>
                     <TextInput
-                      right={<TextInput.Icon icon="menu-down" />}
-                      style={styles.textInput}
-                      mode="outlined"
+                      style={[
+                        styles.formTextInput,
+                        Platform.OS === 'web' && { outlineStyle: 'none' }
+                      ]}
                       keyboardType={field.type === 'number' ? 'numeric' : 'default'}
                       value={formValues[key]}
                       onChangeText={(text) => handleChange(key, text)}
-                      outlineColor="#E5E7EB"
-                      activeOutlineColor="#000000"
-                      outlineStyle={{ borderWidth: 2, borderRadius: 12 }}
-                      disabled={isSubmitting}
-                      placeholder={`Select ${field.label}`}
                       editable={false}
+                      placeholder={`Select ${field.label}`}
+                      placeholderTextColor="#9CA3AF"
+                      selectionColor="#000000"
+                      underlineColorAndroid="transparent"
                     />
+                    <MaterialIcons name="arrow-drop-down" size={24} color="#666666" />
                   </Pressable>
                 ) : (
-                  <TextInput
-                    style={styles.textInput}
-                    mode="outlined"
-                    placeholder={`Enter ${field.label}`}
-                    keyboardType={field.type === 'number' ? 'numeric' : 'default'}
-                    value={formValues[key]}
-                    onChangeText={(text) => handleChange(key, text)}
-                    outlineColor="#E5E7EB"
-                    activeOutlineColor="#000000"
-                    outlineStyle={{ borderWidth: 2, borderRadius: 12 }}
-                    disabled={isSubmitting}
-                  />
+                  <View style={[
+                    styles.inputContainer,
+                    focusedField === key && styles.inputContainerFocused
+                  ]}>
+                    <TextInput
+                      style={[
+                        styles.formTextInput,
+                        Platform.OS === 'web' && { outlineStyle: 'none' }
+                      ]}
+                      placeholder={`Enter ${field.label}`}
+                      placeholderTextColor="#9CA3AF"
+                      keyboardType={field.type === 'number' ? 'numeric' : 'default'}
+                      value={formValues[key]}
+                      onChangeText={(text) => handleChange(key, text)}
+                      onFocus={() => setFocusedField(key)}
+                      onBlur={() => setFocusedField(null)}
+                      editable={!isSubmitting}
+                      selectionColor="#000000"
+                      underlineColorAndroid="transparent"
+                    />
+                  </View>
                 )}
                 {index === 0 && (
                   <View style={styles.contactIcon}>
@@ -428,13 +441,17 @@ export default function BillerRechargeScreen() {
             styles.modalSearchContainer,
             isSearchFocused && styles.modalSearchContainerFocused
           ]}>
+            <MaterialIcons name="search" size={20} color="#666666" style={styles.searchIcon} />
             <TextInput
               placeholder="Search"
               value={searchQuery}
               onChangeText={handleSearch}
               onFocus={() => setIsSearchFocused(true)}
               onBlur={() => setIsSearchFocused(false)}
-              style={styles.modalSearchInput}
+              style={[
+                styles.modalSearchInput,
+                Platform.OS === 'web' && { outlineStyle: 'none' }
+              ]}
               selectionColor="#000000"
               underlineColorAndroid="transparent"
               placeholderTextColor="#9CA3AF"
@@ -492,6 +509,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
     borderRadius: 12,
     marginLeft: 8,
+    ...(Platform.OS === 'web' && {
+      '& button:focus': {
+        outline: 'none',
+      },
+    }),
   },
   container: {
     backgroundColor: '#f7f7f7',
@@ -621,6 +643,38 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
     fontSize: 16,
     height: 56,
+    ...(Platform.OS === 'web' && {
+      '& input:focus': {
+        outline: 'none',
+      },
+    }),
+  },
+  inputContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    backgroundColor: '#F9FAFB',
+    height: 56,
+    paddingHorizontal: 16,
+    marginTop: 8,
+    borderStyle: 'solid',
+    overflow: 'hidden',
+  },
+  inputContainerFocused: {
+    borderColor: '#000000',
+    borderWidth: 2,
+  },
+  formTextInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#111827',
+    paddingVertical: 0,
+    ...(Platform.OS === 'web' && {
+      outline: 'none',
+    }),
   },
   modalSearchContainer: {
     borderWidth: 2,
@@ -630,7 +684,8 @@ const styles = StyleSheet.create({
     height: 56,
     paddingHorizontal: 16,
     marginBottom: 24,
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   modalSearchContainerFocused: {
     borderColor: '#000000',
@@ -641,6 +696,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#111827',
     backgroundColor: 'transparent',
+    paddingVertical: 0,
+    ...(Platform.OS === 'web' && {
+      outline: 'none',
+    }),
+  },
+  searchIcon: {
+    marginRight: 8,
   },
   modalItem: {
     paddingVertical: 16,

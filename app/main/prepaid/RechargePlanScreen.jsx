@@ -414,7 +414,10 @@ export default function RechargePlanScreen() {
               <Text style={styles.searchIcon}>🔍</Text>
               <TextInput
                 placeholder="Search Plan or Enter Amount"
-                style={styles.searchInput}
+                style={[
+                  styles.searchInput,
+                  Platform.OS === 'web' && { outlineStyle: 'none' }
+                ]}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 onFocus={() => setIsSearchFocused(true)}
@@ -667,6 +670,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#111827',
     fontWeight: '500',
+    ...(Platform.OS === 'web' && {
+      outline: 'none',
+    }),
   },
   fixedCategoryContainer: {
     paddingHorizontal: 16,
@@ -909,11 +915,11 @@ const styles = StyleSheet.create({
     }),
   },
   disclaimerText: { 
-    fontSize: 13, 
+    fontSize: 11, 
     textAlign: 'center', 
     color: '#92400E', // Warning brown color
     fontWeight: '500',
-    lineHeight: 18,
+    lineHeight: 16,
   },
   modalOverlay: { 
     flex: 1, 

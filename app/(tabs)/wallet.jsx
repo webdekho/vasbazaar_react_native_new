@@ -23,10 +23,38 @@ import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import Header, { HeaderPresets } from '@/components/Header';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useOrientation } from '../../hooks/useOrientation';
 
 export default function WalletScreen() {
   const router = useRouter();
   const { isAuthenticated, userToken: contextUserToken } = useAuth();
+  const insets = useSafeAreaInsets();
+  const { isLandscape, isIPhone16Pro, hasNotch } = useOrientation();
+
+  // Calculate dynamic tab bar height
+  const getTabBarHeight = () => {
+    let baseHeight = isLandscape ? 50 : 60;
+    
+    if (Platform.OS === 'web') {
+      baseHeight = isLandscape ? 60 : 70;
+    }
+    
+    if (isIPhone16Pro) {
+      baseHeight = isLandscape ? 55 : 65;
+      if (Platform.OS === 'web') {
+        baseHeight = isLandscape ? 70 : 80;
+      }
+    } else if (hasNotch) {
+      baseHeight = isLandscape ? 52 : 62;
+      if (Platform.OS === 'web') {
+        baseHeight = isLandscape ? 65 : 75;
+      }
+    }
+    
+    const bottomSafeArea = insets.bottom;
+    return baseHeight + bottomSafeArea;
+  };
   
   // State management
   const [transactions, setTransactions] = useState([]);
@@ -41,6 +69,7 @@ export default function WalletScreen() {
   const [expandedTransaction, setExpandedTransaction] = useState(null);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   
   // Animation values map for expandable items
   const [animationValues] = useState(new Map());
@@ -93,8 +122,14 @@ export default function WalletScreen() {
       if (response?.status === "success" || response?.Status === "SUCCESS") {
         const { records = [], totalPages: apiTotalPages = 1 } = response.data || {};
 
+        // Filter to only show transactions with operatorName AND serviceType !== 'cashback'
+        const validRecords = records.filter(record => {
+          const operatorName = record.operatorId?.operatorName;
+          return operatorName && record.serviceType !== 'cashback';
+        });
+
         // Initialize animation values for new records
-        records.forEach(record => {
+        validRecords.forEach(record => {
           if (!animationValues.has(record.id)) {
             animationValues.set(record.id, new Animated.Value(0));
           }
@@ -102,19 +137,19 @@ export default function WalletScreen() {
 
         if (isRefresh || pageNumber === 1) {
           // Replace data for refresh or first load
-          setTransactions(records);
+          setTransactions(validRecords);
           setCurrentPage(1);
           
           // Set wallet balance from the most recent transaction
-          if (records.length > 0) {
-            setWalletBalance(records[0]?.closingBal || 0);
+          if (validRecords.length > 0) {
+            setWalletBalance(validRecords[0]?.closingBal || 0);
           }
         } else {
           // Append data for pagination
           setTransactions(prevData => {
             // Avoid duplicates based on ID
             const existingIds = new Set(prevData.map(item => item.id));
-            const newRecords = records.filter(record => !existingIds.has(record.id));
+            const newRecords = validRecords.filter(record => !existingIds.has(record.id));
             return [...prevData, ...newRecords];
           });
           setCurrentPage(pageNumber);
@@ -280,15 +315,30 @@ export default function WalletScreen() {
 
   // Get display message for transaction
   const getDisplayMessage = (item) => {
-    const operatorName = item.operatorId?.operatorName;
+    
+    console.log('transaction row:',item);
+
+    const operatorName = item.operatorId?.operatorName || '';
     const message = item.message || 'Transaction';
     const operatorNo = item.operatorNo;
     
     if (operatorName && item.serviceType !== 'cashback') {
-      if (operatorNo) {
+      
+      
+      if (!item.operatorId?.logo) {
+        return `${operatorNo} - ${message}`;
+      } else if (operatorNo) {
         return `${operatorName} (${operatorNo}) - ${message}`;
       }
       return `${operatorName} - ${message}`;
+
+
+      
+    }
+    
+    // If no operator name but has operatorNo, show it
+    if (operatorNo && item.serviceType !== 'cashback') {
+      return `(${operatorNo}) - ${message}`;
     }
     
     return message;
@@ -314,7 +364,31 @@ export default function WalletScreen() {
   const groupByMonth = (data) => {
     const grouped = {};
     
-    data.forEach(item => {
+    // Filter to only show transactions with operatorName AND serviceType !== 'cashback'
+    const filteredData = data.filter(item => {
+
+      // console.log('Evaluating transaction for grouping:', item);
+
+      const operatorName = item.operatorId?.operatorName;
+      const shouldShow = operatorName && item.serviceType !== 'cashback';
+      
+      
+      
+      // console.log('Filtering transaction:', {
+      //   id: item.id,
+      //   operatorName,
+      //   serviceType: item.serviceType,
+      //   shouldShow
+      // });
+
+
+
+      return shouldShow;
+    });
+    
+    console.log(`Original transactions: ${data.length}, Filtered: ${filteredData.length}`);
+    
+    filteredData.forEach(item => {
       const date = new Date(item.date);
       const monthYear = date.toLocaleDateString('en-US', { 
         month: 'long', 
@@ -352,11 +426,17 @@ export default function WalletScreen() {
     return grouped;
   };
 
-  // Filter transactions based on search query
+  // Filter transactions based on search query and display logic
   const filteredTransactions = useMemo(() => {
-    if (!searchQuery.trim()) return transactions;
+    // First filter to only show transactions with operatorName AND serviceType !== 'cashback'
+    const validTransactions = transactions.filter(item => {
+      const operatorName = item.operatorId?.operatorName;
+      return operatorName && item.serviceType !== 'cashback';
+    });
     
-    return transactions.filter(txn => {
+    if (!searchQuery.trim()) return validTransactions;
+    
+    return validTransactions.filter(txn => {
       const searchLower = searchQuery.toLowerCase();
       return (
         txn.message?.toLowerCase().includes(searchLower) ||
@@ -426,8 +506,9 @@ export default function WalletScreen() {
             <Text style={styles.transactionName} numberOfLines={1}>
               {txn.name}
             </Text>
-            <Text style={styles.transactionDesc} numberOfLines={2}>
+            <Text style={styles.transactionDesc} numberOfLines={5}>
               {txn.desc}
+              
             </Text>
             <Text style={[styles.transactionStatus, { color: getStatusColor(txn.status) }]}>
               {txn.status?.toUpperCase()}
@@ -466,7 +547,7 @@ export default function WalletScreen() {
               <Text style={styles.detailValue}>{txn.txnId}</Text>
             </View>
             
-            {txn.operatorName && (
+            {txn.operatorName && txn.operatorName !== 'Unknown' && (
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Operator:</Text>
                 <Text style={styles.detailValue}>{txn.operatorName}</Text>
@@ -598,14 +679,24 @@ export default function WalletScreen() {
       </View>
 
       {/* Search Bar */}
-      <View style={styles.searchContainer}>
+      <View style={[
+        styles.searchContainer,
+        isSearchFocused && styles.searchContainerFocused
+      ]}>
         <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
         <TextInput
-          placeholder="Search transactions..."
+          placeholder="Search using Mobile & Txn id"
           placeholderTextColor="#999"
-          style={styles.searchInput}
+          style={[
+            styles.searchInput,
+            Platform.OS === 'web' && { outlineStyle: 'none' }
+          ]}
           value={searchQuery}
           onChangeText={setSearchQuery}
+          onFocus={() => setIsSearchFocused(true)}
+          onBlur={() => setIsSearchFocused(false)}
+          selectionColor="#000000"
+          underlineColorAndroid="transparent"
         />
         {searchQuery ? (
           <TouchableOpacity onPress={() => setSearchQuery('')}>
@@ -666,7 +757,12 @@ export default function WalletScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[
             styles.listContainer,
-            Object.keys(groupedTransactions).length === 0 && styles.emptyListContainer
+            Object.keys(groupedTransactions).length === 0 && styles.emptyListContainer,
+            { 
+              paddingBottom: Platform.OS === 'web' 
+                ? getTabBarHeight() + 120  // Even more padding for iPhone browser in wallet
+                : getTabBarHeight() + 15   // Slightly more padding for native apps too
+            }
           ]}
         />
       )}
@@ -766,6 +862,12 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+  },
+  searchContainerFocused: {
+    borderColor: '#000000',
+    borderWidth: 2,
   },
   searchIcon: {
     marginRight: 10,
@@ -774,6 +876,9 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16, // Minimum 16px to prevent iOS zoom
     color: '#333',
+    ...(Platform.OS === 'web' && {
+      outline: 'none',
+    }),
   },
   // List Container
   listContainer: {

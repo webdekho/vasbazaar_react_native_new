@@ -324,21 +324,31 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
 
-  // Header Section with Background Image
+  // Header Section with Background Image - Safari compatible
   header: {
-    height: 180,
+    height: Platform.OS === 'web' ? 220 : 180, // Increased height for web/Safari
     position: 'relative',
     justifyContent: 'center',
     alignItems: 'center',
+    // Add safe area handling for web
+    ...(Platform.OS === 'web' && {
+      paddingTop: 'env(safe-area-inset-top)',
+      minHeight: 220,
+    }),
   },
   backgroundImage: {
     position: 'absolute',
-    top: 0,
+    top: Platform.OS === 'web' ? 0 : 0,
     left: 0,
     right: 0,
     bottom: 0,
     width: '100%',
     height: '100%',
+    // Ensure image covers the entire area on web
+    ...(Platform.OS === 'web' && {
+      objectFit: 'cover',
+      minHeight: '100%',
+    }),
   },
   overlay: {
     position: 'absolute',

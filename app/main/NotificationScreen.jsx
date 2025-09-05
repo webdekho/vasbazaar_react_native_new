@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { StyleSheet, TouchableOpacity, FlatList, View, ActivityIndicator, RefreshControl } from 'react-native';
+import { StyleSheet, TouchableOpacity, FlatList, View, ActivityIndicator, RefreshControl, Platform } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -101,6 +101,36 @@ export default function NotificationScreen() {
   // Fetch notifications on component mount
   useEffect(() => {
     fetchNotifications();
+    
+    // Add iPhone Safari specific CSS for bottom content visibility
+    if (Platform.OS === 'web') {
+      const style = document.createElement('style');
+      style.innerHTML = `
+        /* iPhone Safari specific styles for bottom content */
+        @supports (-webkit-touch-callout: none) {
+          @media screen and (max-width: 768px) {
+            /* Ensure bottom content is visible */
+            .notification-list-container {
+              padding-bottom: 120px !important;
+            }
+          }
+        }
+        
+        /* Additional iPhone viewport fixes */
+        @media screen and (max-device-width: 480px) {
+          .notification-list-container {
+            padding-bottom: 120px !important;
+          }
+        }
+      `;
+      document.head.appendChild(style);
+
+      return () => {
+        if (document.head.contains(style)) {
+          document.head.removeChild(style);
+        }
+      };
+    }
   }, []);
 
   // Priority: API notifications > manual notifications  
@@ -176,7 +206,7 @@ export default function NotificationScreen() {
           style={styles.deleteButton}
           onPress={() => handleDeleteNotification(item.id)}
         >
-          <FontAwesome name="times" size={16} color="#ff4444" />
+          {/* <FontAwesome name="times" size={16} color="#ff4444" /> */}
         </TouchableOpacity>
       </View>
     );
@@ -192,7 +222,7 @@ export default function NotificationScreen() {
         rightComponent={
           displayNotifications.length > 0 ? (
             <TouchableOpacity onPress={handleClearAll}>
-              <ThemedText style={styles.clearAllText}>Clear All</ThemedText>
+              {/* <ThemedText style={styles.clearAllText}>Clear All</ThemedText> */}
             </TouchableOpacity>
           ) : null
         }
@@ -209,7 +239,10 @@ export default function NotificationScreen() {
           renderItem={renderNotificationItem}
           keyExtractor={(item) => item.id.toString()}
           style={styles.notificationList}
-          contentContainerStyle={styles.notificationListContent}
+          contentContainerStyle={[
+            styles.notificationListContent,
+            Platform.OS === 'web' && { className: 'notification-list-container' }
+          ]}
           showsVerticalScrollIndicator={true}
           scrollEnabled={true}
           bounces={true}
@@ -262,7 +295,7 @@ const styles = StyleSheet.create({
   notificationListContent: {
     paddingHorizontal: 20,
     paddingTop: 20,
-    paddingBottom: 30,
+    paddingBottom: Platform.OS === 'web' ? 100 : 50,
   },
   notificationItem: {
     flexDirection: 'row',

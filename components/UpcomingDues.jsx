@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Image, ActivityIndicator, Platform } from 'react-native';
 import { ThemedView } from '@/components/ThemedView';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getUpcomingDues } from '../services';
@@ -86,42 +86,42 @@ const UpcomingDues = ({ dues = [], onDuePress = () => {} }) => {
 
   // Default dues if no dues provided
   const defaultDues = [
-    {
-      id: 'vi-idea',
-      provider: 'Vi - idea',
-      number: '9226xxxx93',
-      dueDate: 'Due Aug 20',
-      logo: require('@/assets/icons/vi.png'),
-      amount: '₹199',
-      status: 'pending'
-    },
-    {
-      id: 'airtel-postpaid',
-      provider: 'Airtel Postpaid',
-      number: '8765xxxx21',
-      dueDate: 'Due Aug 22',
-      logo: require('@/assets/icons/airtel.png'),
-      amount: '₹549',
-      status: 'pending'
-    },
-    {
-      id: 'electricity-bill',
-      provider: 'MSEDCL',
-      number: 'ACC 123456789',
-      dueDate: 'Due Aug 28',
-      logo: require('@/assets/icons/mahavitaran.png'),
-      amount: '₹2,450',
-      status: 'pending'
-    },
-    {
-      id: 'gas-bill',
-      provider: 'Mahanagar Gas',
-      number: 'CA 9876543',
-      dueDate: 'Due Sep 5',
-      logo: require('@/assets/icons/gas-cylinder.png'),
-      amount: '₹890',
-      status: 'pending'
-    }
+    // {
+    //   id: 'vi-idea',
+    //   provider: 'Vi - idea',
+    //   number: '9226xxxx93',
+    //   dueDate: 'Due Aug 20',
+    //   logo: require('@/assets/icons/vi.png'),
+    //   amount: '₹199',
+    //   status: 'pending'
+    // },
+    // {
+    //   id: 'airtel-postpaid',
+    //   provider: 'Airtel Postpaid',
+    //   number: '8765xxxx21',
+    //   dueDate: 'Due Aug 22',
+    //   logo: require('@/assets/icons/airtel.png'),
+    //   amount: '₹549',
+    //   status: 'pending'
+    // },
+    // {
+    //   id: 'electricity-bill',
+    //   provider: 'MSEDCL',
+    //   number: 'ACC 123456789',
+    //   dueDate: 'Due Aug 28',
+    //   logo: require('@/assets/icons/mahavitaran.png'),
+    //   amount: '₹2,450',
+    //   status: 'pending'
+    // },
+    // {
+    //   id: 'gas-bill',
+    //   provider: 'Mahanagar Gas',
+    //   number: 'CA 9876543',
+    //   dueDate: 'Due Sep 5',
+    //   logo: require('@/assets/icons/gas-cylinder.png'),
+    //   amount: '₹890',
+    //   status: 'pending'
+    // }
   ];
 
   // Priority: API dues > props dues > default dues
@@ -215,7 +215,10 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     marginHorizontal: 20,
-    marginBottom: 20,
+    marginBottom: Platform.select({
+      web: 0, // Extra margin for web browsers, especially iPhone Safari
+      default: 0,
+    }),
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: {
@@ -224,6 +227,11 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.05,
     shadowRadius: 3,
+    // Additional web-specific styles for iPhone Safari
+    ...(Platform.OS === 'web' && {
+      paddingBottom: 25, // Extra bottom padding
+      marginBottom: 0, // More aggressive bottom margin
+    }),
   },
   header: {
     marginBottom: 16,

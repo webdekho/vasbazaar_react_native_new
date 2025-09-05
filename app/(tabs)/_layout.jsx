@@ -1,8 +1,8 @@
-import FontAwesome from '@expo/vector-icons/FontAwesome';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Tabs } from 'expo-router';
 import { View, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useOrientation } from '../../hooks/useOrientation';
 
 // Custom dark tab bar background - works on all platforms
 function CustomTabBarBackground() {
@@ -25,155 +25,112 @@ function CustomTabBarBackground() {
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
-  
-  // Platform-specific configurations with enhanced stability
-  const getTabBarStyle = () => {
-    const safeAreaBottom = Math.max(insets.bottom, Platform.OS === 'ios' ? 20 : 0);
-    
-    if (Platform.OS === 'android') {
-      // Android: Ultra-stable positioning to prevent ANY movement
-      return {
-        backgroundColor: '#000000',
-        borderTopWidth: 0,
-        height: 70 + safeAreaBottom,
-        paddingBottom: safeAreaBottom > 0 ? safeAreaBottom : 10,
-        paddingTop: 10,
-        // Absolute positioning locked to bottom
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        // Maximum z-index to stay above everything
-        zIndex: 999999,
-        elevation: 0, // Remove shadow to prevent layer conflicts
-        // Completely lock dimensions
-        minHeight: 70 + safeAreaBottom,
-        maxHeight: 70 + safeAreaBottom,
-        // Prevent any flex behavior changes
-        flexShrink: 0,
-        flexGrow: 0,
-        flexBasis: 'auto',
-        // Force layout stability
-        alignSelf: 'stretch',
-      };
-    }
-    
-    // iOS and Web: Enhanced stability
-    const totalHeight = Platform.OS === 'ios' 
-      ? 44 + safeAreaBottom + 10 // Content + safe area + padding
-      : 60; // Web standard
-    
-    const baseStyle = {
-      backgroundColor: '#000000',
-      borderTopWidth: 0,
-      height: totalHeight,
-      paddingBottom: safeAreaBottom > 0 ? safeAreaBottom : 10,
-      paddingTop: 10,
-      // Absolute positioning for stability
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      zIndex: 999999,
-      // Lock dimensions
-      minHeight: totalHeight,
-      maxHeight: totalHeight,
-      flexShrink: 0,
-      flexGrow: 0,
-      alignSelf: 'stretch',
-    };
+  const { isLandscape, isIPhone16Pro, hasNotch } = useOrientation();
 
-    // Platform-specific shadow/elevation
-    if (Platform.OS === 'ios') {
-      return {
-        ...baseStyle,
-        shadowColor: '#000',
-        shadowOffset: {
-          width: 0,
-          height: -4,
-        },
-        shadowOpacity: 0.25,
-        shadowRadius: 8,
-      };
-    } else if (Platform.OS === 'android') {
-      return {
-        ...baseStyle,
-        elevation: 10,
-      };
-    } else {
-      // Web - Fixed positioning for consistent display
-      return {
-        ...baseStyle,
-        position: 'fixed', // Use fixed positioning for web
-        boxShadow: '0 -4px 8px rgba(0,0,0,0.25)', // CSS box-shadow for web
-        borderTop: 'none',
-        width: '100%', // Ensure full width
-        display: 'flex', // Ensure flex display
-        visibility: 'visible', // Explicitly set visibility
-      };
+  // Calculate dynamic tab bar height with safe area support - compact design
+  const getTabBarHeight = () => {
+    let baseHeight = isLandscape ? 50 : 60;
+    
+    // Web browser needs extra height for proper label display
+    if (Platform.OS === 'web') {
+      baseHeight = isLandscape ? 60 : 70; // Reduced height
     }
+    
+    // Adjust for iPhone 16 Pro and other modern devices
+    if (isIPhone16Pro) {
+      baseHeight = isLandscape ? 55 : 65;
+      if (Platform.OS === 'web') {
+        baseHeight = isLandscape ? 70 : 80; // Reduced for iPhone 16 Pro web
+      }
+    } else if (hasNotch) {
+      baseHeight = isLandscape ? 52 : 62;
+      if (Platform.OS === 'web') {
+        baseHeight = isLandscape ? 65 : 75; // Reduced for notched web
+      }
+    }
+    
+    const bottomSafeArea = insets.bottom;
+    return baseHeight + bottomSafeArea;
+  };
+
+  // Simple icon size
+  const getIconSize = (focused) => {
+    return focused ? 24 : 20;
   };
 
   return (
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: '#ffffff',
-        tabBarInactiveTintColor: '#95a5a6', 
+        tabBarInactiveTintColor: '#95a5a6',
         headerShown: false,
-        tabBarBackground: CustomTabBarBackground,
-        tabBarStyle: getTabBarStyle(),
+        tabBarStyle: {
+          backgroundColor: '#000000',
+          height: getTabBarHeight(),
+          paddingBottom: Platform.select({
+            web: Math.max(insets.bottom, 6), // Reduced bottom padding for web
+            default: Math.max(insets.bottom, 2),
+          }),
+          paddingTop: Platform.select({
+            web: 4, // Reduced top padding for web
+            default: 2,
+          }),
+          borderTopWidth: 0, // Remove default border for cleaner look
+          elevation: Platform.select({ android: 8, default: 0 }), // Android shadow
+          shadowColor: Platform.select({ ios: '#000000', default: 'transparent' }), // iOS shadow
+          shadowOffset: Platform.select({ ios: { width: 0, height: -2 }, default: { width: 0, height: 0 } }),
+          shadowOpacity: Platform.select({ ios: 0.1, default: 0 }),
+          shadowRadius: Platform.select({ ios: 4, default: 0 }),
+          // Web specific styles for better rendering
+          ...Platform.select({
+            web: {
+              position: 'fixed',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              width: '100vw',
+              maxWidth: '100vw',
+              zIndex: 9999,
+              boxShadow: '0 -2px 10px rgba(0,0,0,0.1)',
+              display: 'flex !important',
+              visibility: 'visible !important',
+              transform: 'translateZ(0)',
+              backfaceVisibility: 'hidden',
+            }
+          })
+        },
+        tabBarShowLabel: true,
         tabBarLabelStyle: {
-          fontSize: Platform.OS === 'web' ? 11 : 12, // Slightly smaller on web
+          fontSize: 11,
+          color: '#ffffff',
           fontWeight: '600',
-          marginTop: 4,
+          marginTop: 1,
+          marginBottom: Platform.select({
+            web: 4, // Reduced bottom margin for web
+            default: 0,
+          }),
+          paddingBottom: Platform.select({
+            web: 2, // Reduced padding for web browsers
+            default: 0,
+          }),
         },
         tabBarIconStyle: {
-          marginBottom: -4,
+          marginBottom: 0,
         },
-        // Enhanced stability settings for all platforms
-        ...(Platform.OS === 'android' && {
-          tabBarHideOnKeyboard: false, // Never hide tab bar on Android
-          tabBarVisibilityAnimationConfig: undefined, // Disable visibility animations
-          freezeOnBlur: true, // Freeze inactive screens to save memory
-          // Additional Android stability
-          lazy: false, // Load all tabs immediately
-          swipeEnabled: false, // Disable swipe gestures that can cause displacement
-        }),
-        // iOS stability settings
-        ...(Platform.OS === 'ios' && {
-          tabBarHideOnKeyboard: false, // Keep tab bar visible on iOS too
-          tabBarVisibilityAnimationConfig: undefined, // Disable animations
-          // iOS-specific optimizations
-          lazy: false,
-          swipeEnabled: false,
-        }),
-        // Web stability settings
-        ...(Platform.OS === 'web' && {
-          tabBarHideOnKeyboard: false,
-          tabBarVisibilityAnimationConfig: undefined,
-          lazy: false,
-        }),
       }}
     >
       <Tabs.Screen
         name="home"
         options={{
           title: 'Home',
+          tabBarLabel: 'Home',
           tabBarIcon: ({ color, focused }) => (
-            <FontAwesome 
-              size={Platform.OS === 'web' ? (focused ? 22 : 20) : (focused ? 26 : 24)} 
+            <MaterialIcons 
+              size={getIconSize(focused)} 
               name="home" 
               color={color}
-              style={{
-                // Ensure consistent rendering across platforms
-                textAlign: 'center',
-                ...(Platform.OS === 'web' && {
-                  lineHeight: Platform.OS === 'web' ? 24 : undefined
-                })
-              }}
             />
           ),
-          // Platform-specific accessibility
           tabBarAccessibilityLabel: 'Home Tab',
           tabBarTestID: 'home-tab',
         }}
@@ -182,17 +139,12 @@ export default function TabLayout() {
         name="history"
         options={{
           title: 'History',
+          tabBarLabel: 'History',
           tabBarIcon: ({ color, focused }) => (
-            <FontAwesome 
-              size={Platform.OS === 'web' ? (focused ? 22 : 20) : (focused ? 26 : 24)} 
+            <MaterialIcons 
+              size={getIconSize(focused)} 
               name="history" 
               color={color}
-              style={{
-                textAlign: 'center',
-                ...(Platform.OS === 'web' && {
-                  lineHeight: Platform.OS === 'web' ? 24 : undefined
-                })
-              }}
             />
           ),
           tabBarAccessibilityLabel: 'History Tab',
@@ -203,17 +155,12 @@ export default function TabLayout() {
         name="wallet"
         options={{
           title: 'Wallet',
+          tabBarLabel: 'Wallet',
           tabBarIcon: ({ color, focused }) => (
             <MaterialIcons 
-              size={Platform.OS === 'web' ? (focused ? 22 : 20) : (focused ? 26 : 24)} 
+              size={getIconSize(focused)} 
               name="account-balance-wallet" 
               color={color}
-              style={{
-                textAlign: 'center',
-                ...(Platform.OS === 'web' && {
-                  lineHeight: Platform.OS === 'web' ? 24 : undefined
-                })
-              }}
             />
           ),
           tabBarAccessibilityLabel: 'Wallet Tab',
@@ -224,17 +171,12 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profile',
+          tabBarLabel: 'Profile',
           tabBarIcon: ({ color, focused }) => (
-            <FontAwesome 
-              size={Platform.OS === 'web' ? (focused ? 22 : 20) : (focused ? 26 : 24)} 
-              name="user" 
+            <MaterialIcons 
+              size={getIconSize(focused)} 
+              name="person" 
               color={color}
-              style={{
-                textAlign: 'center',
-                ...(Platform.OS === 'web' && {
-                  lineHeight: Platform.OS === 'web' ? 24 : undefined
-                })
-              }}
             />
           ),
           tabBarAccessibilityLabel: 'Profile Tab',

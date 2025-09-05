@@ -3,7 +3,7 @@
     "name": "vasbazaar",
     "slug": "vasbazaar-mkggdu4j2xmm69zbvmbfv",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "vasbazaar",
     "userInterfaceStyle": "light",
@@ -24,8 +24,10 @@
       "softwareKeyboardLayoutMode": "resize",
       "windowSoftInputMode": "adjustResize",
       "navigationBarColor": "#000000",
-      "statusBarColor": "#ffffff",
-      "statusBarStyle": "dark",
+      "statusBarColor": "#000000",
+      "statusBarStyle": "light",
+      "statusBarBackgroundColor": "#000000",
+      "statusBarTranslucent": true,
       "permissions": [
         "android.permission.READ_CONTACTS",
         "android.permission.WRITE_CONTACTS",
@@ -37,7 +39,40 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "name": "VasBazaar",
+      "shortName": "VasBazaar",
+      "lang": "en",
+      "scope": "/",
+      "startUrl": "/",
+      "display": "standalone",
+      "orientation": "portrait-primary",
+      "themeColor": "#000000",
+      "backgroundColor": "#ffffff",
+      "description": "Mobile recharge, DTH, and bill payment app",
+      "dir": "auto",
+      "preferRelatedApplications": false,
+      "relatedApplications": [
+        {
+          "platform": "play",
+          "url": "https://play.google.com/store/apps/details?id=com.vasbazaar.app",
+          "id": "com.vasbazaar.app"
+        }
+      ],
+      "categories": ["finance", "utilities"],
+      "screenshots": [],
+      "shortcuts": [
+        {
+          "name": "Recharge",
+          "url": "/?shortcut=recharge",
+          "description": "Quick mobile recharge"
+        },
+        {
+          "name": "Bill Payment",
+          "url": "/?shortcut=bills",
+          "description": "Pay utility bills"
+        }
+      ]
     },
     "plugins": [
       "expo-router",

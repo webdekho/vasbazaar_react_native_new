@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { StyleSheet, ScrollView, TouchableOpacity, Linking } from 'react-native';
+import { StyleSheet, ScrollView, TouchableOpacity, Linking, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { ThemedText } from '@/components/ThemedText';
@@ -138,7 +138,11 @@ export default function HelpScreen() {
         showNotification={false}
       />
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        contentContainerStyle={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Quick Contact Section */}
         <ThemedView style={[styles.section, styles.firstSection]}>
           <ThemedText type="subtitle" style={styles.sectionTitle}>Contact Us</ThemedText>
@@ -173,23 +177,11 @@ export default function HelpScreen() {
             <FontAwesome name="chevron-right" size={16} color="#ccc" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.helpOption}>
-            <FontAwesome name="star" size={20} color="#ffa500" />
-            <ThemedView style={styles.helpContent}>
-              <ThemedText style={styles.helpTitle}>Rate Our App</ThemedText>
-              <ThemedText style={styles.helpSubtitle}>Share your feedback</ThemedText>
-            </ThemedView>
-            <FontAwesome name="chevron-right" size={16} color="#ccc" />
-          </TouchableOpacity>
+          
 
-          <TouchableOpacity style={styles.helpOption}>
-            <FontAwesome name="book" size={20} color="#4ecdc4" />
-            <ThemedView style={styles.helpContent}>
-              <ThemedText style={styles.helpTitle}>User Guide</ThemedText>
-              <ThemedText style={styles.helpSubtitle}>Learn how to use the app</ThemedText>
-            </ThemedView>
-            <FontAwesome name="chevron-right" size={16} color="#ccc" />
-          </TouchableOpacity>
+          
+
+
         </ThemedView>
 
         {/* App Info */}
@@ -210,6 +202,9 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  scrollContainer: {
+    paddingBottom: Platform.OS === 'web' ? 100 : 50,
   },
   section: {
     paddingHorizontal: 20,

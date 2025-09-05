@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import { useOrientation } from '../hooks/useOrientation';
 
 export default function MainHeader({ 
   title = 'Screen Title',
@@ -20,6 +21,10 @@ export default function MainHeader({
 }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { isLandscape, isIPhone16Pro, hasNotch } = useOrientation();
+
+  // Get responsive header height based on current orientation and device type
+  const headerHeight = Platform.select(getResponsiveHeaderHeight(isLandscape, isIPhone16Pro, hasNotch));
 
   const handleBackPress = () => {
     if (onBackPress) {
@@ -59,34 +64,47 @@ export default function MainHeader({
   };
 
   return (
-    <>
-      {/* Platform-specific StatusBar */}
-      <StatusBar 
-        barStyle="light-content" 
-        backgroundColor={backgroundColor} 
-        translucent={false}
-        hidden={false}
-      />
-      
-      <ThemedView style={[styles.container, { backgroundColor }]}>
-        {/* Status bar spacer for iOS */}
-        {Platform.OS === 'ios' && (
-          <View style={{ height: insets.top, backgroundColor }} />
-        )}
+    <ThemedView style={[styles.container, { backgroundColor }]}>
+        {/* Safe area top inset for all platforms with proper handling */}
+        <View style={{
+          height: insets.top,
+          backgroundColor,
+          width: '100%',
+          ...Platform.select({
+            ios: {
+              // iOS handles safe area naturally
+              minHeight: 20, // Minimum fallback for older devices
+            },
+            android: {
+              // Android with translucent status bar needs the space
+              backgroundColor: 'transparent',
+            },
+            web: {
+              // Web needs explicit positioning for iPhone 16 Pro support
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              zIndex: 10,
+            }
+          })
+        }} />
         
         {/* Header */}
         <View style={[
           styles.header, 
           { 
             backgroundColor,
-            height: Platform.select({
-              ios: 44, // iOS standard nav bar height
-              android: 56, // Android standard app bar height
-              default: 60, // Web standard
+            height: headerHeight,
+            // Proper top positioning for all platforms
+            marginTop: Platform.select({
+              ios: 0, // iOS safe area handled by SafeAreaView
+              android: 0, // Android handled by translucent status bar
+              web: 0, // Web handled by absolute positioned spacer above
             }),
           }
         ]}>
-          <View style={styles.headerContent}>
+          <View style={[styles.headerContent, { height: headerHeight }]}>
           <View style={styles.leftSection}>
             {showBack && (
               <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
@@ -140,10 +158,16 @@ export default function MainHeader({
           </View>
         </View>
       </View>
-      </ThemedView>
-    </>
+    </ThemedView>
   );
 }
+
+const getResponsiveHeaderHeight = (isLandscape, isIPhone16Pro = false, hasNotch = false) => ({
+  ios: isLandscape ? (hasNotch ? 38 : 36) : (isIPhone16Pro ? 48 : 44),
+  android: isLandscape ? 48 : 56,
+  web: isLandscape ? 48 : 56,
+  default: isLandscape ? 48 : 56,
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -168,11 +192,6 @@ const styles = StyleSheet.create({
     }),
   },
   headerContent: {
-    height: Platform.select({
-      ios: 44, // iOS standard nav content height
-      android: 56, // Android standard toolbar height
-      default: 60,
-    }),
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

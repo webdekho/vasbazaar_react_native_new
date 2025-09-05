@@ -1,27 +1,78 @@
+// Sidebar.js
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, ScrollView, TouchableOpacity, Modal, Animated, Dimensions, Image, View, ActivityIndicator, Alert, Linking, Platform, Share } from 'react-native';
+import {
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Modal,
+  Animated,
+  Dimensions,
+  Image,
+  View,
+  ActivityIndicator,
+  Alert,
+  Platform,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getUserBalance } from '../services';
 import QRCode from 'react-native-qrcode-svg';
+import { getUserBalance } from '../services';
 import { logout } from '../services/auth/sessionManager';
 import { useAuth } from '../hooks/useAuth';
 import { authEvents, AUTH_EVENTS } from '../services/auth/authEvents';
 import ProfilePhotoViewer from './ProfilePhotoViewer';
 import { shareReferralLink } from '../services/sharing/shareService';
 
+/**
+ * Enhanced sharing with multiple platform options
+ * @param {Object} options - Sharing options
+ * @param {string} options.message - Message to share
+ * @param {string} options.title - Title for sharing
+ * @param {string} options.url - URL to share
+ */
+const shareWithMultiplePlatforms = async (options) => {
+  const { message, title = 'Share from VasBazaar', url } = options;
+  
+  try {
+    if (Platform.OS === 'web' && navigator.share && navigator.canShare) {
+      // Use Web Share API if available (works on mobile browsers)
+      const shareData = {
+        title: title,
+        text: message,
+        url: url
+      };
+      
+      if (navigator.canShare(shareData)) {
+        await navigator.share(shareData);
+        console.log('✅ Successfully shared via Web Share API');
+        return;
+      }
+    }
+    
+    // Fallback to existing WhatsApp sharing
+    await shareReferralLink(url, options.userName);
+    
+  } catch (error) {
+    console.error('💥 Error sharing:', error);
+    // Final fallback
+    await shareReferralLink(url, options.userName);
+  }
+};
+
 const { width } = Dimensions.get('window');
+const AVATAR_SIZE = 78; // wrapper size including border
+const AVATAR_IMAGE_SIZE = AVATAR_SIZE - 6; // inner image size (to allow border width)
 
 export default function Sidebar({ visible, onClose, userInfo }) {
   const router = useRouter();
   const { refreshAuth } = useAuth();
   const [slideAnim] = useState(new Animated.Value(-width * 0.85));
-  
-  // State for API data
+
+  // API / UI state
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [balance, setBalance] = useState('0.00');
   const [cashback, setCashback] = useState('0.00');
@@ -33,179 +84,96 @@ export default function Sidebar({ visible, onClose, userInfo }) {
   const [photoViewerVisible, setPhotoViewerVisible] = useState(false);
 
   const serviceItems = [
-    {
-      id: 'home',
-      title: 'Home',
-      icon: 'home',
-      route: '/(tabs)/home'
-    },
-    {
-      id: 'wallet',
-      title: 'Wallet',
-      icon: 'account-balance-wallet',
-      route: '/(tabs)/wallet',
-      iconType: 'MaterialIcons'
-    },
-    {
-      id: 'history',
-      title: 'Transaction History',
-      icon: 'history',
-      route: '/(tabs)/history'
-    },
-    {
-      id: 'profile',
-      title: 'Profile',
-      icon: 'person',
-      route: '/(tabs)/profile',
-      iconType: 'MaterialIcons'
-    },
-    {
-      id: 'notifications',
-      title: 'Notifications',
-      icon: 'notifications',
-      route: '/main/NotificationScreen',
-      iconType: 'MaterialIcons'
-    },
-    {
-      id: 'complaints',
-      title: 'Complaints',
-      icon: 'warning',
-      route: '/main/ComplaintScreen',
-      iconType: 'MaterialIcons'
-    },
-    {
-      id: 'help',
-      title: 'Help & Support',
-      icon: 'help',
-      route: '/main/HelpScreen',
-      iconType: 'MaterialIcons'
-    }
+    { id: 'home', title: 'Home', icon: 'home', route: '/(tabs)/home' },
+    { id: 'wallet', title: 'Wallet', icon: 'account-balance-wallet', route: '/(tabs)/wallet', iconType: 'MaterialIcons' },
+    { id: 'history', title: 'Transaction History', icon: 'history', route: '/(tabs)/history' },
+    { id: 'profile', title: 'Profile', icon: 'person', route: '/(tabs)/profile', iconType: 'MaterialIcons' },
+    { id: 'notifications', title: 'Notifications', icon: 'notifications', route: '/main/NotificationScreen', iconType: 'MaterialIcons' },
+    { id: 'complaints', title: 'Complaints', icon: 'warning', route: '/main/ComplaintScreen', iconType: 'MaterialIcons' },
+    { id: 'help', title: 'Help & Support', icon: 'help', route: '/main/HelpScreen', iconType: 'MaterialIcons' },
   ];
 
-  // Load user data from AsyncStorage
+  // --- Loaders ---
   const loadUserData = async () => {
     try {
       const storedUserData = await AsyncStorage.getItem('userData');
-      const storedProfilePhoto = await AsyncStorage.getItem('profile_photo');
-      
       if (storedUserData) {
         const parsed = JSON.parse(storedUserData);
         setUserData(parsed);
-        
-        // Generate QR string
         if (parsed?.mobile) {
-          const qrValue = `https://vasbazaar.webdekho.in?code=${parsed.mobile}`;
-          setQrString(qrValue);
+          setQrString(`https://vasbazaar.webdekho.in?code=${parsed.mobile}`);
         }
       }
-      
-      if (storedProfilePhoto) {
-        setProfilePhoto(storedProfilePhoto);
-      }
-    } catch (error) {
-      console.error('Error loading user data:', error);
+    } catch (err) {
+      console.error('Error loading user data:', err);
     }
   };
-  
-  // Fetch balance data from API
+
+  const loadProfilePhoto = async () => {
+    try {
+      const storedPhoto = await AsyncStorage.getItem('profile_photo');
+      if (storedPhoto) setProfilePhoto(storedPhoto);
+    } catch (err) {
+      console.error('Error loading profile photo:', err);
+    }
+  };
+
   const fetchBalance = async () => {
     try {
       setBalanceLoading(true);
-      // console.log('Fetching user balance from sidebar...');
-      
       const sessionToken = await AsyncStorage.getItem('sessionToken');
-      if (!sessionToken) {
-        console.log('No session token found');
-        return;
-      }
-
+      if (!sessionToken) return;
       const response = await getUserBalance(sessionToken);
-      
       if (response?.status === 'success' && response?.data) {
         const { balance: bal, cashback: cb, incentive: inc, referralBonus: rb } = response.data;
         setBalance(bal);
         setCashback(cb);
         setIncentive(inc);
         setReferralBonus(rb);
-        // console.log('Balance loaded successfully');
-      } else {
-        console.log('Failed to fetch balance:', response?.message);
       }
-    } catch (error) {
-      console.error('Error fetching balance:', error);
+    } catch (err) {
+      console.error('Error fetching balance:', err);
     } finally {
       setBalanceLoading(false);
     }
   };
-  
+
+  useEffect(() => {
+    if (visible) {
+      Animated.timing(slideAnim, { toValue: 0, duration: 300, useNativeDriver: true }).start();
+      loadUserData();
+      loadProfilePhoto();
+      fetchBalance();
+    } else {
+      Animated.timing(slideAnim, { toValue: -width * 0.85, duration: 250, useNativeDriver: true }).start();
+    }
+  }, [visible]);
+
+  useEffect(() => {
+    loadUserData();
+    loadProfilePhoto();
+  }, []);
+
   const defaultUserInfo = userInfo || userData || {
     name: 'User Name',
     phone: '+91 0000000000',
-    avatar: profilePhoto ? { uri: profilePhoto } : require('@/assets/images/avatar.jpg')
+    avatar: profilePhoto ? { uri: profilePhoto } : require('@/assets/images/avatar.jpg'),
   };
 
-  // Animate sidebar and load data
-  useEffect(() => {
-    if (visible) {
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-      
-      // Load data when sidebar opens
-      loadUserData();
-      fetchBalance();
-    } else {
-      Animated.timing(slideAnim, {
-        toValue: -width * 0.85,
-        duration: 250,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [visible, slideAnim]);
-  
-  // Load user data on mount
-  useEffect(() => {
-    loadUserData();
-  }, []);
-
+  // --- Handlers ---
   const handleMenuItemPress = (item) => {
     onClose();
-    setTimeout(() => {
-      router.push(item.route);
-    }, 250);
+    setTimeout(() => router.push(item.route), 250);
   };
 
   const handleLogout = async () => {
     try {
-      console.log('=== LOGOUT START ===');
-      
-      // Close sidebar immediately
       onClose();
-      
-      // Clear all authentication tokens
-      await AsyncStorage.multiRemove([
-        'permanentToken',
-        'sessionToken', 
-        'sessionExpiry'
-      ]);
-      console.log('✓ All auth tokens removed');
-      
-      // Force auth context to refresh with new state
-      if (refreshAuth) {
-        await refreshAuth();
-        console.log('✓ Auth context refreshed');
-      }
-      
-      // Emit logout event to clear any cached state
+      await AsyncStorage.multiRemove(['permanentToken', 'sessionToken', 'sessionExpiry']);
+      if (refreshAuth) await refreshAuth();
       authEvents.emit(AUTH_EVENTS.LOGOUT);
-      
-      // Let AuthGuard handle navigation naturally via auth state changes
-      console.log('=== LOGOUT COMPLETE - AuthGuard will handle navigation ===');
-      
-    } catch (error) {
-      console.error('Logout error:', error);
+    } catch (err) {
+      console.error('Logout error:', err);
       Alert.alert('Error', 'Failed to logout. Please try again.');
     }
   };
@@ -214,75 +182,77 @@ export default function Sidebar({ visible, onClose, userInfo }) {
     try {
       await AsyncStorage.clear();
       Alert.alert('Success', 'Cache cleared successfully');
-    } catch (error) {
+    } catch (err) {
       Alert.alert('Error', 'Failed to clear cache');
     }
   };
 
   const handleDownloadQR = () => {
     onClose();
-    setTimeout(() => {
-      router.push('/main/QrPrintScreen');
-    }, 250);
+    setTimeout(() => router.push('/main/QrPrintScreen'), 250);
   };
 
   const handleShareLink = async () => {
-    if (!qrString) {
-      Alert.alert('Error', 'Referral link not available.');
-      return;
-    }
-
+    if (!qrString) return Alert.alert('Error', 'Referral link not available.');
     try {
       const userName = userData?.name || defaultUserInfo.name;
-      await shareReferralLink(qrString, userName);
-    } catch (error) {
-      console.error('Error sharing referral:', error);
+      const message = `🎉 Hey! I'm using VasBazaar to earn cashback on every transaction. ${userName ? `Join me (${userName}) ` : 'Join me '}and start earning too! 💰\n\n🔗 Sign up here: ${qrString}\n\n✨ Get instant cashback on mobile recharges, bill payments & more!`;
+      
+      await shareWithMultiplePlatforms({
+        message: message,
+        title: 'Join VasBazaar - Earn Cashback!',
+        url: qrString,
+        userName: userName
+      });
+    } catch (err) {
+      console.error('Error sharing referral:', err);
       Alert.alert('Error', 'Unable to share referral link. Please try again.');
     }
   };
 
   const handleProfilePhotoPress = () => {
-    if (profilePhoto) {
-      setPhotoViewerVisible(true);
-    }
+    if (profilePhoto) setPhotoViewerVisible(true);
   };
+  const handlePhotoViewerClose = () => setPhotoViewerVisible(false);
 
-  const handlePhotoViewerClose = () => {
-    setPhotoViewerVisible(false);
-  };
-
+  // --- Render helpers ---
   const renderUserProfile = () => (
     <ThemedView style={styles.userProfileSection}>
       <ThemedView style={styles.userHeader}>
-        <TouchableOpacity onPress={handleProfilePhotoPress} disabled={!profilePhoto}>
-          {profilePhoto ? (
-            <Image 
-              source={{ uri: profilePhoto }} 
-              style={styles.userAvatar}
-            />
-          ) : (
-            <ThemedView style={[styles.userAvatar, styles.userAvatarPlaceholder]}>
-              <MaterialIcons name="person" size={36} color="#FFFFFF" />
-            </ThemedView>
-          )}
+        <TouchableOpacity onPress={handleProfilePhotoPress} activeOpacity={0.8}>
+          {/* Avatar wrapper ensures circle clipping on web & native */}
+          <View style={styles.avatarWrapper}>
+            {profilePhoto ? (
+              <Image
+                source={{ uri: profilePhoto }}
+                style={styles.avatarImage}
+                resizeMode="cover"
+                accessible
+                accessibilityLabel="Profile photo"
+              />
+            ) : (
+              <View style={[styles.avatarImage, styles.userAvatarPlaceholder]}>
+                <MaterialIcons name="person" size={36} color="#FFFFFF" />
+              </View>
+            )}
+          </View>
         </TouchableOpacity>
+
         <ThemedView style={styles.userTextInfo}>
-          <ThemedText style={styles.userName}>
-            {defaultUserInfo.name}
-          </ThemedText>
+          <ThemedText style={styles.userName}>{defaultUserInfo.name}</ThemedText>
           <ThemedText style={styles.userPhone}>
             +91 {defaultUserInfo.mobile || defaultUserInfo.phone?.replace('+91 ', '')}
           </ThemedText>
         </ThemedView>
       </ThemedView>
-      
-      {/* QR Code Section */}
+
+      {/* QR */}
       <ThemedView style={styles.qrSection}>
         <ThemedView style={styles.qrContainer}>
           <ThemedView style={styles.qrCode}>
             {qrString ? (
               Platform.OS === 'web' ? (
-                <Image 
+                <Image
                   source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(qrString)}` }}
                   style={{ width: 120, height: 120 }}
                   resizeMode="contain"
@@ -292,13 +262,13 @@ export default function Sidebar({ visible, onClose, userInfo }) {
               )
             ) : (
               <ThemedView style={styles.qrPlaceholder}>
-                <MaterialIcons name="qr-code" size={120} color="#000" />
+                <MaterialIcons name="qr-code" size={80} color="#000" />
                 <ThemedText style={styles.loadingQRText}>Loading QR...</ThemedText>
               </ThemedView>
             )}
           </ThemedView>
         </ThemedView>
-        
+
         <ThemedView style={styles.qrButtonsContainer}>
           <TouchableOpacity style={styles.qrButton} onPress={handleDownloadQR}>
             <MaterialIcons name="download" size={16} color="#000000" />
@@ -313,12 +283,9 @@ export default function Sidebar({ visible, onClose, userInfo }) {
     </ThemedView>
   );
 
-  const renderQuickActions = () => null;
-
   const renderWalletSection = () => (
     <ThemedView style={styles.walletSection}>
       <ThemedText style={styles.walletTitle}>My Wallet</ThemedText>
-      
       {balanceLoading ? (
         <ThemedView style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#000" />
@@ -342,12 +309,9 @@ export default function Sidebar({ visible, onClose, userInfo }) {
               <ThemedText style={styles.walletAmount}>₹{referralBonus}</ThemedText>
               <ThemedText style={styles.walletLabel}>Referral Bonus</ThemedText>
             </ThemedView>
-            
-            
           </ThemedView>
-          
-          <ThemedView style={styles.walletCardRow}>
 
+          <ThemedView style={styles.walletCardRow}>
             <ThemedView style={styles.walletCard}>
               <ThemedView style={styles.walletCardIcon}>
                 <MaterialIcons name="card-giftcard" size={22} color="#ffffff" />
@@ -363,12 +327,6 @@ export default function Sidebar({ visible, onClose, userInfo }) {
               <ThemedText style={styles.walletAmount}>₹{incentive}</ThemedText>
               <ThemedText style={styles.walletLabel}>Lifetime Incentive</ThemedText>
             </ThemedView>
-            
-            
-
-
-
-
           </ThemedView>
         </ThemedView>
       )}
@@ -377,29 +335,18 @@ export default function Sidebar({ visible, onClose, userInfo }) {
 
   const renderServiceMenuItem = (item) => {
     const IconComponent = item.iconType === 'MaterialIcons' ? MaterialIcons : FontAwesome;
-    
     return (
       <TouchableOpacity
         key={item.id}
         style={styles.serviceMenuItem}
         onPress={() => handleMenuItemPress(item)}
-        activeOpacity={0.7}
+        activeOpacity={0.8}
       >
         <ThemedView style={styles.serviceMenuIcon}>
-          <IconComponent
-            name={item.icon}
-            size={20}
-            color="#ffffff"
-          />
+          <IconComponent name={item.icon} size={20} color="#ffffff" />
         </ThemedView>
-        <ThemedText style={styles.serviceMenuText}>
-          {item.title}
-        </ThemedText>
-        <MaterialIcons
-          name="chevron-right"
-          size={20}
-          color="#666666"
-        />
+        <ThemedText style={styles.serviceMenuText}>{item.title}</ThemedText>
+        <MaterialIcons name="chevron-right" size={20} color="#666666" />
       </TouchableOpacity>
     );
   };
@@ -407,46 +354,19 @@ export default function Sidebar({ visible, onClose, userInfo }) {
   if (!visible) return null;
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="none"
-      onRequestClose={onClose}
-      statusBarTranslucent
-    >
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
       <ThemedView style={styles.overlay}>
-        <Animated.View style={[
-          styles.sidebarContainer,
-          { 
-            transform: [{ translateX: slideAnim }],
-            backgroundColor: '#ffffff'
-          }
-        ]}>
-          <ScrollView 
-            style={styles.scrollView}
-            showsVerticalScrollIndicator={false}
-            bounces={false}
-          >
-            {/* User Profile and QR Section */}
+        <Animated.View style={[styles.sidebarContainer, { transform: [{ translateX: slideAnim }] }]}>
+          <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} bounces={false}>
             {renderUserProfile()}
-
-            {/* Quick Actions Row */}
-            {renderQuickActions()}
-
-            {/* My Wallet Section */}
+            {/* Quick actions omitted for brevity in this render - add if needed */}
             {renderWalletSection()}
 
-            {/* Services Section */}
             <ThemedView style={styles.servicesSection}>
               <ThemedText style={styles.servicesTitle}>Services</ThemedText>
               {serviceItems.map(renderServiceMenuItem)}
-              
-              {/* Clear Cache - moved to scrollable content */}
-              <TouchableOpacity 
-                style={[styles.serviceMenuItem, { marginTop: 10 }]} 
-                onPress={handleClearCache}
-                activeOpacity={0.7}
-              >
+
+              <TouchableOpacity style={[styles.serviceMenuItem, { marginTop: 10 }]} onPress={handleClearCache} activeOpacity={0.8}>
                 <ThemedView style={styles.serviceMenuIcon}>
                   <MaterialIcons name="delete" size={20} color="#ffffff" />
                 </ThemedView>
@@ -454,38 +374,23 @@ export default function Sidebar({ visible, onClose, userInfo }) {
                 <MaterialIcons name="chevron-right" size={20} color="#666666" />
               </TouchableOpacity>
             </ThemedView>
-            
-            {/* Bottom padding for scroll content */}
-            <View style={{ height: 20 }} />
+
+            {/* padding so last item isn't hidden behind bottom actions */}
+            <View style={{ height: 28 }} />
           </ScrollView>
 
-          {/* Bottom Actions - only Logout now */}
           <ThemedView style={styles.bottomActions}>
-            <TouchableOpacity 
-              style={styles.logoutBottomButton} 
-              onPress={handleLogout}
-              activeOpacity={0.7}
-            >
+            <TouchableOpacity style={styles.logoutBottomButton} onPress={handleLogout} activeOpacity={0.8}>
               <MaterialIcons name="logout" size={20} color="#000000" />
               <ThemedText style={styles.logoutBottomText}>Logout</ThemedText>
             </TouchableOpacity>
           </ThemedView>
         </Animated.View>
-        
-        <TouchableOpacity 
-          style={styles.backdropTouchable} 
-          activeOpacity={1} 
-          onPress={onClose}
-        />
+
+        <TouchableOpacity style={styles.backdropTouchable} activeOpacity={1} onPress={onClose} />
       </ThemedView>
 
-      {/* Profile Photo Viewer */}
-      <ProfilePhotoViewer
-        visible={photoViewerVisible}
-        onClose={handlePhotoViewerClose}
-        imageUri={profilePhoto}
-        userName={userData?.name || defaultUserInfo.name}
-      />
+      <ProfilePhotoViewer visible={photoViewerVisible} onClose={handlePhotoViewerClose} imageUri={profilePhoto} userName={userData?.name || defaultUserInfo.name} />
     </Modal>
   );
 }
@@ -493,7 +398,7 @@ export default function Sidebar({ visible, onClose, userInfo }) {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.45)',
     flexDirection: 'row',
     position: 'relative',
   },
@@ -507,14 +412,11 @@ const styles = StyleSheet.create({
   },
   sidebarContainer: {
     width: width * 0.85,
-    maxWidth: 350,
+    maxWidth: 360,
     backgroundColor: '#ffffff',
     elevation: 16,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 2,
-      height: 0,
-    },
+    shadowOffset: { width: 2, height: 0 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
     height: '100%',
@@ -523,46 +425,55 @@ const styles = StyleSheet.create({
     top: 0,
     zIndex: 1,
   },
-  scrollView: {
-    flex: 1,
-  },
-  
-  // User Profile Section
+  scrollView: { flex: 1 },
+
+  // USER PROFILE
   userProfileSection: {
     backgroundColor: '#000000',
-    paddingTop: 50,
+    paddingTop: Platform.OS === 'ios' ? 50 : 38,
     paddingHorizontal: 20,
-    paddingBottom: 25,
-    borderBottomLeftRadius: 25,
-    borderBottomRightRadius: 25,
+    paddingBottom: 22,
+    borderBottomLeftRadius: 22,
+    borderBottomRightRadius: 22,
   },
   userHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 25,
+    marginBottom: 18,
     backgroundColor: 'transparent',
   },
-  userAvatar: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    marginRight: 15,
+
+  // Avatar wrapper (important for circle clipping on web)
+  avatarWrapper: {
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
     borderWidth: 3,
     borderColor: '#ffffff',
+    backgroundColor: '#ffffff',
+    overflow: 'hidden', // crucial: clip child image to circle on web + native
+    marginRight: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    // elevation/shadow
     shadowColor: '#000000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+
+  // Image fills the wrapper
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   userAvatarPlaceholder: {
-    backgroundColor: '#6B7280',
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#6B7280',
   },
+
   userTextInfo: {
     flex: 1,
     backgroundColor: 'transparent',
@@ -579,224 +490,106 @@ const styles = StyleSheet.create({
     opacity: 0.9,
     fontWeight: '500',
   },
-  
-  // QR Code Section
-  qrSection: {
-    alignItems: 'center',
-    marginBottom: 15,
-    backgroundColor: 'transparent',
-  },
+
+  // QR Section
+  qrSection: { alignItems: 'center', marginBottom: 10, backgroundColor: 'transparent' },
   qrContainer: {
     backgroundColor: '#ffffff',
-    borderRadius: 25,
-    padding: 12,
-    marginBottom: 20,
+    borderRadius: 18,
+    padding: 10,
+    marginBottom: 14,
     shadowColor: '#000000',
-    shadowOffset: {
-      width: 0,
-      height: 6,
-    },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
-    elevation: 10,
+    elevation: 8,
   },
   qrCode: {
     backgroundColor: '#ffffff',
-    borderRadius: 18,
-    padding: 15,
+    borderRadius: 12,
+    padding: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  qrPlaceholder: {
-    width: 120,
-    height: 120,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  qrButtonsContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    backgroundColor: 'transparent',
-  },
+  qrPlaceholder: { width: 120, height: 120, alignItems: 'center', justifyContent: 'center' },
+  qrButtonsContainer: { flexDirection: 'row', gap: 12, backgroundColor: 'transparent' },
   qrButton: {
     backgroundColor: '#ffffff',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 18,
     gap: 8,
     shadowColor: '#000000',
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
-    shadowOpacity: 0.15,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
     shadowRadius: 6,
-    elevation: 5,
+    elevation: 4,
+    marginHorizontal: 6,
   },
-  qrButtonText: {
-    color: '#000000',
-    fontWeight: '700',
-    fontSize: 13,
-  },
-  
-  // Quick Actions
-  quickActionsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 25,
-    paddingHorizontal: 20,
-    backgroundColor: '#fff',
-    marginHorizontal: 15,
-    borderRadius: 20,
-    shadowColor: '#000000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 6,
-    marginTop: 10,
-  },
-  quickActionButton: {
-    alignItems: 'center',
-    gap: 10,
-  },
-  quickActionIcon: {
-    width: 55,
-    height: 55,
-    borderRadius: 27.5,
-    backgroundColor: '#f8f8f8',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#e0e0e0',
-    shadowColor: '#000000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  quickActionText: {
-    fontSize: 12,
-    color: '#333333',
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  
-  // Wallet Section
+  qrButtonText: { color: '#000000', fontWeight: '700', fontSize: 13 },
+
+  // Wallet/Services etc. (kept mostly same)
   walletSection: {
     backgroundColor: '#fff',
     paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingVertical: 14,
     marginHorizontal: 15,
-    borderRadius: 20,
+    borderRadius: 18,
     shadowColor: '#000000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 6,
-    marginTop: 15,
+    marginTop: 14,
   },
-  walletTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#000000',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  walletCardsContainer: {
-    gap: 12,
-  },
-  walletCardRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
+  walletTitle: { fontSize: 20, fontWeight: '700', color: '#000000', marginBottom: 14, textAlign: 'center' },
+  walletCardsContainer: { gap: 12 },
+  walletCardRow: { flexDirection: 'row', gap: 12 },
   walletCard: {
     flex: 1,
     backgroundColor: '#f8f8f8',
-    borderRadius: 18,
-    padding: 18,
+    borderRadius: 12,
+    padding: 14,
     alignItems: 'center',
     gap: 8,
     borderWidth: 1,
     borderColor: '#e0e0e0',
-    shadowColor: '#000000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
     elevation: 2,
   },
   walletCardIcon: {
-    width: 45,
-    height: 45,
-    borderRadius: 22.5,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: '#000000',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
   },
-  walletAmount: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#000000',
-  },
-  walletLabel: {
-    fontSize: 11,
-    color: '#666666',
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-  
-  // Services Section
+  walletAmount: { fontSize: 16, fontWeight: '700', color: '#000000' },
+  walletLabel: { fontSize: 11, color: '#666666', textAlign: 'center', fontWeight: '500' },
+
   servicesSection: {
     backgroundColor: '#fff',
     paddingHorizontal: 20,
     paddingVertical: 10,
     marginHorizontal: 0,
-    borderRadius: 20,
+    borderRadius: 14,
     shadowColor: '#000000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 6,
-    marginTop: 15,
+    marginTop: 14,
   },
-  servicesTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#000000',
-    marginBottom: 15,
-    textAlign: 'center',
-  },
+  servicesTitle: { fontSize: 20, fontWeight: '700', color: '#000000', marginBottom: 12, textAlign: 'center' },
   serviceMenuItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 15,
-    marginVertical: 2,
-    borderRadius: 15,
+    marginVertical: 4,
+    borderRadius: 12,
     backgroundColor: '#f8f8f8',
     borderWidth: 1,
     borderColor: '#e0e0e0',
@@ -808,82 +601,34 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 15,
-    shadowColor: '#000000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
+    marginRight: 12,
   },
-  serviceMenuText: {
-    flex: 1,
-    fontSize: 16,
-    color: '#000000',
-    fontWeight: '600',
-  },
-  
-  // Bottom Actions
+  serviceMenuText: { flex: 1, fontSize: 16, color: '#000000', fontWeight: '600' },
+
   bottomActions: {
     backgroundColor: '#fff',
-    paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
     borderTopWidth: 1,
     borderTopColor: '#e2e8f0',
     marginTop: 10,
   },
-  bottomActionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 15,
-    paddingHorizontal: 15,
-    gap: 15,
-    backgroundColor: '#f8f8f8',
-    borderRadius: 15,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  bottomActionText: {
-    fontSize: 16,
-    color: '#000000',
-    fontWeight: '600',
-  },
   logoutBottomButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 15,
-    paddingHorizontal: 15,
-    gap: 15,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    gap: 12,
     backgroundColor: '#ffffff',
-    borderRadius: 15,
+    borderRadius: 12,
     borderWidth: 2,
     borderColor: '#000000',
-  },
-  logoutBottomText: {
-    fontSize: 16,
-    color: '#000000',
-    fontWeight: '700',
-  },
-  
-  // Loading styles
-  loadingContainer: {
-    paddingVertical: 40,
-    alignItems: 'center',
     justifyContent: 'center',
   },
-  loadingText: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 12,
-    fontWeight: '500',
-  },
-  loadingQRText: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 8,
-    textAlign: 'center',
-  },
+  logoutBottomText: { fontSize: 16, color: '#000000', fontWeight: '700' },
+
+  // Loading styles
+  loadingContainer: { paddingVertical: 28, alignItems: 'center', justifyContent: 'center' },
+  loadingText: { fontSize: 14, color: '#666', marginTop: 12, fontWeight: '500' },
+  loadingQRText: { fontSize: 12, color: '#666', marginTop: 8, textAlign: 'center' },
 });

@@ -4,6 +4,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import Logo from '@/components/Logo';
+import OTPInput from '@/components/OTPInput';
 import { verifyLoginOtp, sendLoginOtp } from '../../services';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { saveSessionToken } from '../../services/auth/sessionManager';
@@ -17,12 +18,8 @@ export default function OtpScreen() {
   const { refreshAuth } = useAuth();
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [timer, setTimer] = useState(30);
-  const [focusedIndex, setFocusedIndex] = useState(-1);
-  const inputRefs = useRef([]);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [isAutoVerifying, setIsAutoVerifying] = useState(false);
-  const lastAutoVerifiedOtp = useRef('');
 
   useEffect(() => {
     if (timer > 0) {
@@ -33,49 +30,27 @@ export default function OtpScreen() {
     }
   }, [timer]);
 
-  // Auto-verify when OTP is complete (handles paste or programmatic filling)
-  useEffect(() => {
-    const otpString = otp.join('');
-    const isComplete = otpString.length === 6 && otp.every(digit => digit !== '');
-    
-    // Auto-verify only if OTP is complete, not loading, and we haven't already verified this exact OTP
-    if (isComplete && !loading && otpString !== lastAutoVerifiedOtp.current) {
-      console.log('Auto-verifying OTP:', otpString);
-      lastAutoVerifiedOtp.current = otpString;
-      setIsAutoVerifying(true);
-      
-      // Small delay to ensure UI stability, then auto-verify
-      const autoVerifyTimer = setTimeout(() => {
-        handleVerifyOtp();
-      }, 300);
-      
-      return () => clearTimeout(autoVerifyTimer);
-    }
-  }, [otp.join(''), loading]);
-
-  const handleOtpChange = (text, index) => {
-    if (text.length <= 1) {
-      const newOtp = [...otp];
-      newOtp[index] = text;
-      setOtp(newOtp);
-
-      // Move to next input
-      if (text && index < 5) {
-        inputRefs.current[index + 1].focus();
-      }
+  // Handle OTP completion
+  const handleOtpComplete = (otpString) => {
+    console.log('OTP Complete:', otpString);
+    // Auto-verify when OTP is complete
+    if (otpString.length === 6 && !loading) {
+      handleVerifyOtp(otpString);
     }
   };
 
-  const handleKeyPress = (e, index) => {
-    if (e.nativeEvent.key === 'Backspace' && !otp[index] && index > 0) {
-      inputRefs.current[index - 1].focus();
+  const handleOtpChange = (newOtp) => {
+    setOtp(newOtp);
+    // Clear error message when user starts typing
+    if (errorMessage) {
+      setErrorMessage('');
     }
   };
 
   // Verify OTP API call
-  const handleVerifyOtp = async () => {
-    const otpString = otp.join('');
-    if (otpString.length !== 6) {
+  const handleVerifyOtp = async (otpString = null) => {
+    const otpValue = otpString || otp.join('');
+    if (otpValue.length !== 6) {
       setErrorMessage('Please enter complete OTP');
       return;
     }
@@ -85,7 +60,7 @@ export default function OtpScreen() {
 
     try {
       const apiResponse = await verifyLoginOtp(
-        otpString, 
+        otpValue, 
         params.referralCode, 
         params.token
       );
@@ -184,39 +159,16 @@ export default function OtpScreen() {
       } else {
         setErrorMessage(apiResponse?.message || "Invalid OTP. Please try again.");
         
-        // If auto-verifying failed, reset OTP to allow user to enter again
-        if (isAutoVerifying) {
-          setOtp(['', '', '', '', '', '']);
-          // Focus first input for better UX
-          setTimeout(() => {
-            if (inputRefs.current[0]) {
-              inputRefs.current[0].focus();
-            }
-          }, 100);
-        }
-        
-        // Reset last verified OTP on error to allow retry
-        lastAutoVerifiedOtp.current = '';
+        // Reset OTP on error
+        setOtp(['', '', '', '', '', '']);
       }
     } catch (error) {
       setErrorMessage("Network error. Please check your connection and try again.");
       
-      // If auto-verifying failed, reset OTP to allow user to enter again
-      if (isAutoVerifying) {
-        setOtp(['', '', '', '', '', '']);
-        // Focus first input for better UX
-        setTimeout(() => {
-          if (inputRefs.current[0]) {
-            inputRefs.current[0].focus();
-          }
-        }, 100);
-      }
-      
-      // Reset last verified OTP on error to allow retry
-      lastAutoVerifiedOtp.current = '';
+      // Reset OTP on error
+      setOtp(['', '', '', '', '', '']);
     } finally {
       setLoading(false);
-      setIsAutoVerifying(false); // Reset auto-verifying flag
     }
   };
 
@@ -235,7 +187,6 @@ export default function OtpScreen() {
         if (response?.status === 'success') {
           setTimer(30);
           setOtp(['', '', '', '', '', '']);
-          lastAutoVerifiedOtp.current = ''; // Reset to allow auto-verify for new OTP
           Alert.alert('Success', 'OTP sent successfully');
         } else {
           setErrorMessage(response?.message || 'Failed to resend OTP');
@@ -295,32 +246,15 @@ export default function OtpScreen() {
 
           <ThemedView style={styles.form}>
             <ThemedView style={styles.otpContainer}>
-              <View style={styles.otpInputs}>
-                {otp.map((digit, index) => (
-                  <View
-                    key={index}
-                    style={[
-                      styles.otpInputWrapper,
-                      focusedIndex === index && styles.otpInputWrapperFocused
-                    ]}
-                  >
-                    <TextInput
-                      ref={ref => inputRefs.current[index] = ref}
-                      style={styles.otpInputField}
-                      value={digit}
-                      onChangeText={text => handleOtpChange(text, index)}
-                      onKeyPress={e => handleKeyPress(e, index)}
-                      onFocus={() => setFocusedIndex(index)}
-                      onBlur={() => setFocusedIndex(-1)}
-                      keyboardType="number-pad"
-                      maxLength={1}
-                      selectionColor="#000000"
-                      underlineColorAndroid="transparent"
-                      textContentType="oneTimeCode"
-                    />
-                  </View>
-                ))}
-              </View>
+              <OTPInput
+                length={6}
+                value={otp}
+                onChange={handleOtpChange}
+                onComplete={handleOtpComplete}
+                disabled={loading}
+                autoFocus={true}
+                containerStyle={styles.otpInputs}
+              />
 
               <ThemedView style={styles.timerContainer}>
                 {timer > 0 ? (
@@ -381,21 +315,31 @@ const styles = StyleSheet.create({
     minHeight: screenHeight, // Ensure minimum height to prevent blinking
   },
 
-  // Header Section with Background Image
+  // Header Section with Background Image - Safari compatible
   header: {
-    height: 180,
+    height: Platform.OS === 'web' ? 220 : 180, // Increased height for web/Safari
     position: 'relative',
     justifyContent: 'center',
     alignItems: 'center',
+    // Add safe area handling for web
+    ...(Platform.OS === 'web' && {
+      paddingTop: 'env(safe-area-inset-top)',
+      minHeight: 220,
+    }),
   },
   backgroundImage: {
     position: 'absolute',
-    top: 0,
+    top: Platform.OS === 'web' ? 0 : 0,
     left: 0,
     right: 0,
     bottom: 0,
     width: '100%',
     height: '100%',
+    // Ensure image covers the entire area on web
+    ...(Platform.OS === 'web' && {
+      objectFit: 'cover',
+      minHeight: '100%',
+    }),
   },
   overlay: {
     position: 'absolute',

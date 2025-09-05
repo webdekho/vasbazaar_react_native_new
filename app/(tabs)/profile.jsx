@@ -25,6 +25,7 @@ import { useStableImagePicker } from '@/components/StableImagePicker';
 import { useStableLayout } from '@/components/StableLayoutProvider';
 import { updateProfilePhoto } from '@/services/user/userService';
 import { extendSession } from '@/services/auth/sessionManager';
+import { useOrientation } from '../../hooks/useOrientation';
 
 // Using SimpleImageCropper - no external CSS dependencies
 
@@ -32,6 +33,31 @@ export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { lockLayout, unlockLayout } = useStableLayout();
+  const { isLandscape, isIPhone16Pro, hasNotch } = useOrientation();
+
+  // Calculate dynamic tab bar height
+  const getTabBarHeight = () => {
+    let baseHeight = isLandscape ? 50 : 60;
+    
+    if (Platform.OS === 'web') {
+      baseHeight = isLandscape ? 60 : 70;
+    }
+    
+    if (isIPhone16Pro) {
+      baseHeight = isLandscape ? 55 : 65;
+      if (Platform.OS === 'web') {
+        baseHeight = isLandscape ? 70 : 80;
+      }
+    } else if (hasNotch) {
+      baseHeight = isLandscape ? 52 : 62;
+      if (Platform.OS === 'web') {
+        baseHeight = isLandscape ? 65 : 75;
+      }
+    }
+    
+    const bottomSafeArea = insets.bottom;
+    return baseHeight + bottomSafeArea;
+  };
   const [profilePhoto, setProfilePhoto] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [userData, setUserData] = useState(null);
@@ -602,7 +628,14 @@ export default function ProfileScreen() {
         style={currentStyles.content} 
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={currentStyles.scrollContent}
+        contentContainerStyle={[
+          currentStyles.scrollContent,
+          { 
+            paddingBottom: Platform.OS === 'web' 
+              ? getTabBarHeight() + 120  // Even more padding for iPhone browser in profile
+              : getTabBarHeight() + 15   // Slightly more padding for native apps too
+          }
+        ]}
       >
         {/* Profile Photo Section */}
         <ThemedView style={styles.photoSection}>

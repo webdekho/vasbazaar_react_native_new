@@ -5,7 +5,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { authenticateWithPin } from '../../services';
+import { authenticateWithPin, sendPinOtp } from '../../services';
 import { saveSessionToken } from '../../services/auth/sessionManager';
 import { useAuth } from '../../hooks/useAuth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -423,7 +423,58 @@ export default function PinValidateScreen() {
 
 
   const handleForgotPin = () => {
-    router.push('/auth/LoginScreen');
+    console.log('🔧 handleForgotPin clicked - starting pin change process');
+    // Directly start the change pin process
+    handleChangePinRequest();
+  };
+
+  const handleChangePinRequest = async () => {
+    console.log('🔧 handleChangePinRequest called');
+    console.log('🔧 permanentToken exists:', !!permanentToken);
+    console.log('🔧 sendPinOtp function exists:', typeof sendPinOtp);
+    
+    if (!permanentToken) {
+      console.log('❌ No permanent token available');
+      setError('Session expired. Please login again.');
+      router.push('/auth/LoginScreen');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      console.log('📱 Sending PIN change OTP with token:', permanentToken.substring(0, 20) + '...');
+      console.log('📱 About to call sendPinOtp...');
+      
+      const response = await sendPinOtp(permanentToken);
+      
+      console.log('📱 PIN OTP response received:', response);
+      console.log('📱 Response status:', response?.status);
+      console.log('📱 Response data:', response?.data);
+      
+      if (response?.status === 'success') {
+        console.log('✅ PIN OTP sent successfully - navigating to PinOtpScreen');
+        
+        // Navigate to PinOtpScreen with change pin context
+        router.push({
+          pathname: '/auth/PinOtpScreen',
+          params: {
+            changePin: 'true',
+            temptoken: response.data || response.data?.token,
+            permanentToken: permanentToken,
+          }
+        });
+      } else {
+        console.log('❌ PIN OTP failed:', response?.message);
+        setError(response?.message || 'Failed to send OTP. Please try again.');
+      }
+    } catch (error) {
+      console.error('❌ PIN OTP error:', error);
+      setError('Network error. Please check your connection and try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSwitchAccount = async () => {
@@ -591,8 +642,15 @@ export default function PinValidateScreen() {
 
         {renderNumberPad()}
 
-        <TouchableOpacity style={styles.forgotPinButton} onPress={handleForgotPin}>
-          <ThemedText style={styles.forgotPinText}>Forgot / Change PIN?</ThemedText>
+        <TouchableOpacity 
+          style={[styles.forgotPinButton, loading && styles.forgotPinButtonDisabled]} 
+          onPress={handleForgotPin}
+          activeOpacity={0.7}
+          disabled={loading || biometricLoading}
+        >
+          <ThemedText style={[styles.forgotPinText, loading && styles.forgotPinTextDisabled]}>
+            {loading ? 'Sending OTP...' : 'Forgot / Change PIN?'}
+          </ThemedText>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.switchAccountButton} onPress={handleSwitchAccount}>
@@ -707,11 +765,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 15,
     marginBottom: 10,
+    minHeight: 44,
+    justifyContent: 'center',
+    borderRadius: 8,
+    backgroundColor: 'transparent',
+  },
+  forgotPinButtonDisabled: {
+    opacity: 0.6,
   },
   forgotPinText: {
     color: '#000000',
     fontSize: 16,
     fontWeight: '600',
+  },
+  forgotPinTextDisabled: {
+    color: '#666666',
   },
   switchAccountButton: {
     alignItems: 'center',

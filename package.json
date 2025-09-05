@@ -5,10 +5,14 @@
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "build:web": "npx expo export --platform web",
+    "serve:pwa": "cd dist && npx http-server -p 8080 -c-1",
+    "serve:pwa:https": "cd dist && npx http-server -p 8080 -c-1 --ssl",
+    "serve:pwa:network": "cd dist && npx http-server -p 8080 -c-1 -a 0.0.0.0"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",

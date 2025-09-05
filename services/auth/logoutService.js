@@ -17,7 +17,11 @@ export const softLogout = async () => {
       'sessionExpiry',
       'pinValidationSuccess',
       'otpValidationSuccess',
-      'pinSetSuccess'
+      'pinSetSuccess',
+      'pwa_prompt_shown',
+      'pwa_session_count',
+      'pwa_prompt_dismissed',
+      'pwa_pending_prompt'
     ];
     
     await AsyncStorage.multiRemove(keysToRemove);
@@ -110,7 +114,11 @@ export const forceLogout = async () => {
     await AsyncStorage.multiRemove([
       'permanentToken',
       'sessionToken',
-      'sessionExpiry'
+      'sessionExpiry',
+      'pwa_prompt_shown',
+      'pwa_session_count',
+      'pwa_prompt_dismissed',
+      'pwa_pending_prompt'
     ]);
     
     // Set a flag to indicate forced logout

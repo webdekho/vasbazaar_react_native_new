@@ -119,7 +119,7 @@ export default function PendingScreen() {
       setIsInitialCheck(true);
       // Check status after a short delay to ensure screen is mounted
       setTimeout(() => {
-        checkTransactionStatus();
+        // checkTransactionStatus();
       }, 1000);
     }
 
@@ -140,7 +140,7 @@ export default function PendingScreen() {
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          checkTransactionStatus();
+          // checkTransactionStatus();
           return 0;
         }
         return prev - 1;
@@ -297,7 +297,7 @@ export default function PendingScreen() {
 
   const handleCheckNow = () => {
     if (!isChecking) {
-      checkTransactionStatus();
+      // checkTransactionStatus();
     }
   };
 
@@ -771,7 +771,6 @@ export default function PendingScreen() {
               // Handle Android intent URLs specifically
               if (request.url.startsWith('intent://')) {
                 console.log('PendingScreen detected Android intent URL:', request.url);
-                
                 // Parse intent URL to extract actual UPI URL
                 try {
                   // Intent format: intent://upi/pay?pa=...&pn=...#Intent;scheme=upi;package=com.phonepe.app;end
@@ -821,9 +820,8 @@ export default function PendingScreen() {
                   request.url.startsWith('bhim:') ||
                   request.url.startsWith('whatsapp:') ||
                   request.url.startsWith('tez:')) {
-                
+
                 console.log('PendingScreen BLOCKED direct UPI scheme, opening externally:', request.url);
-                
                 // Open UPI app immediately
                 Linking.openURL(request.url).catch((err) => {
                   console.error('PendingScreen failed to open UPI app:', err);
@@ -836,13 +834,11 @@ export default function PendingScreen() {
                 
                 return false; // Never load UPI schemes in WebView
               }
-              
               // Allow web URLs and other safe schemes
               return request.url.startsWith('https:') || request.url.startsWith('http:') || request.url.startsWith('data:') || request.url.startsWith('about:') || request.url.startsWith('file:');
             }}
             onNavigationStateChange={(navState) => {
               console.log('PendingScreen WebView navigation:', navState.url);
-              
               // Handle UPI deep links in navigation state change
               const isUpiLink = navState.url && (
                 navState.url.includes('phonepe://') || 

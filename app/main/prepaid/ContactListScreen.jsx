@@ -752,9 +752,9 @@ export default function ContactListScreen({ route }) {
               !isLoading ? (
                 <View style={styles.emptyContainer}>
                   <View style={styles.emptyIconContainer}>
-                    <FontAwesome name="address-book-o" size={80} color="#E5E7EB" />
+                    <FontAwesome name="address-book-o" size={60} color="#E5E7EB" />
                     <View style={styles.iconBadge}>
-                      <FontAwesome name="plus" size={16} color="#FFFFFF" />
+                      <FontAwesome name="plus" size={14} color="#FFFFFF" />
                     </View>
                   </View>
                   <Text style={styles.emptyText}>No contacts available</Text>
@@ -790,7 +790,10 @@ export default function ContactListScreen({ route }) {
                   placeholder="Search by name or number"
                   onChangeText={handleSearch}
                   value={searchText}
-                  style={styles.searchInputText}
+                  style={[
+                    styles.searchInputText,
+                    Platform.OS === 'web' && { outlineStyle: 'none' }
+                  ]}
                   autoFocus={true}
                   maxLength={15}
                   placeholderTextColor="#999"
@@ -1108,35 +1111,35 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     alignItems: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 32,
+    paddingVertical: 30,
+    paddingHorizontal: 20,
     backgroundColor: '#F9FAFB',
     marginHorizontal: 16,
-    marginVertical: 40,
-    borderRadius: 20,
+    marginVertical: 20,
+    borderRadius: 16,
     borderWidth: 2,
     borderColor: '#E5E7EB',
     borderStyle: 'dashed',
-    minHeight: 320,
+    minHeight: 160,
     justifyContent: 'center',
   },
   emptyIconContainer: {
     position: 'relative',
-    marginBottom: 24,
+    marginBottom: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
   iconBadge: {
     position: 'absolute',
-    bottom: -8,
-    right: -8,
+    bottom: -6,
+    right: -6,
     backgroundColor: '#000000',
-    borderRadius: 20,
-    width: 32,
-    height: 32,
+    borderRadius: 15,
+    width: 28,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 3,
+    borderWidth: 2,
     borderColor: '#F9FAFB',
     elevation: 4,
     shadowColor: '#000',
@@ -1145,20 +1148,20 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   emptyText: {
-    fontSize: 24,
+    fontSize: 18,
     color: '#111827',
     textAlign: 'center',
     fontWeight: '700',
-    marginBottom: 12,
-    letterSpacing: -0.5,
+    marginBottom: 8,
+    letterSpacing: -0.3,
   },
   emptySubText: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#6B7280',
     textAlign: 'center',
-    lineHeight: 24,
-    paddingHorizontal: 16,
-    marginBottom: 32,
+    lineHeight: 20,
+    paddingHorizontal: 12,
+    marginBottom: 16,
   },
   listContainer: {
     paddingHorizontal: 16,
@@ -1327,18 +1330,21 @@ const styles = StyleSheet.create({
     color: '#111827',
     paddingVertical: 14,
     fontWeight: '500',
+    ...(Platform.OS === 'web' && {
+      outline: 'none',
+    }),
   },
   modalContactsListContainer: {
-    paddingHorizontal: 5,
+    paddingHorizontal: 16,
     paddingVertical: 5,
     paddingBottom: 32,
     backgroundColor: 'transparent',
   },
   emptySearchContainer: {
     alignItems: 'center',
-    paddingVertical: 60,
+    paddingVertical: 40,
     backgroundColor: 'transparent',
-    marginHorizontal: 20,
+    marginHorizontal: 16,
     borderRadius: 16,
     borderWidth: 2,
     borderColor: '#E5E7EB',

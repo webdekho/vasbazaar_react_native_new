@@ -31,6 +31,7 @@ export default function AllServicesScreen() {
   const [svgContents, setSvgContents] = useState({});
   const [redirectedFrom, setRedirectedFrom] = useState('');
   const [serviceUsage, setServiceUsage] = useState({});
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   // Handle URL redirects and refresh usage data on focus
   useFocusEffect(
@@ -352,14 +353,24 @@ export default function AllServicesScreen() {
       />
       
       <View style={styles.searchContainer}>
-        <View style={styles.searchInputContainer}>
+        <View style={[
+          styles.searchInputContainer,
+          isSearchFocused && styles.searchInputContainerFocused
+        ]}>
           <FontAwesome name="search" size={20} color="#999" style={styles.searchIcon} />
           <TextInput
             placeholder="Search services, history, profile, wallet..."
             onChangeText={setSearchText}
             value={searchText}
-            style={styles.searchInput}
+            onFocus={() => setIsSearchFocused(true)}
+            onBlur={() => setIsSearchFocused(false)}
+            style={[
+              styles.searchInput,
+              Platform.OS === 'web' && { outlineStyle: 'none' }
+            ]}
             placeholderTextColor="#999"
+            selectionColor="#000000"
+            underlineColorAndroid="transparent"
           />
           {searchText.length > 0 && (
             <Pressable onPress={() => setSearchText('')} style={styles.clearButton}>
@@ -437,6 +448,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e5e7eb',
   },
+  searchInputContainerFocused: {
+    borderColor: '#000000',
+    borderWidth: 2,
+  },
   searchIcon: {
     marginRight: 12,
   },
@@ -444,6 +459,9 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: '#374151',
+    ...(Platform.OS === 'web' && {
+      outline: 'none',
+    }),
   },
   clearButton: {
     padding: 4,

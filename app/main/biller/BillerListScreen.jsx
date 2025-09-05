@@ -8,7 +8,8 @@ import {
   TextInput, 
   View,
   ActivityIndicator,
-  FlatList
+  FlatList,
+  Platform
 } from 'react-native';
 import { IconButton } from 'react-native-paper';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -167,7 +168,10 @@ export default function BillerListScreen() {
           />
           <TextInput
             placeholder="Search billers"
-            style={styles.searchInput}
+            style={[
+              styles.searchInput,
+              Platform.OS === 'web' && { outlineStyle: 'none' }
+            ]}
             value={search}
             onChangeText={setSearch}
             onFocus={() => setIsSearchFocused(true)}
@@ -241,6 +245,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#111827',
     fontWeight: '500',
+    ...(Platform.OS === 'web' && {
+      outline: 'none',
+    }),
   },
   searchIcon: {
     margin: 0,
