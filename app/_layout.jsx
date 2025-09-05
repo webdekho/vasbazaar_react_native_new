@@ -12,6 +12,11 @@ import { AuthProvider } from '../context/AuthContext';
 import { StableLayoutProvider } from '../components/StableLayoutProvider';
 import { useOrientation } from '../hooks/useOrientation';
 import VersionUpdatePopup from '../components/VersionUpdatePopup';
+import PWAPromptInstaller from '../components/PWAPromptInstaller';
+// Import PWA test helpers in development
+if (process.env.NODE_ENV === 'development') {
+  require('../utils/pwaTestHelpers');
+}
 
 
 export default function RootLayout() {
@@ -99,6 +104,9 @@ export default function RootLayout() {
                 
                 {/* Version Update Popup - runs its own 5-minute version checks */}
                 <VersionUpdatePopup />
+                
+                {/* PWA Install Prompt - shows after login on tab routes */}
+                <PWAPromptInstaller />
               </AuthGuard>
           </ThemeProvider>
         </AuthProvider>

@@ -12,7 +12,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getRequest } from '../services/api/baseApi';
 
-const CURRENT_VERSION = '1.0.0';
+const CURRENT_VERSION = '1.0.6';
 
 /**
  * Simple Version Update Popup
@@ -79,11 +79,11 @@ export default function VersionUpdatePopup({
           console.log(`🆕 [VersionPopup] New version available: ${latestVersion}`);
           
           // Check if we already showed this version today
-          const lastShownKey = `version_shown_${latestVersion}`;
-          const lastShown = await AsyncStorage.getItem(lastShownKey);
-          const today = new Date().toDateString();
+          // const lastShownKey = `version_shown_${latestVersion}`;
+          // const lastShown = await AsyncStorage.getItem(lastShownKey);
+          // const today = new Date().toDateString();
           
-          if (lastShown !== today) {
+          // if (lastShown !== today) {
             console.log('✅ [VersionPopup] Showing update popup');
             setVersionData({
               current: CURRENT_VERSION,
@@ -91,10 +91,10 @@ export default function VersionUpdatePopup({
               forceUpdate
             });
             setVisible(true);
-            await AsyncStorage.setItem(lastShownKey, today);
-          } else {
-            console.log('⏭️ [VersionPopup] Already shown today');
-          }
+          //   await AsyncStorage.setItem(lastShownKey, today);
+          // } else {
+          //   console.log('⏭️ [VersionPopup] Already shown today');
+          // }
         } else {
           console.log('✅ [VersionPopup] App is up to date');
         }

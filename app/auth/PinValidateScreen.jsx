@@ -25,6 +25,7 @@ import {
   isBiometricSetupCompleted,
   getSecurePin
 } from '../../utils/secureStorage';
+import { triggerPWAPromptAfterLogin } from '../../components/PWAPromptInstaller';
 
 export default function PinValidateScreen() {
   const router = useRouter();
@@ -250,6 +251,8 @@ export default function PinValidateScreen() {
           setTimeout(() => {
             AsyncStorage.removeItem('pinValidationSuccess');
           }, 1000);
+          // Trigger PWA prompt after successful login
+          await triggerPWAPromptAfterLogin();
           router.replace('/(tabs)/home');
         }, 200);
         
@@ -368,6 +371,8 @@ export default function PinValidateScreen() {
           setTimeout(() => {
             AsyncStorage.removeItem('pinValidationSuccess');
           }, 1000);
+          // Trigger PWA prompt after successful login
+          await triggerPWAPromptAfterLogin();
           router.replace('/(tabs)/home');
         }, 200);
         
