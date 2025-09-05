@@ -16,19 +16,37 @@ const CURRENT_VERSION = '1.0.0';
 
 /**
  * Simple Version Update Popup
- * Shows when API returns a newer version
+ * Shows when API returns a newer version or when controlled by props
  */
-export default function VersionUpdatePopup() {
+export default function VersionUpdatePopup({ 
+  visible: controlledVisible, 
+  onUpdate, 
+  onDismiss, 
+  currentVersion, 
+  latestVersion, 
+  forceUpdate 
+}) {
   const [visible, setVisible] = useState(false);
   const [versionData, setVersionData] = useState(null);
 
+  // Use controlled props if provided, otherwise use internal state
+  const isVisible = controlledVisible !== undefined ? controlledVisible : visible;
+  const currentData = currentVersion && latestVersion ? {
+    current: currentVersion,
+    latest: latestVersion,
+    forceUpdate: forceUpdate
+  } : versionData;
+
   useEffect(() => {
-    checkForUpdates();
-    
-    // Check every 10 minutes
-    const interval = setInterval(checkForUpdates, 10 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
+    // Only run internal checking if not controlled by props
+    if (controlledVisible === undefined) {
+      checkForUpdates();
+      
+      // Check every 5 minutes (changed from 10 minutes)
+      const interval = setInterval(checkForUpdates, 5 * 60 * 1000);
+      return () => clearInterval(interval);
+    }
+  }, [controlledVisible]);
 
   const checkForUpdates = async () => {
     try {
@@ -88,17 +106,26 @@ export default function VersionUpdatePopup() {
 
   const handleUpdate = () => {
     console.log('🔄 [VersionPopup] User chose to update');
-    setVisible(false);
     
-    // Force refresh the page to get new version
-    if (typeof window !== 'undefined') {
-      window.location.reload();
+    if (onUpdate) {
+      onUpdate(); // Use external handler if provided
+    } else {
+      setVisible(false);
+      // Force refresh the page to get new version
+      if (typeof window !== 'undefined') {
+        window.location.reload();
+      }
     }
   };
 
   const handleDismiss = () => {
     console.log('❌ [VersionPopup] User dismissed update');
-    setVisible(false);
+    
+    if (onDismiss) {
+      onDismiss(); // Use external handler if provided
+    } else {
+      setVisible(false);
+    }
   };
 
   // Global function for testing
@@ -121,14 +148,14 @@ export default function VersionUpdatePopup() {
     }
   }, []);
 
-  if (!visible || !versionData) return null;
+  if (!isVisible || !currentData) return null;
 
   return (
     <Modal
-      visible={visible}
+      visible={isVisible}
       transparent
       animationType="fade"
-      onRequestClose={versionData.forceUpdate ? null : handleDismiss}
+      onRequestClose={currentData.forceUpdate ? null : handleDismiss}
     >
       <View style={styles.overlay}>
         <View style={styles.popup}>
@@ -136,23 +163,23 @@ export default function VersionUpdatePopup() {
             <MaterialIcons 
               name="system-update" 
               size={56} 
-              color={versionData.forceUpdate ? "#FF5722" : "#FF9800"} 
+              color={currentData.forceUpdate ? "#FF5722" : "#FF9800"} 
             />
           </View>
           
           <Text style={styles.title}>
-            {versionData.forceUpdate ? 'Update Required' : 'Update Available'}
+            {currentData.forceUpdate ? 'Update Required' : 'Update Available'}
           </Text>
           
           <Text style={styles.message}>
-            {versionData.forceUpdate 
-              ? `Version ${versionData.latest} is required to continue using the app.`
-              : `Version ${versionData.latest} is now available!\nCurrent: ${versionData.current}`
+            {currentData.forceUpdate 
+              ? `Version ${currentData.latest} is required to continue using the app.`
+              : `Version ${currentData.latest} is now available!\nCurrent: ${currentData.current}`
             }
           </Text>
           
           <View style={styles.buttonContainer}>
-            {!versionData.forceUpdate && (
+            {!currentData.forceUpdate && (
               <TouchableOpacity style={styles.laterButton} onPress={handleDismiss}>
                 <Text style={styles.laterText}>Later</Text>
               </TouchableOpacity>
