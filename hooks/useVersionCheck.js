@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getRequest } from '../services/api/baseApi';
 
@@ -13,19 +13,22 @@ export function useVersionCheck() {
 
   useEffect(() => {
     checkVersion();
-  }, []);
+  }, [checkVersion]);
 
-  const checkVersion = async () => {
+  const checkVersion = useCallback(async () => {
     try {
+      console.log('🔄 [useVersionCheck] Checking version...');
       const response = await getRequest('api/dashboard/version');
       
       if (response?.status === 'success') {
         const latestVersion = response.data?.latestVersion;
+        console.log(`🔍 [useVersionCheck] Current: ${CURRENT_VERSION}, Latest: ${latestVersion}`);
         
         if (latestVersion && compareVersions(CURRENT_VERSION, latestVersion) < 0) {
           const lastShown = await AsyncStorage.getItem('version_prompt_shown');
           
           if (lastShown !== latestVersion) {
+            console.log('✅ [useVersionCheck] New version available, showing prompt');
             setPromptData({
               type: 'version',
               current: CURRENT_VERSION,
@@ -34,13 +37,17 @@ export function useVersionCheck() {
             });
             setShowPrompt(true);
             await AsyncStorage.setItem('version_prompt_shown', latestVersion);
+          } else {
+            console.log('⏭️ [useVersionCheck] Already shown this version');
           }
+        } else {
+          console.log('✅ [useVersionCheck] App is up to date');
         }
       }
     } catch (error) {
-      console.error('Version check error:', error);
+      console.error('❌ [useVersionCheck] Version check error:', error);
     }
-  };
+  }, []);
 
   const compareVersions = (v1, v2) => {
     const parts1 = v1.split('.').map(Number);

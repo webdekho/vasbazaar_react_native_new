@@ -40,11 +40,25 @@ export default function VersionUpdatePopup({
   useEffect(() => {
     // Only run internal checking if not controlled by props
     if (controlledVisible === undefined) {
-      checkForUpdates();
+      console.log('🔄 [VersionPopup] Starting internal version checking...');
+      
+      // Initial check after 3 seconds
+      const initialTimer = setTimeout(() => {
+        console.log('🔄 [VersionPopup] Initial version check after app load');
+        checkForUpdates();
+      }, 3000);
       
       // Check every 5 minutes (changed from 10 minutes)
-      const interval = setInterval(checkForUpdates, 5 * 60 * 1000);
-      return () => clearInterval(interval);
+      const interval = setInterval(() => {
+        console.log('🔄 [VersionPopup] 5-minute periodic version check');
+        checkForUpdates();
+      }, 5 * 60 * 1000);
+      
+      return () => {
+        console.log('🛑 [VersionPopup] Clearing version check timers');
+        clearTimeout(initialTimer);
+        clearInterval(interval);
+      };
     }
   }, [controlledVisible]);
 

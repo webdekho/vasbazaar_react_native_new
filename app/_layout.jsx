@@ -11,7 +11,6 @@ import { GlobalSessionInterceptor } from '../components/GlobalSessionInterceptor
 import { AuthProvider } from '../context/AuthContext';
 import { StableLayoutProvider } from '../components/StableLayoutProvider';
 import { useOrientation } from '../hooks/useOrientation';
-import { useVersionCheck } from '../hooks/useVersionCheck';
 import VersionUpdatePopup from '../components/VersionUpdatePopup';
 
 
@@ -21,40 +20,7 @@ export default function RootLayout() {
   });
   const { isLandscape } = useOrientation();
 
-  // Global version check hook
-  const {
-    showPrompt: showVersionPrompt,
-    promptData: versionData,
-    handleUpdate,
-    dismissPrompt,
-    checkVersion
-  } = useVersionCheck();
-
-  // Set up global version check every 5 minutes
-  useEffect(() => {
-    // Initial version check after a short delay
-    const initialTimer = setTimeout(() => {
-      console.log('🔄 Initial version check...');
-      checkVersion();
-    }, 3000); // Wait 3 seconds after app load
-
-    // Set up interval for version check every 5 minutes (300,000 milliseconds)
-    const versionCheckInterval = setInterval(() => {
-      console.log('🔄 Periodic version check (5 min interval)...');
-      checkVersion();
-    }, 5 * 60 * 1000);
-
-    // Cleanup timers on component unmount
-    return () => {
-      if (initialTimer) {
-        clearTimeout(initialTimer);
-      }
-      if (versionCheckInterval) {
-        clearInterval(versionCheckInterval);
-        console.log('🛑 Global version check interval cleared');
-      }
-    };
-  }, [checkVersion]);
+  // Note: VersionUpdatePopup handles its own 5-minute intervals internally
 
   if (!loaded) {
     return null;
@@ -131,15 +97,8 @@ export default function RootLayout() {
                 </View>
                 </GlobalSessionInterceptor>
                 
-                {/* Version Update Popup */}
-                <VersionUpdatePopup
-                  visible={showVersionPrompt}
-                  onUpdate={handleUpdate}
-                  onDismiss={dismissPrompt}
-                  currentVersion={versionData?.current}
-                  latestVersion={versionData?.latest}
-                  forceUpdate={versionData?.forceUpdate}
-                />
+                {/* Version Update Popup - runs its own 5-minute version checks */}
+                <VersionUpdatePopup />
               </AuthGuard>
           </ThemeProvider>
         </AuthProvider>
