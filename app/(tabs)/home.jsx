@@ -537,6 +537,7 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
+
     </ThemedView>
   );
 }
