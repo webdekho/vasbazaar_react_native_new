@@ -1,4 +1,4 @@
-// VasBazaar Development Service Worker
+// vasbazaar Development Service Worker
 const CACHE_NAME = 'vasbazaar-dev-v1.0.0';
 
 // Basic service worker for development
