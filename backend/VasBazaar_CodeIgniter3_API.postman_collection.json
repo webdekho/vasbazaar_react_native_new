@@ -1,8 +1,8 @@
 {
 	"info": {
 		"_postman_id": "vasbazaar-ci3-api-collection",
-		"name": "VasBazaar CodeIgniter 3 API",
-		"description": "Complete API collection for VasBazaar CodeIgniter 3 backend (converted from Spring Boot)\n\nBase URL: http://localhost/vasbazaar/backend/\n\nFeatures:\n- Authentication & Authorization\n- User Management\n- Transaction Processing\n- Dashboard & Analytics\n- File Upload\n- Email Services\n\nEnvironment Variables:\n- {{base_url}}: http://localhost/vasbazaar/backend\n- {{access_token}}: Authentication token (set after login)",
+		"name": "vasbazaar CodeIgniter 3 API",
+		"description": "Complete API collection for vasbazaar CodeIgniter 3 backend (converted from Spring Boot)\n\nBase URL: http://localhost/vasbazaar/backend/\n\nFeatures:\n- Authentication & Authorization\n- User Management\n- Transaction Processing\n- Dashboard & Analytics\n- File Upload\n- Email Services\n\nEnvironment Variables:\n- {{base_url}}: http://localhost/vasbazaar/backend\n- {{access_token}}: Authentication token (set after login)",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "vasbazaar-api"
 	},

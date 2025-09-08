@@ -12,7 +12,7 @@
       "bundleIdentifier": "com.vasbazaar.app",
       "supportsTablet": true,
       "infoPlist": {
-        "NSFaceIDUsageDescription": "Use Face ID or Touch ID to securely and quickly access your VasBazaar account."
+        "NSFaceIDUsageDescription": "Use Face ID or Touch ID to securely and quickly access your vasbazaar account."
       }
     },
     "android": {
@@ -40,8 +40,8 @@
       "bundler": "metro",
       "output": "static",
       "favicon": "./assets/images/favicon.png",
-      "name": "VasBazaar",
-      "shortName": "VasBazaar",
+      "name": "vasbazaar",
+      "shortName": "vasbazaar",
       "lang": "en",
       "scope": "/",
       "startUrl": "/",
@@ -89,7 +89,7 @@
       [
         "expo-local-authentication",
         {
-          "faceIDPermission": "Use Face ID or Touch ID to securely and quickly access your VasBazaar account."
+          "faceIDPermission": "Use Face ID or Touch ID to securely and quickly access your vasbazaar account."
         }
       ]
     ],

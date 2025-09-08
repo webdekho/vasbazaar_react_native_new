@@ -1,4 +1,4 @@
-# VasBazaar Web Production Deployment Checklist
+# vasbazaar Web Production Deployment Checklist
 
 ## Pre-Deployment Checklist
 

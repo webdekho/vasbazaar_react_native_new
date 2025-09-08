@@ -4,7 +4,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 /**
  * API Response Library
  * 
- * Standardized API response builder for VasBazaar application
+ * Standardized API response builder for vasbazaar application
  * Provides consistent response format similar to Spring Boot ApiResponse
  */
 class Api_response {

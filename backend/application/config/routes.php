@@ -53,7 +53,7 @@ $route['default_controller'] = 'welcome';
 $route['404_override'] = '';
 $route['translate_uri_dashes'] = FALSE;
 
-// API routes - VasBazaar Spring Boot conversion
+// API routes - vasbazaar Spring Boot conversion
 // Authentication routes
 $route['api/auth/register']['post'] = 'api/AuthController/register';
 $route['api/auth/login']['post'] = 'api/AuthController/login';

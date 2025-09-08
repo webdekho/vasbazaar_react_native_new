@@ -1,5 +1,5 @@
 /**
- * Biometric Authentication Service for VasBazaar
+ * Biometric Authentication Service for vasbazaar
  * 
  * TROUBLESHOOTING GUIDE FOR ANDROID/EXPO GO:
  * 

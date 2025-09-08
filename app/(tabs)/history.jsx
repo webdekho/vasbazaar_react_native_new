@@ -936,7 +936,7 @@ const styles = StyleSheet.create({
     WebkitTouchCallout: 'none',
     WebkitUserSelect: 'none',
     ...(Platform.OS === 'web' && {
-      outline: 'none',
+      outlineStyle: 'none',
     }),
   },
   // Loading States

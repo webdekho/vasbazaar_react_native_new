@@ -671,7 +671,7 @@ const styles = StyleSheet.create({
     color: '#111827',
     fontWeight: '500',
     ...(Platform.OS === 'web' && {
-      outline: 'none',
+      outlineStyle: 'none',
     }),
   },
   fixedCategoryContainer: {

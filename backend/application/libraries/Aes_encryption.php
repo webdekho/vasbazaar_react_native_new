@@ -16,7 +16,7 @@ class Aes_encryption {
     public function __construct($params = array())
     {
         // Use a default key or load from config
-        $this->key = isset($params['key']) ? $params['key'] : 'VasBazaarSecretKey123456789012345'; // 32 chars for AES-256
+        $this->key = isset($params['key']) ? $params['key'] : 'vasbazaarSecretKey123456789012345'; // 32 chars for AES-256
         $this->iv_length = openssl_cipher_iv_length($this->cipher);
     }
     

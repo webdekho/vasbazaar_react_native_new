@@ -83,11 +83,11 @@ export const PWATestHelpers = {
     }
   },
 
-  // Simulate temporary dismissal
+  // Simulate temporary dismissal (30-second cooldown)
   simulateTemporaryDismissal: async () => {
     try {
       await AsyncStorage.setItem(STORAGE_KEYS.LAST_DISMISSED, Date.now().toString());
-      console.log('🧪 [PWATest] Temporary dismissal simulated');
+      console.log('🧪 [PWATest] Temporary dismissal simulated (30-second cooldown)');
       return true;
     } catch (error) {
       console.error('❌ [PWATest] Error simulating temporary dismissal:', error);
@@ -117,11 +117,11 @@ export const PWATestHelpers = {
       }
 
       const timeSinceLastDismissed = Date.now() - parseInt(lastDismissed);
-      const fiveMinutes = 5 * 60 * 1000;
-      const remaining = Math.max(0, fiveMinutes - timeSinceLastDismissed);
+      const thirtySeconds = 30 * 1000;
+      const remaining = Math.max(0, thirtySeconds - timeSinceLastDismissed);
       const active = remaining > 0;
       
-      console.log(`🧪 [PWATest] Cooldown ${active ? 'active' : 'inactive'}, remaining: ${Math.ceil(remaining / 1000)} seconds`);
+      console.log(`🧪 [PWATest] Cooldown ${active ? 'active' : 'inactive'}, remaining: ${Math.ceil(remaining / 1000)} seconds (30-second cooldown)`);
       return { active, remaining: Math.ceil(remaining / 1000) };
     } catch (error) {
       console.error('❌ [PWATest] Error checking cooldown:', error);
@@ -172,9 +172,9 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
 - PWATestHelpers.resetPWAState() - Reset all PWA state and reload
 - PWATestHelpers.checkPWAState() - Check current state
 - PWATestHelpers.simulatePermanentDismissal() - Test permanent dismissal
-- PWATestHelpers.simulateTemporaryDismissal() - Test 5-minute cooldown
+- PWATestHelpers.simulateTemporaryDismissal() - Test 30-second cooldown
 - PWATestHelpers.simulateInstallation() - Mark as installed
-- PWATestHelpers.checkCooldown() - Check cooldown status
+- PWATestHelpers.checkCooldown() - Check cooldown status (30 seconds)
 - PWATestHelpers.getPlatformInfo() - Get platform detection info
   `);
 }

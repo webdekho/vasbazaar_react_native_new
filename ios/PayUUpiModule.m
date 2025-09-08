@@ -1,6 +1,6 @@
 //
 //  PayUUpiModule.m
-//  VasBazaar
+//  vasbazaar
 //
 //  PayU UPI SDK iOS Native Module Implementation
 //

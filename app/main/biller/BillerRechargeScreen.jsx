@@ -164,6 +164,8 @@ export default function BillerRechargeScreen() {
           bill_details: JSON.stringify(bill_details),
           operator: operatorName,
           circle: null,
+          field1: formValues.field2 ?? null,   // ensures null if undefined
+          field2: formValues.field3 ?? null,
           amountExactness,
           fetchRequirement
         }
@@ -511,7 +513,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     ...(Platform.OS === 'web' && {
       '& button:focus': {
-        outline: 'none',
+        outlineStyle: 'none',
       },
     }),
   },
@@ -645,7 +647,7 @@ const styles = StyleSheet.create({
     height: 56,
     ...(Platform.OS === 'web' && {
       '& input:focus': {
-        outline: 'none',
+        outlineStyle: 'none',
       },
     }),
   },
@@ -673,7 +675,7 @@ const styles = StyleSheet.create({
     color: '#111827',
     paddingVertical: 0,
     ...(Platform.OS === 'web' && {
-      outline: 'none',
+      outlineStyle: 'none',
     }),
   },
   modalSearchContainer: {
@@ -698,7 +700,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     paddingVertical: 0,
     ...(Platform.OS === 'web' && {
-      outline: 'none',
+      outlineStyle: 'none',
     }),
   },
   searchIcon: {

@@ -1331,7 +1331,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     fontWeight: '500',
     ...(Platform.OS === 'web' && {
-      outline: 'none',
+      outlineStyle: 'none',
     }),
   },
   modalContactsListContainer: {

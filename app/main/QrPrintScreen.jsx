@@ -284,7 +284,7 @@ export default function QrPrintScreen() {
       height: element.offsetHeight
     });
     
-    downloadImage(dataUrl, 'VasBazaar-QR-Complete');
+    downloadImage(dataUrl, 'vasbazaar-QR-complete');
     Alert.alert('Success', 'Complete QR section downloaded successfully!');
   };
   
@@ -299,7 +299,7 @@ export default function QrPrintScreen() {
     });
     
     const dataUrl = canvas.toDataURL('image/png');
-    downloadImage(dataUrl, 'VasBazaar-QR-Complete');
+    downloadImage(dataUrl, 'vasbazaar-QR-Complete');
     Alert.alert('Success', 'Complete QR section downloaded successfully!');
   };
   
@@ -332,7 +332,7 @@ export default function QrPrintScreen() {
       
       // Download the canvas
       const dataUrl = canvas.toDataURL('image/png', 1.0);
-      downloadImage(dataUrl, 'VasBazaar-QR-Complete');
+      downloadImage(dataUrl, 'vasbazaar-QR-Complete');
       Alert.alert('Success', 'QR section downloaded with enhanced quality!');
       
     } catch (error) {
@@ -486,7 +486,7 @@ export default function QrPrintScreen() {
       await drawSimpleLayout(element, ctx, rect, padding);
       
       const dataUrl = canvas.toDataURL('image/png', 1.0);
-      downloadImage(dataUrl, 'VasBazaar-QR-Simple');
+      downloadImage(dataUrl, 'vasbazaar-QR-Simple');
       Alert.alert('Success', 'QR section downloaded (simplified version)!');
       
     } catch (error) {
@@ -515,11 +515,11 @@ export default function QrPrintScreen() {
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(padding + 30, padding + 30, contentWidth - 60, 90);
     
-    // VASBAZAAR logo text with styling - properly centered within content area
+    // vasbazaar logo text with styling - properly centered within content area
     ctx.fillStyle = '#f59e0b'; // Orange color for VAS
     ctx.font = 'bold 24px Arial';
     ctx.textAlign = 'left';
-    const fullLogoWidth = ctx.measureText('VASBAZAAR').width;
+    const fullLogoWidth = ctx.measureText('vasbazaar').width;
     const vasWidth = ctx.measureText('VAS').width;
     const logoStartX = padding + (contentWidth - fullLogoWidth) / 2;
     ctx.fillText('VAS', logoStartX, padding + 80);
@@ -722,8 +722,8 @@ export default function QrPrintScreen() {
           // Fallback: Share the image
           await Share.share({
             url: uri,
-            title: 'VasBazaar QR Code',
-            message: 'My VasBazaar QR Code with all details'
+            title: 'vasbazaar QR Code',
+            message: 'My vasbazaar QR Code with all details'
           });
         }
       } else {
@@ -760,7 +760,7 @@ export default function QrPrintScreen() {
         if (RNFS) {
           // Create filename with timestamp
           const timestamp = new Date().getTime();
-          const filename = `VasBazaar-QR-Complete-${userData?.username || 'user'}-${timestamp}.png`;
+          const filename = `vasbazaar-QR-Complete-${userData?.username || 'user'}-${timestamp}.png`;
           const downloadPath = `${RNFS.DownloadDirectoryPath}/${filename}`;
           
           // Copy file to Downloads folder
@@ -774,8 +774,8 @@ export default function QrPrintScreen() {
           // Fallback: Share the image
           await Share.share({
             url: uri,
-            title: 'VasBazaar QR Code',
-            message: 'My VasBazaar QR Code with all details'
+            title: 'vasbazaar QR Code',
+            message: 'My vasbazaar QR Code with all details'
           });
         }
       } else {
@@ -838,7 +838,7 @@ export default function QrPrintScreen() {
       // Try using the QR code image as fallback
       if (qrCodeImage) {
         console.log('Using QR code image fallback');
-        downloadImage(qrCodeImage, 'VasBazaar-QR');
+        downloadImage(qrCodeImage, 'vasbazaar-QR');
         Alert.alert('Success', 'QR code downloaded successfully!\\n\\nNote: Only the QR code was downloaded. For the complete section with logo and benefits, please:\\n\\n1. Install: npm install dom-to-image\\n2. Or take a screenshot manually');
         return;
       }
@@ -895,7 +895,7 @@ export default function QrPrintScreen() {
         
         // Download the captured image
         const dataUrl = canvas.toDataURL('image/png');
-        downloadImage(dataUrl, 'VasBazaar-QR-Screenshot');
+        downloadImage(dataUrl, 'vasbazaar-QR-Screenshot');
         
         Alert.alert('Success', 'Screen captured! Please crop the QR section from the downloaded image if needed.');
       });
@@ -998,7 +998,7 @@ export default function QrPrintScreen() {
           id="qr-section-to-download"
           ref={Platform.OS === 'web' ? null : qrSectionRef}
         >
-          {/* Vasbazaar Logo - Inside QR Code card */}
+          {/* vasbazaar Logo - Inside QR Code card */}
           <Image 
             source={require('../../assets/images/vasbazaar_logo.png')} 
             style={styles.logoImageInCard}

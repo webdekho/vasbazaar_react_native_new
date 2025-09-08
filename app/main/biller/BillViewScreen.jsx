@@ -28,7 +28,9 @@ export default function BillViewScreen() {
     name = 'No Name',
     companyLogo = '',
     bill_details = {},
-    amountExactness
+    amountExactness,
+    field1 = null,
+    field2 = null,  
   } = params || {};
 
   // Parse contact if it's a string
@@ -128,6 +130,8 @@ export default function BillViewScreen() {
           operator,
           circle: null,
           bill_details: JSON.stringify(billDetailsData),
+          field1,
+          field2
         }
       });
 

@@ -49,7 +49,7 @@ class Email_service {
             if ($from) {
                 $this->CI->email->from($from);
             } else {
-                $this->CI->email->from('noreply@vasbazaar.com', 'VasBazaar');
+                $this->CI->email->from('noreply@vasbazaar.com', 'vasbazaar');
             }
             
             $this->CI->email->to($to);
@@ -74,18 +74,18 @@ class Email_service {
      */
     public function send_otp($to, $otp, $name = '')
     {
-        $subject = 'VasBazaar - OTP Verification';
+        $subject = 'vasbazaar - OTP Verification';
         
         $message = "
         <html>
         <body>
-            <h2>VasBazaar OTP Verification</h2>
+            <h2>vasbazaar OTP Verification</h2>
             " . (!empty($name) ? "<p>Hello {$name},</p>" : "<p>Hello,</p>") . "
             <p>Your OTP for verification is: <strong>{$otp}</strong></p>
             <p>This OTP is valid for 10 minutes only.</p>
             <p>Please do not share this OTP with anyone.</p>
             <br>
-            <p>Best regards,<br>VasBazaar Team</p>
+            <p>Best regards,<br>vasbazaar Team</p>
         </body>
         </html>
         ";
@@ -103,14 +103,14 @@ class Email_service {
      */
     public function send_welcome_email($to, $name, $mobile)
     {
-        $subject = 'Welcome to VasBazaar!';
+        $subject = 'Welcome to vasbazaar!';
         
         $message = "
         <html>
         <body>
-            <h2>Welcome to VasBazaar!</h2>
+            <h2>Welcome to vasbazaar!</h2>
             <p>Hello {$name},</p>
-            <p>Thank you for registering with VasBazaar. Your account has been created successfully.</p>
+            <p>Thank you for registering with vasbazaar. Your account has been created successfully.</p>
             <p><strong>Account Details:</strong></p>
             <ul>
                 <li>Name: {$name}</li>
@@ -126,7 +126,7 @@ class Email_service {
             </ul>
             <p>If you have any questions, feel free to contact our support team.</p>
             <br>
-            <p>Best regards,<br>VasBazaar Team</p>
+            <p>Best regards,<br>vasbazaar Team</p>
         </body>
         </html>
         ";
@@ -143,7 +143,7 @@ class Email_service {
      */
     public function send_transaction_notification($to, $transaction_data)
     {
-        $subject = 'VasBazaar - Transaction ' . $transaction_data['status'];
+        $subject = 'vasbazaar - Transaction ' . $transaction_data['status'];
         
         $status_color = $transaction_data['status'] === 'SUCCESS' ? 'green' : 
                        ($transaction_data['status'] === 'FAILED' ? 'red' : 'orange');
@@ -165,9 +165,9 @@ class Email_service {
             
             " . (!empty($transaction_data['remarks']) ? "<p><strong>Remarks:</strong> {$transaction_data['remarks']}</p>" : "") . "
             
-            <p>Thank you for using VasBazaar services.</p>
+            <p>Thank you for using vasbazaar services.</p>
             <br>
-            <p>Best regards,<br>VasBazaar Team</p>
+            <p>Best regards,<br>vasbazaar Team</p>
         </body>
         </html>
         ";
@@ -185,19 +185,19 @@ class Email_service {
      */
     public function send_low_balance_alert($to, $name, $balance)
     {
-        $subject = 'VasBazaar - Low Balance Alert';
+        $subject = 'vasbazaar - Low Balance Alert';
         
         $message = "
         <html>
         <body>
             <h2>Low Balance Alert</h2>
             <p>Hello {$name},</p>
-            <p>Your VasBazaar wallet balance is running low.</p>
+            <p>Your vasbazaar wallet balance is running low.</p>
             <p><strong>Current Balance: ₹{$balance}</strong></p>
             <p>Please add money to your wallet to continue using our services.</p>
             <p>You can add money through our app or website.</p>
             <br>
-            <p>Best regards,<br>VasBazaar Team</p>
+            <p>Best regards,<br>vasbazaar Team</p>
         </body>
         </html>
         ";

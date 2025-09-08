@@ -877,7 +877,7 @@ const styles = StyleSheet.create({
     fontSize: 16, // Minimum 16px to prevent iOS zoom
     color: '#333',
     ...(Platform.OS === 'web' && {
-      outline: 'none',
+      outlineStyle: 'none',
     }),
   },
   // List Container

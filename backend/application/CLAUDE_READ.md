@@ -1,6 +1,6 @@
 # CLAUDE_READ.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with the **CodeIgniter 3 backend** of the VasBazaar application (converted from Spring Boot).
+This file provides guidance to Claude Code (claude.ai/code) when working with the **CodeIgniter 3 backend** of the vasbazaar application (converted from Spring Boot).
 
 ## Development Commands
 
@@ -20,7 +20,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with th
 ## Architecture Overview
 
 ### Project Structure
-This is a **CodeIgniter 3 REST API backend** converted from Spring Boot, serving the VasBazaar mobile/web application for mobile recharges, bill payments, and financial services. The application follows **MVC architecture** with additional service layer.
+This is a **CodeIgniter 3 REST API backend** converted from Spring Boot, serving the vasbazaar mobile/web application for mobile recharges, bill payments, and financial services. The application follows **MVC architecture** with additional service layer.
 
 ### Core Architecture Patterns
 
@@ -247,4 +247,4 @@ try {
 - Generate unique filenames to prevent conflicts
 - Store upload paths in database for reference
 
-This CodeIgniter 3 application serves as the converted backend API for the VasBazaar financial services platform, maintaining the same functionality as the original Spring Boot application while following CodeIgniter conventions and patterns.
+This CodeIgniter 3 application serves as the converted backend API for the vasbazaar financial services platform, maintaining the same functionality as the original Spring Boot application while following CodeIgniter conventions and patterns.

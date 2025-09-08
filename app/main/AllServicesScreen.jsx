@@ -460,7 +460,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#374151',
     ...(Platform.OS === 'web' && {
-      outline: 'none',
+      outlineStyle: 'none',
     }),
   },
   clearButton: {

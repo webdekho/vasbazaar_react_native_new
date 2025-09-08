@@ -252,7 +252,9 @@ export default function PinValidateScreen() {
             AsyncStorage.removeItem('pinValidationSuccess');
           }, 1000);
           // Trigger PWA prompt after successful login
+          console.log('🔐 [PinValidateScreen] About to call triggerPWAPromptAfterLogin');
           await triggerPWAPromptAfterLogin();
+          console.log('🔐 [PinValidateScreen] triggerPWAPromptAfterLogin completed');
           router.replace('/(tabs)/home');
         }, 200);
         
@@ -372,7 +374,9 @@ export default function PinValidateScreen() {
             AsyncStorage.removeItem('pinValidationSuccess');
           }, 1000);
           // Trigger PWA prompt after successful login
+          console.log('🔐 [PinValidateScreen] About to call triggerPWAPromptAfterLogin');
           await triggerPWAPromptAfterLogin();
+          console.log('🔐 [PinValidateScreen] triggerPWAPromptAfterLogin completed');
           router.replace('/(tabs)/home');
         }, 200);
         

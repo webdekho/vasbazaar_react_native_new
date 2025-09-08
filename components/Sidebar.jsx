@@ -35,7 +35,7 @@ import { shareReferralLink } from '../services/sharing/shareService';
  * @param {string} options.url - URL to share
  */
 const shareWithMultiplePlatforms = async (options) => {
-  const { message, title = 'Share from VasBazaar', url } = options;
+  const { message, title = 'Share from vasbazaar', url } = options;
   
   try {
     if (Platform.OS === 'web' && navigator.share && navigator.canShare) {
@@ -196,11 +196,11 @@ export default function Sidebar({ visible, onClose, userInfo }) {
     if (!qrString) return Alert.alert('Error', 'Referral link not available.');
     try {
       const userName = userData?.name || defaultUserInfo.name;
-      const message = `🎉 Hey! I'm using VasBazaar to earn cashback on every transaction. ${userName ? `Join me (${userName}) ` : 'Join me '}and start earning too! 💰\n\n🔗 Sign up here: ${qrString}\n\n✨ Get instant cashback on mobile recharges, bill payments & more!`;
+      const message = `🎉 Hey! I'm using vasbazaar to earn cashback on every transaction. ${userName ? `Join me (${userName}) ` : 'Join me '}and start earning too! 💰\n\n🔗 Sign up here: ${qrString}\n\n✨ Get instant cashback on mobile recharges, bill payments & more!`;
       
       await shareWithMultiplePlatforms({
         message: message,
-        title: 'Join VasBazaar - Earn Cashback!',
+        title: 'Join vasbazaar - Earn Cashback!',
         url: qrString,
         userName: userName
       });

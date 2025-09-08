@@ -18,7 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 $response = array(
     'Status' => 'SUCCESS',
     'StatusCode' => 200,
-    'message' => 'VasBazaar CodeIgniter 3 Backend API is working!',
+    'message' => 'vasbazaar CodeIgniter 3 Backend API is working!',
     'data' => array(
         'version' => '1.0.0',
         'framework' => 'CodeIgniter 3.1.13',

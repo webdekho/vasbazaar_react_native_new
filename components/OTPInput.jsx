@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
     margin: 0,
     borderWidth: 0,
     ...(Platform.OS === 'web' && {
-      outline: 'none',
+      outlineStyle: 'none',
       caretColor: 'transparent',
     }),
   },

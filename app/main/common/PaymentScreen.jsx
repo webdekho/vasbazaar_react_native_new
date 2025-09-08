@@ -94,7 +94,9 @@ export default function PaymentScreen() {
     selectedCoupon2 = null,
     bill_details = null,
     couponDesc = null,
-    couponName = null
+    couponName = null,
+    field1 = null,
+    field2 = null
   } = params || {};
 
   // Parse plan data
@@ -134,10 +136,10 @@ export default function PaymentScreen() {
             redirectToSuccess(paymentType, result);
           } else if (innerStatus === 'pending') {
             console.log('Wallet payment pending');
-            showPaymentError('Transaction in progress. It may take a few minutes to complete.', 'Pending');
+            showPaymentError('Your Transaction is pending please check the status in history', 'Pending');
           } else {
             console.log('Wallet payment failed:', result.data.message);
-            showPaymentError(result.data.message || 'Wallet payment failed');
+            showPaymentError(result.data.message || 'Payment failed');
           }
         } else if (paymentType === 'upi') {
           if (innerStatus === 'pending') {
@@ -148,7 +150,7 @@ export default function PaymentScreen() {
             redirectToSuccess(paymentType, result);
           } else {
             console.log('UPI payment failed:', result.data.message);
-            showPaymentError(result.data.message || 'UPI payment failed');
+            showPaymentError(result.data.message || 'UPI Payment failed');
           }
         }
       } else {
@@ -568,7 +570,7 @@ export default function PaymentScreen() {
 
   return (
     <>
-      <MainHeader title="Payment" />
+      <MainHeader title="Payment" onBackPress={() => router.replace('/(tabs)/home')} />
       <ScrollView 
         style={styles.container} 
         contentContainerStyle={[
@@ -681,6 +683,10 @@ export default function PaymentScreen() {
               Available: ₹{walletBalance}
             </Text>
           </View>
+
+
+
+
           <TouchableOpacity 
             style={[
               styles.payButton,
@@ -741,6 +747,10 @@ export default function PaymentScreen() {
             </Text>
           </TouchableOpacity>
         </View>
+
+
+
+
 
       </ScrollView>
 
@@ -803,6 +813,7 @@ export default function PaymentScreen() {
         onPress={() => {
           setShowFailurePopup(false);
           setErrorDetails(null);
+          router.replace('/(tabs)/home');
         }}
         style={styles.closeButton}
       >

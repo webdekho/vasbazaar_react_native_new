@@ -29,7 +29,7 @@ try {
  * @param {boolean} options.forceWhatsApp - Try to open WhatsApp specifically
  */
 export const shareWithWhatsApp = async (options) => {
-  const { message, title = 'Share from VasBazaar', url, forceWhatsApp = true } = options;
+  const { message, title = 'Share from vasbazaar', url, forceWhatsApp = true } = options;
   
   try {
     // For mobile platforms, try WhatsApp first if requested
@@ -273,11 +273,11 @@ const showManualCopyAlert = (message) => {
  * Share referral link specifically
  */
 export const shareReferralLink = async (referralUrl, userName = '') => {
-  const message = `🎉 Hey! I'm using VasBazaar to earn cashback on every transaction. ${userName ? `Join me (${userName}) ` : 'Join me '}and start earning too! 💰\n\n🔗 Sign up here: ${referralUrl}\n\n✨ Get instant cashback on mobile recharges, bill payments & more!`;
+  const message = `🎉 Hey! I'm using vasbazaar to earn cashback on every transaction. ${userName ? `Join me (${userName}) ` : 'Join me '}and start earning too! 💰\n\n🔗 Sign up here: ${referralUrl}\n\n✨ Get instant cashback on mobile recharges, bill payments & more!`;
   
   await shareWithWhatsApp({
     message: message,
-    title: 'Join VasBazaar - Earn Cashback!',
+    title: 'Join vasbazaar - Earn Cashback!',
     url: referralUrl,
     forceWhatsApp: true
   });
@@ -289,11 +289,11 @@ export const shareReferralLink = async (referralUrl, userName = '') => {
 export const shareTransactionSuccess = async (transactionDetails) => {
   const { amount, operator, service, referralUrl } = transactionDetails;
   
-  const message = `💸 Just saved money on my ${service} with ${operator}! Paid only ₹${amount} and got instant cashback! 🎉\n\n💡 You can save too! Join VasBazaar and get cashback on every transaction:\n${referralUrl}\n\n#SaveMoney #Cashback #VasBazaar`;
+  const message = `💸 Just saved money on my ${service} with ${operator}! Paid only ₹${amount} and got instant cashback! 🎉\n\n💡 You can save too! Join vasbazaar and get cashback on every transaction:\n${referralUrl}\n\n#SaveMoney #Cashback #vasbazaar`;
   
   await shareWithWhatsApp({
     message: message,
-    title: 'I just saved money with VasBazaar!',
+    title: 'I just saved money with vasbazaar!',
     url: referralUrl,
     forceWhatsApp: true
   });

@@ -92,6 +92,7 @@ export default function RootLayout() {
         {/* Common Screens */}
         <Stack.Screen name="main/common/OfferScreen" options={{ headerShown: false }} />
         <Stack.Screen name="main/common/PaymentScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="main/common/PaymentScreenPayu" options={{ headerShown: false }} />
         <Stack.Screen name="main/common/SuccessScreen" options={{ headerShown: false }} />
         <Stack.Screen name="main/common/FailedScreen" options={{ headerShown: false }} />
         <Stack.Screen name="main/common/PendingScreen" options={{ headerShown: false }} />

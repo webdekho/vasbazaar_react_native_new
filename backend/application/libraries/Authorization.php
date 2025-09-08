@@ -4,7 +4,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 /**
  * Authorization Library
  * 
- * Handles user authentication and authorization for VasBazaar application
+ * Handles user authentication and authorization for vasbazaar application
  * Provides token validation and role-based access control
  */
 class Authorization {

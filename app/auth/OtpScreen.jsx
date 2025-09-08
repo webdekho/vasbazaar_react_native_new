@@ -9,6 +9,7 @@ import { verifyLoginOtp, sendLoginOtp } from '../../services';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { saveSessionToken } from '../../services/auth/sessionManager';
 import { useAuth } from '../../hooks/useAuth';
+import { triggerPWAPromptAfterLogin } from '../../components/PWAPromptInstaller';
 
 const { height: screenHeight } = Dimensions.get('window');
 
@@ -149,6 +150,10 @@ export default function OtpScreen() {
               AsyncStorage.removeItem('otpValidationSuccess');
             }, 1000);
             
+            // Trigger PWA prompt after successful login
+            console.log('🔐 [OtpScreen] About to call triggerPWAPromptAfterLogin');
+            await triggerPWAPromptAfterLogin();
+            console.log('🔐 [OtpScreen] triggerPWAPromptAfterLogin completed');
             // Navigate to home
             router.replace('/(tabs)/home');
           } catch (error) {
@@ -394,7 +399,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   otpContainer: {
-    marginBottom: 32,
+    marginBottom: 0,
   },
   otpInputs: {
     flexDirection: 'row',

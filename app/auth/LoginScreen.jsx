@@ -335,7 +335,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   inputGroup: {
-    marginBottom: 24, // Same as welcomeSection marginBottom
+    marginBottom: 0, // Same as welcomeSection marginBottom
   },
   mobileInputContainer: {
     flexDirection: 'row',
@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8, // Add some vertical padding for better cursor visibility
     ...(Platform.OS === 'web' && {
-      outline: 'none',
+      outlineStyle: 'none',
       boxShadow: 'none',
     }),
   },
@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
     paddingVertical: 0, // Remove default padding to align with container
     textAlign: 'left',
     ...(Platform.OS === 'web' && {
-      outline: 'none',
+      outlineStyle: 'none',
     }),
   },
   input: {
@@ -382,7 +382,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
     color: '#111827',
     ...(Platform.OS === 'web' && {
-      outline: 'none',
+      outlineStyle: 'none',
     }),
   },
   inputError: {

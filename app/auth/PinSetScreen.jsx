@@ -6,6 +6,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { setUserPin } from '../../services';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../hooks/useAuth';
+import { triggerPWAPromptAfterLogin } from '../../components/PWAPromptInstaller';
 
 export default function PinSetScreen() {
   const router = useRouter();
@@ -109,6 +110,10 @@ export default function PinSetScreen() {
                 AsyncStorage.removeItem('pinSetSuccess');
               }, 1000);
               
+              // Trigger PWA prompt after successful login
+              console.log('🔐 [PinSetScreen] About to call triggerPWAPromptAfterLogin');
+              await triggerPWAPromptAfterLogin();
+              console.log('🔐 [PinSetScreen] triggerPWAPromptAfterLogin completed');
               // Navigate to home
               router.replace('/(tabs)/home');
             } catch (error) {

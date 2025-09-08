@@ -172,6 +172,8 @@ export default function DthRecharge() {
           dth_info: JSON.stringify(response.data),
           operator: operatorName,
           circle: null,
+          field1: formValues.field2 || null,
+          field2: formValues.field3 || null,
           plan: JSON.stringify({
             price: `₹${formValues.field2 || '0'}`,
             validity: 'Custom',

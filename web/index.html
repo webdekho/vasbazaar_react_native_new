@@ -14,6 +14,9 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    
     <!-- Theme color -->
     <meta name="theme-color" content="#000000" />
     
@@ -209,9 +212,72 @@
 <body>
     <div id="root">
         <div class="loading-container">
-            <div>Loading VasBazaar...</div>
+            <div>Loading vasbazaar...</div>
         </div>
     </div>
+    
+    <!-- Service Worker Registration and PWA Setup -->
+    <script>
+        // Debug function to check manifest and PWA setup
+        window.debugPWASetup = async () => {
+            console.log('🔍 [PWA Debug] Checking PWA setup...');
+            
+            // Check manifest
+            try {
+                const manifestResponse = await fetch('/manifest.json');
+                const manifest = await manifestResponse.json();
+                console.log('📋 [PWA Debug] Manifest loaded:', manifest);
+                
+                // Check icons
+                for (const icon of manifest.icons) {
+                    try {
+                        const iconResponse = await fetch(icon.src);
+                        console.log(`📱 [PWA Debug] Icon ${icon.src}:`, iconResponse.ok ? 'OK' : 'FAILED');
+                    } catch (e) {
+                        console.log(`❌ [PWA Debug] Icon ${icon.src} failed:`, e.message);
+                    }
+                }
+            } catch (error) {
+                console.log('❌ [PWA Debug] Manifest failed:', error);
+            }
+            
+            // Check service worker
+            if ('serviceWorker' in navigator) {
+                const registration = await navigator.serviceWorker.getRegistration();
+                console.log('🔧 [PWA Debug] Service Worker:', registration ? 'Registered' : 'Not registered');
+            }
+            
+            // Check install prompt availability
+            console.log('📲 [PWA Debug] Install prompt available:', window.globalInstallPrompt ? 'YES' : 'NO');
+            
+            // Check if running as PWA
+            const isPWA = window.matchMedia('(display-mode: standalone)').matches ||
+                         window.navigator.standalone ||
+                         document.referrer.includes('android-app://');
+            console.log('📱 [PWA Debug] Running as PWA:', isPWA);
+        };
+        
+        // Register service worker for PWA functionality
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then((registration) => {
+                        console.log('✅ [PWA] Service Worker registered:', registration.scope);
+                    })
+                    .catch((error) => {
+                        console.log('❌ [PWA] Service Worker registration failed:', error);
+                    });
+            });
+        }
+        
+        // Auto-check PWA setup in development
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            setTimeout(() => {
+                console.log('🧪 [PWA Debug] Auto-checking PWA setup (dev mode)');
+                window.debugPWASetup();
+            }, 2000);
+        }
+    </script>
     
     <!-- Safari-optimized viewport and scroll handling -->
     <script>

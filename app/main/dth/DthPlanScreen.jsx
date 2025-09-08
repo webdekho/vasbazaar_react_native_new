@@ -42,7 +42,9 @@ export default function DthPlanScreen() {
   // Parse contact info
   const contact = params?.contact ? JSON.parse(params.contact) : {};
   const mobile = contact?.number || 'NA';
-  
+  const field1 = params?.field1 || null;
+  const field2 = params?.field2 || null;
+
   // Parse DTH info
   const dthInfo = params?.dth_info ? JSON.parse(params.dth_info) : {};
   console.log('DTH Info:', dthInfo);
@@ -192,6 +194,8 @@ export default function DthPlanScreen() {
         name, 
         mobile, 
         operator, 
+        field1,
+        field2,
         circle,
         service: 'dth'
       }
@@ -610,7 +614,7 @@ const styles = StyleSheet.create({
     color: '#111827',
     fontWeight: '500',
     ...(Platform.OS === 'web' && {
-      outline: 'none',
+      outlineStyle: 'none',
     }),
   },
   fixedCategoryContainer: {

@@ -69,6 +69,8 @@ export default function OfferScreen() {
     circle = null,
     bill_details = null,
     service = null,
+    field1 = null,
+    field2 = null,
   } = params || {};
 
   const [coupon, setCoupon] = useState('');
@@ -394,7 +396,7 @@ export default function OfferScreen() {
               setIsLoading(true);
               try {
                 router.push({
-                  pathname: '/main/common/PaymentScreen',
+                  pathname: '/main/common/PaymentScreenPayu',
                   params: {
                     serviceId,
                     operator_id,
@@ -411,6 +413,8 @@ export default function OfferScreen() {
                     bill_details,
                     couponDesc,
                     couponName,
+                    field1,
+                    field2,
                   }
                 });
               } finally {
@@ -449,7 +453,11 @@ export default function OfferScreen() {
                     left={(props) => (
                       <Avatar.Image
                         {...props}
-                        source={Icons[offer.type] || require('../../../assets/icons/coupon.png')}
+                        source={
+                          offer.logo
+                            ? { uri: offer.logo }
+                            : require('../../../assets/icons/coupon.png')
+                        }
                       />
                     )}
                     right={() => (
